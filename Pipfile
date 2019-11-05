@@ -12,10 +12,11 @@ pre-commit = "*"
 python-dotenv = "*"
 psycopg2 = "*"
 djangorestframework = "*"
-django-rest-auth = {version = "*",extras = ["with_social"]}
+django-rest-auth = {extras = ["with_social"],version = "*"}
 django-cors-headers = "*"
 django-rq = "*"
 rq = "*"
+honcho = "*"
 
 [requires]
 python_version = "3"
