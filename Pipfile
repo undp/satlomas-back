@@ -12,6 +12,8 @@ pre-commit = "*"
 python-dotenv = "*"
 psycopg2 = "*"
 djangorestframework = "*"
+django-rest-auth = {version = "*",extras = ["with_social"]}
+django-cors-headers = "*"
 
 [requires]
 python_version = "3"

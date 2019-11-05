@@ -24,7 +24,23 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.getenv('DEBUG', 1)) > 0
 
-ALLOWED_HOSTS = []
+def get_allowed_hosts():
+    """
+    Get allowed hosts from .env file
+
+    If DEBUG = True and ALLOWED_HOSTS is empty or null,
+    default to ['.dymaxionlabs.com']
+
+    """
+    hosts = [s for s in os.getenv('ALLOWED_HOSTS', '').split(',') if s]
+    if not DEBUG and not hosts:
+        hosts = ['.dymaxionlabs.com']
+    return hosts
+
+ALLOWED_HOSTS = get_allowed_hosts()
+
+WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
+
 
 # Application definition
 
@@ -34,13 +50,22 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.sites',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'rest_auth',
+    'rest_auth.registration',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -67,6 +92,10 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'geolomas.wsgi.application'
+
+CORS_ORIGIN_WHITELIST = [
+    WEBCLIENT_URL,
+]
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
@@ -121,3 +150,5 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
+
+SITE_ID = 1

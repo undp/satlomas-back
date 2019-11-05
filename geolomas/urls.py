@@ -18,6 +18,12 @@ from django.conf.urls import url
 from django.urls import include, path
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls')),
+
+    # Authentication
+    url(r'^auth/', include('rest_auth.urls')),
+    url(r'^auth/registration/', include('rest_auth.registration.urls')),
+
+    # Administration
+    url(r'^admin/', admin.site.urls),
 ]
