@@ -11,6 +11,7 @@ django = "*"
 pre-commit = "*"
 python-dotenv = "*"
 psycopg2 = "*"
+djangorestframework = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3"
