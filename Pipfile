@@ -14,6 +14,8 @@ psycopg2 = "*"
 djangorestframework = "*"
 django-rest-auth = {version = "*",extras = ["with_social"]}
 django-cors-headers = "*"
+django-rq = "*"
+rq = "*"
 
 [requires]
 python_version = "3"

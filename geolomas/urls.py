@@ -27,3 +27,5 @@ urlpatterns = [
     # Administration
     url(r'^admin/', admin.site.urls),
 ]
+
+urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]

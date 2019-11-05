@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'rest_auth',
     'rest_auth.registration',
     'corsheaders',
+    'django_rq',
 ]
 
 MIDDLEWARE = [
@@ -152,3 +153,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 SITE_ID = 1
+
+RQ_QUEUES = {
+    'default': {
+        'URL': os.getenv('RQ_REDIS_URL', 'redis://localhost:6379/0'),
+        'DEFAULT_TIMEOUT': os.getenv('RQ_TIMEOUT', 360),
+    }
+}
+
+RQ_SHOW_ADMIN_LINK = True
