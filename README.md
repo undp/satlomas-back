@@ -1,9 +1,12 @@
-# pnud-geolomas
+# GeoLomas backend
+
+This is the repository for GeoLomas platform backend, which contains the REST
+API and background jobs.
 
 ## Requirements
 
 * Python 3
-* PostgreSQL 9.4+ with PostGIS 2 and Timescale extensions 
+* PostgreSQL 9.4+ with PostGIS 2 and Timescale extensions
 * GDAL, Proj, etc.
 
 ## Development
