@@ -11,9 +11,11 @@ def populate(cant_per_day, days, begin_date):
     """
     Populate with randoms measures
         cant_per_day: Quantity of measures in a day
-        days: Quantity of days measured
+        days: Quantity of days measured - Max 60*24
         begin_date: datetime to represent the first date measured
     """
+    if cant_per_day > 60*24:
+        cant_per_day = 60*24
     for d in range(1,days):
         date = begin_date + timedelta(days=d)
         for x in range(1,60*24,int(60*24/cant_per_day)):
