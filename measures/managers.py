@@ -32,3 +32,23 @@ class MeasureManager(models.Manager):
                 humidity=humidity, 
                 device_id=device_id
             )
+
+    def get(self, datetime, device_id):
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+            SELECT m.datetime, m.temperature, m.humidity, m.device_id
+            FROM measures_measure m
+            where m.datetime = '{datetime}' and m.device_id = '{device_id}'
+            """.format(
+                datetime=str(datetime),
+                device_id=device_id
+            ))
+            result_list = []
+            for row in cursor.fetchall():
+                m = self.model(datetime=row[0], temperature=row[1], humidity=row[2], device_id=row[3])
+                result_list.append(m)
+        if len(result_list) == 0:
+            raise Exception("There is no results for that query")
+        else:
+            return result_list[0]
