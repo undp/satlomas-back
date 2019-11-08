@@ -10,8 +10,8 @@ from random import uniform
 def populate(cant_per_day, days, begin_date):
     """
     Populate with randoms measures
-        cant_per_day: Quantity of measures in a day
-        days: Quantity of days measured - Max 60*24
+        cant_per_day: Quantity of measures in a day - Max 60*24
+        days: Quantity of days measured 
         begin_date: datetime to represent the first date measured
     """
     if cant_per_day > 60*24:
