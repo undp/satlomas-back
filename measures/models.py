@@ -33,3 +33,12 @@ class Measure(models.Model):
     class Meta:
         managed = False
         db_table = 'measures_measure'
+
+    
+    def __str__(self):
+        return '{datetime} {device_id} - Temp: {temp} Hum: {hum}'.format(
+            datetime=str(self.datetime),
+            device_id=self.device_id,
+            temp=self.temperature,
+            hum=self.humidity
+        )
