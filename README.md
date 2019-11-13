@@ -19,14 +19,15 @@ sudo apt-get install python3 python3-dev python3-pip \
   gettext
 ```
 
-* Install Timescale
+* Install TimescaleDB
 
-You can use timescaledb instalation [guide](https://docs.timescale.com/latest/getting-started/installation)
+You can use TimescaleDB instalation
+[guide](https://docs.timescale.com/latest/getting-started/installation).
 
 * Create a role and database (e.g. `geolomas`)
 
 ```
-sudo -u postgres createuser --interactive
+sudo -u postgres createuser -s --interactive
 sudo -u postgres createdb geolomas
 ```
 
