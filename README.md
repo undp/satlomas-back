@@ -1,9 +1,12 @@
-# pnud-geolomas
+# GeoLomas backend
+
+This is the repository for GeoLomas platform backend, which contains the REST
+API and background jobs.
 
 ## Requirements
 
 * Python 3
-* PostgreSQL 9.4+ with PostGIS 2 and Timescale extensions 
+* PostgreSQL 9.4+ with PostGIS 2 and Timescale extensions
 * GDAL, Proj, etc.
 
 ## Development
@@ -16,14 +19,15 @@ sudo apt-get install python3 python3-dev python3-pip \
   gettext
 ```
 
-* Install Timescale
+* Install TimescaleDB
 
-You can use timescaledb instalation [guide](https://docs.timescale.com/latest/getting-started/installation)
+You can use TimescaleDB instalation
+[guide](https://docs.timescale.com/latest/getting-started/installation).
 
 * Create a role and database (e.g. `geolomas`)
 
 ```
-sudo -u postgres createuser --interactive
+sudo -u postgres createuser -s --interactive
 sudo -u postgres createdb geolomas
 ```
 
