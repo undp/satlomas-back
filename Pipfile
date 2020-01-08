@@ -5,6 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 yapf = "*"
+pylint = "*"
 
 [packages]
 django = "*"
@@ -17,6 +18,8 @@ django-cors-headers = "*"
 django-rq = "*"
 rq = "*"
 honcho = "*"
+django-anymail = {extras = ["mailgun"],version = "*"}
+django-storages = {extras = ["google"],version = "*"}
 
 [requires]
 python_version = "3"
