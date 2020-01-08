@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+from datetime import date
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,6 +63,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_rq',
     'measures',
+    'files',
 ]
 
 MIDDLEWARE = [
@@ -163,3 +165,10 @@ RQ_QUEUES = {
 }
 
 RQ_SHOW_ADMIN_LINK = True
+
+SCIHUB_URL = os.getenv('SCIHUB_URL')
+SCIHUB_USER = os.getenv('SCIHUB_USER')
+SCIHUB_PASS = os.getenv('SCIHUB_PASS')
+IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2', 'raw')
+IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
+S2M_PATH="/home/gessi/sen2mosaic/cli/mosaic.py"
