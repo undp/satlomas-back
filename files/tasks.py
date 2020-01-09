@@ -14,6 +14,75 @@ def run_subprocess(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
+def generate_vegetation_indexes(mosaic_name):
+
+    nir = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_NIR.vrt'.format(mosaic_name))
+    rgb = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_RGB.vrt'.format(mosaic_name))
+
+    #ndiv
+    dst = os.path.join(settings.IMAGES_PATH,'results','R10m_NDIV.tif')
+    exp = '(im1b1 - im2b1) / (im1b1 + im2b1)'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+    
+    #ndwi
+    dst = os.path.join(settings.IMAGES_PATH,'results','R10m_NDWI.tif')
+    exp = '(im1b1 - im2b2) / (im1b1 + im2b2)'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+    
+    #evi
+    dst = os.path.join(settings.IMAGES_PATH,'results','R10m_EVI.tif')
+    exp = '(2.5 * ((im1b1 - im2b1) / (im1b1 + 6 * im2b1 - 7.5 * im2b3 + 1)))'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+
+    #savi
+    dst = os.path.join(settings.IMAGES_PATH,'results','R10m_SAVI.tif')
+    exp = '((im1b1 - im2b1) * 1.5 / (im1b1 + im2b1 + 0.5))'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+
+
+def concatenate_results(mosaic_name, date_from, date_to):
+    tif_10m = 's2_{}{}_{}{}_10m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+    tif_20m = 's2_{}{}_{}{}_20m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+
+    R10m_B02 = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_B02.tif'.format(mosaic_name))
+    R10m_B03 = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_B03.tif'.format(mosaic_name))
+    R10m_B04 = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_B04.tif'.format(mosaic_name))
+    R10m_B08 = os.path.join(settings.IMAGES_PATH,'results','{}_R10m_B08.tif'.format(mosaic_name))
+    R10m_NDIV = os.path.join(settings.IMAGES_PATH,'results','R10m_NDIV.tif')
+    R10m_NDIV = os.path.join(settings.IMAGES_PATH,'results','R10m_NDWI.tif')
+    R10m_EVI = os.path.join(settings.IMAGES_PATH,'results','R10m_EVI.tif')
+    R10m_SAVI = os.path.join(settings.IMAGES_PATH,'results','R10m_SAVI.tif')
+    src = ' '.join([R10m_B02,R10m_B03,R10m_B04,R10m_B08,R10m_NDIV,R10m_NDIV,R10m_EVI,R10m_SAVI])
+    run_subprocess('{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
+            otb_bin_path=settings.OTB_BIN_PATH,
+            src=src,
+            dst=os.path.join(settings.IMAGES_PATH,'results',tif_10m)))
+    
+    R20m_B05 = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B05.tif'.format(mosaic_name))
+    R20m_B06 = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B06.tif'.format(mosaic_name))
+    R20m_B07 = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B07.tif'.format(mosaic_name))
+    R20m_B8A = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B8A.tif'.format(mosaic_name))
+    R20m_B11 = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B11.tif'.format(mosaic_name))
+    R20m_B12 = os.path.join(settings.IMAGES_PATH,'results','{}_R20m_B12.tif'.format(mosaic_name))
+    src = ' '.join([R20m_B05,R20m_B06,R20m_B07,R20m_B8A,R20m_B11,R20m_B12])
+    run_subprocess('{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
+            otb_bin_path=settings.OTB_BIN_PATH,
+            src=src,
+            dst=os.path.join(settings.IMAGES_PATH,'results',tif_20m)))
+
+
 @job("default", timeout=3600)
 def download_sentinel2(date_from, date_to):
     
@@ -88,10 +157,24 @@ def download_sentinel2(date_from, date_to):
 
     #s2m
     if gdal_info:
+        mosaic_name = '{}{}_{}{}_mosaic.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, "name_of_mosaic", os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
         )
         run_subprocess(cmd)
+
+        cmd = "python3 {} -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
+        )
+        run_subprocess(cmd)
+
+        #delete useless products
+        products_delete = os.path.join(settings.IMAGES_PATH,"*.SAFE")
+        cmd = "rm -rf {}".format(products_delete)
+        run_subprocess(cmd)
+
+        generate_vegetation_indexes(mosaic_name)
+        concatenate_results(mosaic_name, date_from, date_to)
     else:
         print("No GDAL info found on raw folder.")
 
