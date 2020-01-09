@@ -171,4 +171,4 @@ SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2', 'raw')
 IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
-S2M_PATH="/home/gessi/sen2mosaic/cli/mosaic.py"
+S2M_PATH = os.getenv('S2M_PATH')
