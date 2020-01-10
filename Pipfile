@@ -20,6 +20,9 @@ rq = "*"
 honcho = "*"
 django-anymail = {extras = ["mailgun"],version = "*"}
 django-storages = {extras = ["google"],version = "*"}
+dateutils = "*"
+sentinelsat = "*"
+rasterio = "*"
 
 [requires]
 python_version = "3"
