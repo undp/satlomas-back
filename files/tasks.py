@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 import json
 
-# import django_rq; from datetime import date; date_from = date(2019,4,1); date_to = date(2019,5,1); queue = django_rq.get_queue('default', default_timeout=36000); queue.enqueue("files.tasks.download_sentinel2", date_from, date_to); w = django_rq.get_worker(); w.work()
+# import django_rq; from datetime import date; date_from = date(2019,4,1); date_to = date(2019,5,1);queue = django_rq.get_queue('default', default_timeout=36000);queue.enqueue("files.tasks.download_sentinel2", date_from, date_to);w = django_rq.get_worker(); w.work()
 
 def run_subprocess(cmd):
     print(cmd)
@@ -53,12 +53,23 @@ def download_sentinel2(date_from, date_to):
             zip_ref.extractall(settings.IMAGES_PATH)
             zip_ref.close() 
     
-    # # # sen2cor
+    #sen2cor
+    return_values = []
     for item in os.listdir(settings.IMAGES_PATH):
         if item.endswith(".SAFE"):
             print("Running sen2cor for {}".format(item))
             folder_name = os.path.abspath(item)
-            os.system("sen2cor -f {}".format(folder_name))
+            rv = os.system("sen2cor -f {}".format(folder_name))
+            return_values.append(rv)
+
+    # si fallan todas las imagenes de sen2cor, levantar excepcion
+    error = True
+    for rv in return_values:
+        if rv == 0:
+            error = False
+            break
+    if error:
+        raise ValueError('All sen2cor images failed.')
 
     # obtain necesary gdal info
     gdal_info = False
@@ -92,6 +103,11 @@ def download_sentinel2(date_from, date_to):
             settings.S2M_PATH, xmin, ymin, xmax, ymax, "name_of_mosaic", os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
         )
         run_subprocess(cmd)
+        rv = os.system(cmd)
+        # si return value != 0, s2m falló, generar excepcion
+        if rv != 0:
+            raise ValueError('sen2mosaic failed for {}.'.format(item))
+
     else:
         print("No GDAL info found on raw folder.")
 
