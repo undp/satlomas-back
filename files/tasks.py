@@ -83,6 +83,23 @@ def concatenate_results(mosaic_name, date_from, date_to):
             dst=os.path.join(settings.IMAGES_PATH,'results',tif_20m)))
 
 
+def clip_results(date_from, date_to):
+    tif_10m = 's2_{}{}_{}{}_10m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+    tif_20m = 's2_{}{}_{}{}_20m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+
+    srcs = [tif_10m, tif_20m]
+    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
+
+    for src in srcs:
+        run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
+                gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=aoi_path,
+                src=os.path.join(settings.IMAGES_PATH,'results',src),
+                dst=os.path.join(settings.IMAGES_PATH,'final',src)))
+
+
+
+
 @job("default", timeout=3600)
 def download_sentinel2(date_from, date_to):
     
@@ -175,6 +192,7 @@ def download_sentinel2(date_from, date_to):
 
         generate_vegetation_indexes(mosaic_name)
         concatenate_results(mosaic_name, date_from, date_to)
+        clip_results(date_from, date_to)
     else:
         print("No GDAL info found on raw folder.")
 
