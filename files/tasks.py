@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 import json
 
-# import django_rq; from datetime import date; date_from = date(2019,4,1); date_to = date(2019,5,1); queue = django_rq.get_queue('default', default_timeout=36000); queue.enqueue("files.tasks.download_sentinel2", date_from, date_to); w = django_rq.get_worker(); w.work()
+# import django_rq; from datetime import date; date_from = date(2019,4,1); date_to = date(2019,4,10);queue = django_rq.get_queue('default', default_timeout=36000);queue.enqueue("files.tasks.download_sentinel2", date_from, date_to);w = django_rq.get_worker(); w.work()
 
 def run_subprocess(cmd):
     print(cmd)
@@ -152,8 +152,14 @@ def download_sentinel2(date_from, date_to):
         if item.endswith(".SAFE"):
             print("Running sen2cor for {}".format(item))
             folder_name = os.path.abspath(item)
-            #TODO: set L2A_PATH as destination folder
-            os.system("sen2cor -f {}".format(folder_name))
+            rv = os.system("sen2cor -f {}".format(folder_name))
+            return_values.append(rv)
+    
+    # si fallan todas las imagenes de sen2cor, levantar excepcion
+    error = all([rv == 0 for rv in return_values])
+    if error == False:
+        raise ValueError('All sen2cor images failed.')
+
 
     # obtain necesary gdal info
     gdal_info = False
@@ -185,16 +191,23 @@ def download_sentinel2(date_from, date_to):
     if gdal_info:
         MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
         os.makedirs(MOSAIC_PATH, exist_ok = True)
+        
         mosaic_name = '{}{}_{}{}_mosaic.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
             settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
         )
-        run_subprocess(cmd)
+        rv = os.system(cmd)
+        # si return value != 0, s2m falló, generar excepcion
+        if rv != 0:
+            raise ValueError('sen2mosaic failed for {}.'.format(item))
 
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
             settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
         )
-        run_subprocess(cmd)
+        rv = os.system(cmd)
+        # si return value != 0, s2m falló, generar excepcion
+        if rv != 0:
+            raise ValueError('sen2mosaic failed for {}.'.format(item))
 
         #delete useless products
         products_delete = os.path.join(IMAGES_RAW_PATH,"*.SAFE")
@@ -204,6 +217,7 @@ def download_sentinel2(date_from, date_to):
         generate_vegetation_indexes(mosaic_name)
         concatenate_results(mosaic_name, date_from, date_to)
         clip_results(date_from, date_to)
+
     else:
         print("No GDAL info found on raw folder.")
 
