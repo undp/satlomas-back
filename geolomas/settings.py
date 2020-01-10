@@ -169,7 +169,7 @@ RQ_SHOW_ADMIN_LINK = True
 SCIHUB_URL = os.getenv('SCIHUB_URL')
 SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
-IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2', 'raw')
+IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2')
 IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
 S2M_PATH = os.getenv('S2M_PATH')
 
