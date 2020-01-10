@@ -14,6 +14,95 @@ def run_subprocess(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
+def generate_vegetation_indexes(mosaic_name):
+    MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
+    nir = os.path.join(MOSAIC_PATH,'{}_R10m_NIR.vrt'.format(mosaic_name))
+    rgb = os.path.join(MOSAIC_PATH,'{}_R10m_RGB.vrt'.format(mosaic_name))
+
+    #ndiv
+    dst = os.path.join(MOSAIC_PATH,'R10m_NDIV.tif')
+    exp = '(im1b1 - im2b1) / (im1b1 + im2b1)'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+    
+    #ndwi
+    dst = os.path.join(MOSAIC_PATH,'R10m_NDWI.tif')
+    exp = '(im1b1 - im2b2) / (im1b1 + im2b2)'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+    
+    #evi
+    dst = os.path.join(MOSAIC_PATH,'R10m_EVI.tif')
+    exp = '(2.5 * ((im1b1 - im2b1) / (im1b1 + 6 * im2b1 - 7.5 * im2b3 + 1)))'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+
+    #savi
+    dst = os.path.join(MOSAIC_PATH,'R10m_SAVI.tif')
+    exp = '((im1b1 - im2b1) * 1.5 / (im1b1 + im2b1 + 0.5))'
+    run_subprocess('{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'.format(
+                        otb_bin_path=settings.OTB_BIN_PATH,
+                        nir=nir, rgb=rgb,
+                        dst=dst, exp=exp))
+
+
+def concatenate_results(mosaic_name, date_from, date_to):
+    MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
+    tif_10m = 's2_{}{}_{}{}_10m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+    tif_20m = 's2_{}{}_{}{}_20m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+
+    R10m_B02 = os.path.join(MOSAIC_PATH,'{}_R10m_B02.tif'.format(mosaic_name))
+    R10m_B03 = os.path.join(MOSAIC_PATH,'{}_R10m_B03.tif'.format(mosaic_name))
+    R10m_B04 = os.path.join(MOSAIC_PATH,'{}_R10m_B04.tif'.format(mosaic_name))
+    R10m_B08 = os.path.join(MOSAIC_PATH,'{}_R10m_B08.tif'.format(mosaic_name))
+    R10m_NDIV = os.path.join(MOSAIC_PATH,'R10m_NDIV.tif')
+    R10m_NDIV = os.path.join(MOSAIC_PATH,'R10m_NDWI.tif')
+    R10m_EVI = os.path.join(MOSAIC_PATH,'R10m_EVI.tif')
+    R10m_SAVI = os.path.join(MOSAIC_PATH,'R10m_SAVI.tif')
+    src = ' '.join([R10m_B02,R10m_B03,R10m_B04,R10m_B08,R10m_NDIV,R10m_NDIV,R10m_EVI,R10m_SAVI])
+    run_subprocess('{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
+            otb_bin_path=settings.OTB_BIN_PATH,
+            src=src,
+            dst=os.path.join(MOSAIC_PATH,tif_10m)))
+    
+    R20m_B05 = os.path.join(MOSAIC_PATH,'{}_R20m_B05.tif'.format(mosaic_name))
+    R20m_B06 = os.path.join(MOSAIC_PATH,'{}_R20m_B06.tif'.format(mosaic_name))
+    R20m_B07 = os.path.join(MOSAIC_PATH,'{}_R20m_B07.tif'.format(mosaic_name))
+    R20m_B8A = os.path.join(MOSAIC_PATH,'{}_R20m_B8A.tif'.format(mosaic_name))
+    R20m_B11 = os.path.join(MOSAIC_PATH,'{}_R20m_B11.tif'.format(mosaic_name))
+    R20m_B12 = os.path.join(MOSAIC_PATH,'{}_R20m_B12.tif'.format(mosaic_name))
+    src = ' '.join([R20m_B05,R20m_B06,R20m_B07,R20m_B8A,R20m_B11,R20m_B12])
+    run_subprocess('{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
+            otb_bin_path=settings.OTB_BIN_PATH,
+            src=src,
+            dst=os.path.join(MOSAIC_PATH,tif_20m)))
+
+
+def clip_results(date_from, date_to):
+    MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
+    CLIP_PATH = os.path.join(settings.IMAGES_PATH,'clip')
+    tif_10m = 's2_{}{}_{}{}_10m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+    tif_20m = 's2_{}{}_{}{}_20m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
+
+    srcs = [tif_10m, tif_20m]
+    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
+
+    for src in srcs:
+        run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
+                gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=aoi_path,
+                src=os.path.join(MOSAIC_PATH,src),
+                dst=os.path.join(CLIP_PATH,src)))
+
+
+
+
 @job("default", timeout=3600)
 def download_sentinel2(date_from, date_to):
     
@@ -41,38 +130,43 @@ def download_sentinel2(date_from, date_to):
         print(products[p]['title'])
     
     #download all results from the search
-    api.download_all(products, directory_path=settings.IMAGES_PATH)
+    IMAGES_RAW_PATH = os.path.join(settings.IMAGES_PATH,'raw')
+    os.makedirs(IMAGES_RAW_PATH, exist_ok = True) 
+    api.download_all(products, directory_path=IMAGES_RAW_PATH)
 
     #unzip
-    os.chdir(settings.IMAGES_PATH)
-    for item in os.listdir(settings.IMAGES_PATH):
+    os.chdir(IMAGES_RAW_PATH)
+    for item in os.listdir(IMAGES_RAW_PATH):
         if item.endswith(".zip"):
             print("unzip {}".format(item))
             file_name = os.path.abspath(item)
             zip_ref = ZipFile(file_name)
-            zip_ref.extractall(settings.IMAGES_PATH)
+            zip_ref.extractall(IMAGES_RAW_PATH)
             zip_ref.close() 
+            #TODO: Delete zip
     
-    #sen2cor
-    return_values = []
-    for item in os.listdir(settings.IMAGES_PATH):
+    # # # sen2cor
+    L2A_PATH = os.path.join(settings.IMAGES_PATH,'l2a')
+    os.makedirs(L2A_PATH, exist_ok = True) 
+    for item in os.listdir(IMAGES_RAW_PATH):
         if item.endswith(".SAFE"):
             print("Running sen2cor for {}".format(item))
             folder_name = os.path.abspath(item)
             rv = os.system("sen2cor -f {}".format(folder_name))
             return_values.append(rv)
-
+    
     # si fallan todas las imagenes de sen2cor, levantar excepcion
     error = all([rv == 0 for rv in return_values])
     if error == False:
         raise ValueError('All sen2cor images failed.')
 
+
     # obtain necesary gdal info
     gdal_info = False
-    for item in os.listdir(settings.IMAGES_PATH):
+    for item in os.listdir(L2A_PATH):
         if item.startswith("S2B_MSIL2A") and item.endswith(".SAFE"):
             info = None
-            for filename in Path(os.path.join(settings.IMAGES_PATH,item)).rglob("*/IMG_DATA/R20m/*.jp2"):
+            for filename in Path(os.path.join(L2A_PATH,item)).rglob("*/IMG_DATA/R20m/*.jp2"):
                 print("get info from {}".format(filename))
                 info = subprocess.getoutput("gdalinfo -json {}".format(filename))
                 break
@@ -95,14 +189,34 @@ def download_sentinel2(date_from, date_to):
 
     #s2m
     if gdal_info:
+        MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
+        os.makedirs(MOSAIC_PATH, exist_ok = True)
+        
+        mosaic_name = '{}{}_{}{}_mosaic.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, "name_of_mosaic", os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
         )
-        run_subprocess(cmd)
         rv = os.system(cmd)
         # si return value != 0, s2m falló, generar excepcion
         if rv != 0:
             raise ValueError('sen2mosaic failed for {}.'.format(item))
+
+        cmd = "python3 {} -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
+        )
+        rv = os.system(cmd)
+        # si return value != 0, s2m falló, generar excepcion
+        if rv != 0:
+            raise ValueError('sen2mosaic failed for {}.'.format(item))
+
+        #delete useless products
+        products_delete = os.path.join(IMAGES_RAW_PATH,"*.SAFE")
+        cmd = "rm -rf {}".format(products_delete)
+        run_subprocess(cmd)
+
+        generate_vegetation_indexes(mosaic_name)
+        concatenate_results(mosaic_name, date_from, date_to)
+        clip_results(date_from, date_to)
 
     else:
         print("No GDAL info found on raw folder.")
