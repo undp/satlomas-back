@@ -101,7 +101,7 @@ def download_sentinel2(date_from, date_to):
     if gdal_info:
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
             settings.S2M_PATH, xmin, ymin, xmax, ymax, "name_of_mosaic", os.path.join(settings.IMAGES_PATH,"results"), settings.IMAGES_PATH
-        )
+        )|
         run_subprocess(cmd)
         rv = os.system(cmd)
         # si return value != 0, s2m falló, generar excepcion
