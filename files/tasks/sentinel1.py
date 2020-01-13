@@ -91,6 +91,8 @@ def median(period):
                 wins = np.dstack(imgs)
                 median = np.median(wins, axis=2)
                 dst.write(median, window=win, indexes=band)
+    
+    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc')))
 
 
 def superimpose(period):
