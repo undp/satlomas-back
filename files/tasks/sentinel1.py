@@ -4,7 +4,7 @@ from datetime import date
 from django_rq import job
 from rasterio.windows import Window
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
-from .models import Period, Product
+from files.models import Period, Product
 import dateutil.relativedelta
 import django_rq
 import numpy as np
@@ -34,7 +34,7 @@ def unzip(zip_name, extract_folder = None, delete_zip=True):
 def clip_result(period):
     src = os.path.join(S1_RES_PATH,str(period.pk), 'concatenate.tiff')
     dst = os.path.join(S1_RES_PATH,str(period.pk), 'clip.tiff')
-    aoi_path = os.path.join(settings.BASE_DIR, 'sentinel1', 'aoi_4326.geojson')
+    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
     run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
             gdal_bin_path=settings.GDAL_BIN_PATH,
             aoi=aoi_path,
@@ -91,6 +91,8 @@ def median(period):
                 wins = np.dstack(imgs)
                 median = np.median(wins, axis=2)
                 dst.write(median, window=win, indexes=band)
+    
+    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc')))
 
 
 def superimpose(period):
@@ -135,7 +137,7 @@ def calibrate(product):
 
     run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,product.name)))
 
-    django_rq.enqueue('sentinel1.tasks.despeckle', product)
+    django_rq.enqueue('files.tasks.sentinel1.despeckle', product)
 
 
 @job("default", timeout=3600)
@@ -159,14 +161,14 @@ def despeckle(product):
 
     run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'calib')))
     
-    django_rq.enqueue('sentinel1.tasks.clip', product)
+    django_rq.enqueue('files.tasks.sentinel1.clip', product)
 
 
 @job("default", timeout=3600)
 def clip(product):
     dst_folder = os.path.join(S1_RAW_PATH,'proc',product.name,'clip')
     os.makedirs(dst_folder, exist_ok=True)
-    aoi_path = os.path.join(settings.BASE_DIR, 'sentinel1', 'aoi_4326.geojson')
+    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
 
     vv_src = os.path.join(S1_RAW_PATH,'proc',product.name,'despeck','vv.tiff')
     vv_dst = os.path.join(dst_folder, 'vv.tiff')
@@ -186,7 +188,7 @@ def clip(product):
     
     run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'despeck')))
     
-    django_rq.enqueue('sentinel1.tasks.concatenate', product)
+    django_rq.enqueue('files.tasks.sentinel1.concatenate', product)
 
 
 @job("default", timeout=3600)
@@ -208,7 +210,7 @@ def concatenate(product):
     product.concatenated = True
     product.save()
     if not Product.objects.filter(period=product.period, concatenated=False).exists():
-        django_rq.enqueue('sentinel1.tasks.manage_results',product.period)
+        django_rq.enqueue('files.tasks.sentinel1.manage_results',product.period)
 
 
 @job("default", timeout=36000)
@@ -218,7 +220,7 @@ def download_scenes(init_date = None, end_date = None):
         twomonthsago = today - dateutil.relativedelta.relativedelta(months=2)
         init_date = twomonthsago
         end_date = today
-    aoi_path = os.path.join(settings.BASE_DIR, 'sentinel1', 'aoi_4326.geojson')
+    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
 
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS, SCIHUB_URL)
 
@@ -246,4 +248,4 @@ def download_scenes(init_date = None, end_date = None):
                 period=period
             )
             unzip(p['path'])
-            django_rq.enqueue('sentinel1.tasks.calibrate', prod)
+            django_rq.enqueue('files.tasks.sentinel1.calibrate', prod)

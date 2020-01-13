@@ -64,7 +64,6 @@ INSTALLED_APPS = [
     'django_rq',
     'measures',
     'files',
-    'sentinel1',
 ]
 
 MIDDLEWARE = [
