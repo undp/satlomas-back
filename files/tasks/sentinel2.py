@@ -143,11 +143,9 @@ def download_sentinel2(date_from, date_to):
             zip_ref = ZipFile(file_name)
             zip_ref.extractall(IMAGES_RAW_PATH)
             zip_ref.close() 
-            #TODO: Delete zip
-    
+            os.remove(os.path.join(IMAGES_RAW_PATH, item))
+
     # # # sen2cor
-    L2A_PATH = os.path.join(settings.IMAGES_PATH,'l2a')
-    os.makedirs(L2A_PATH, exist_ok = True) 
     return_values = []
     for item in os.listdir(IMAGES_RAW_PATH):
         if item.endswith(".SAFE"):
@@ -155,6 +153,10 @@ def download_sentinel2(date_from, date_to):
             folder_name = os.path.abspath(item)
             rv = os.system("sen2cor -f {}".format(folder_name))
             return_values.append(rv)
+
+            #delete used item
+            cmd = "rm -rf {}".format(os.path.join(IMAGES_RAW_PATH, item))
+            run_subprocess(cmd)
     
     # si fallan todas las imagenes de sen2cor, levantar excepcion
     error = all([rv == 0 for rv in return_values])
@@ -164,10 +166,10 @@ def download_sentinel2(date_from, date_to):
 
     # obtain necesary gdal info
     gdal_info = False
-    for item in os.listdir(L2A_PATH):
+    for item in os.listdir(IMAGES_RAW_PATH):
         if item.startswith("S2B_MSIL2A") and item.endswith(".SAFE"):
             info = None
-            for filename in Path(os.path.join(L2A_PATH,item)).rglob("*/IMG_DATA/R20m/*.jp2"):
+            for filename in Path(os.path.join(IMAGES_RAW_PATH,item)).rglob("*/IMG_DATA/R20m/*.jp2"):
                 print("get info from {}".format(filename))
                 info = subprocess.getoutput("gdalinfo -json {}".format(filename))
                 break
@@ -195,7 +197,7 @@ def download_sentinel2(date_from, date_to):
         
         mosaic_name = '{}{}_{}{}_mosaic.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, IMAGES_RAW_PATH
         )
         rv = os.system(cmd)
         # si return value != 0, s2m falló, generar excepcion
@@ -203,7 +205,7 @@ def download_sentinel2(date_from, date_to):
             raise ValueError('sen2mosaic failed for {}.'.format(item))
 
         cmd = "python3 {} -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, L2A_PATH
+            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name, MOSAIC_PATH, IMAGES_RAW_PATH
         )
         rv = os.system(cmd)
         # si return value != 0, s2m falló, generar excepcion
