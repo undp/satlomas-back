@@ -105,7 +105,7 @@ def clip_results(date_from, date_to):
 
 @job("default", timeout=3600)
 def download_sentinel2(date_from, date_to):
-    
+
     # connect to the API
     api = SentinelAPI(settings.SCIHUB_USER,settings.SCIHUB_PASS, settings.SCIHUB_URL)
 
@@ -148,6 +148,7 @@ def download_sentinel2(date_from, date_to):
     # # # sen2cor
     L2A_PATH = os.path.join(settings.IMAGES_PATH,'l2a')
     os.makedirs(L2A_PATH, exist_ok = True) 
+    return_values = []
     for item in os.listdir(IMAGES_RAW_PATH):
         if item.endswith(".SAFE"):
             print("Running sen2cor for {}".format(item))
