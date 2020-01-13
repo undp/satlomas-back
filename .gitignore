@@ -127,5 +127,4 @@ dmypy.json
 # Visual Studio code user config dir
 /.vscode/
 
-data/images/s2/*
-data/images/s1/*
+data/*
