@@ -1,4 +1,5 @@
 from django.conf import settings
+from django_rq import job
 
 import subprocess
 import os
@@ -48,18 +49,17 @@ def concatenate_images():
             out=os.path.join(RESULTS_DIR, 'features.tif')))
     os.chdir(current_dir)
 
-"""
+
 def classify_image():
     run_subprocess('{otb_bin_path}/otbcli_ImageClassifier -in {input} -model {model} -out {out}'.format(
             otb_bin_path=settings.OTB_BIN_PATH,
             input=os.path.join(RESULTS_DIR, 'features.tif'),
             model=MODEL_PATH,
             out=os.path.join(RESULTS_DIR, 'cover.tif')))
-"""
 
 
-from datetime import date; date_from = date(2019,4,1); date_to = date(2019,4,10);
-def predict_rf(date_from = date(2019,4,1), date_to = date(2019,5,1)):
+@job("default", timeout=3600)
+def predict_rf(date_from, date_to):
     period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year, date_to.month)
     s2_10m = "s2_{}_10m".format(period)
     s2_20m = "s2_{}_20m".format(period)
@@ -67,7 +67,7 @@ def predict_rf(date_from = date(2019,4,1), date_to = date(2019,5,1)):
     srtm = "srtm_dem"
 
     run_subprocess("cp {s2_10m} {feat}".format(
-        s2_10m=os.path.join(RESULTS_SRC, s2_10m),
+        s2_10m=os.path.join(RESULTS_SRC, "{}.tif".format(s2_10m)),
         feat= RESULTS_FEAT,
     ))
     superimpose(s2_20m, s2_10m)
@@ -92,4 +92,4 @@ def predict_rf(date_from = date(2019,4,1), date_to = date(2019,5,1)):
     extract_haralick(srtm, 1)
 
     concatenate_images()
-    #classify_image()
+    classify_image()
