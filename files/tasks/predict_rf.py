@@ -1,6 +1,7 @@
 from django.conf import settings
 from django_rq import job
 
+import shutil
 import subprocess
 import os
 
