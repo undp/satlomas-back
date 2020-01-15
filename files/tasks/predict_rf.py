@@ -66,14 +66,17 @@ def predict_rf(date_from, date_to):
     s1 = "s1_{}".format(period)
     srtm = "srtm_dem"
 
-    run_subprocess("cp {s2_10m} {feat}".format(
-        s2_10m=os.path.join(RESULTS_SRC, "{}.tif".format(s2_10m)),
-        feat= RESULTS_FEAT,
-    ))
+    shutil.copyfile(
+        os.path.join(RESULTS_SRC, "{}.tif".format(s2_10m)),
+        os.path.join(RESULTS_FEAT, "{}.tif".format(s2_10m))
+    )
     superimpose(s2_20m, s2_10m)
     superimpose(s1, s2_10m)
     
-    run_subprocess("cp {srtm} {src}".format(srtm=SRTM_DEM_PATH, src=RESULTS_SRC))
+    shutil.copyfile(
+        SRTM_DEM_PATH,
+        os.path.join(RESULTS_SRC, "{}.tif".format(srtm))
+    )
     superimpose(srtm, s2_10m)
 
     for b in range(1,9):
