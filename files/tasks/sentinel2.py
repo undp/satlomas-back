@@ -86,7 +86,7 @@ def concatenate_results(mosaic_name, date_from, date_to):
 
 def clip_results(date_from, date_to):
     MOSAIC_PATH = os.path.join(settings.IMAGES_PATH,'mosaic')
-    CLIP_PATH = os.path.join(settings.IMAGES_PATH,'clip')
+    RESULTS_SRC = os.path.join(settings.BASE_DIR, 'data', 'images', 'results', 'src')
     tif_10m = 's2_{}{}_{}{}_10m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
     tif_20m = 's2_{}{}_{}{}_20m.tif'.format(date_from.year,date_from.month,date_to.year,date_to.month)
 
@@ -98,9 +98,7 @@ def clip_results(date_from, date_to):
                 gdal_bin_path=settings.GDAL_BIN_PATH,
                 aoi=aoi_path,
                 src=os.path.join(MOSAIC_PATH,src),
-                dst=os.path.join(CLIP_PATH,src)))
-
-
+                dst=os.path.join(RESULTS_SRC,src)))
 
 
 @job("default", timeout=3600)

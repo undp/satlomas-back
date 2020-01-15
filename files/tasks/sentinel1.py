@@ -33,7 +33,12 @@ def unzip(zip_name, extract_folder = None, delete_zip=True):
 
 def clip_result(period):
     src = os.path.join(S1_RES_PATH,str(period.pk), 'concatenate.tiff')
-    dst = os.path.join(S1_RES_PATH,str(period.pk), 'clip.tiff')
+    RESULTS_SRC = os.path.join(settings.BASE_DIR, 'data', 'images', 'results', 'src')
+    dst_name = 's1_{}{}_{}{}.tif'.format(
+        period.init_date.year, period.init_date.month, 
+        period.end_date.year, period.end_date.month
+    )
+    dst = os.path.join(RESULTS_SRC, dst_name)
     aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
     run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
             gdal_bin_path=settings.GDAL_BIN_PATH,
