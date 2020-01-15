@@ -1,3 +1,4 @@
+from files.models import Product
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 from django_rq import job
 import os
@@ -132,7 +133,17 @@ def download_sentinel2(period):
     #download all results from the search
     IMAGES_RAW_PATH = os.path.join(settings.IMAGES_PATH,'raw')
     os.makedirs(IMAGES_RAW_PATH, exist_ok = True) 
-    api.download_all(products, directory_path=IMAGES_RAW_PATH)
+    results = api.download_all(products, directory_path=IMAGES_RAW_PATH)
+ 
+    if len(results[0].items()) > 0:
+        for k, p in results[0].items():
+            prod = Product.objects.create(
+                code=p['id'],
+                sensor_type=Product.SENTINEL2,
+                datetime=p['date'],
+                name='{}.SAFE'.format(p['title']),
+                period=period
+            )
 
     #unzip
     os.chdir(IMAGES_RAW_PATH)
