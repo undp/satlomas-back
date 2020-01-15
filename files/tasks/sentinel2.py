@@ -102,7 +102,9 @@ def clip_results(date_from, date_to):
 
 
 @job("default", timeout=3600)
-def download_sentinel2(date_from, date_to):
+def download_sentinel2(period):
+    date_from = period.init_date
+    date_to = period.end_date
 
     # connect to the API
     api = SentinelAPI(settings.SCIHUB_USER,settings.SCIHUB_PASS, settings.SCIHUB_URL)
@@ -151,7 +153,7 @@ def download_sentinel2(date_from, date_to):
             folder_name = os.path.abspath(item)
             rv = os.system("sen2cor -f {}".format(folder_name))
             return_values.append(rv)
-
+            #TODO: Create Product object
             #delete used item
             cmd = "rm -rf {}".format(os.path.join(IMAGES_RAW_PATH, item))
             run_subprocess(cmd)
@@ -218,6 +220,10 @@ def download_sentinel2(date_from, date_to):
         generate_vegetation_indexes(mosaic_name)
         concatenate_results(mosaic_name, date_from, date_to)
         clip_results(date_from, date_to)
+        period.s2_finished = True
+        period.save()
+        if period.s1_finished:
+            django_rq.enqueue('files.tasks.predict_rf.predict_rf', period)
 
     else:
         print("No GDAL info found on raw folder.")

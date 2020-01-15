@@ -60,7 +60,9 @@ def classify_image():
 
 
 @job("default", timeout=3600)
-def predict_rf(date_from, date_to):
+def predict_rf(period):
+    date_from = period.init_date
+    date_to = period.end_date
     period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year, date_to.month)
     s2_10m = "s2_{}_10m".format(period)
     s2_20m = "s2_{}_20m".format(period)

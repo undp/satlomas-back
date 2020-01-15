@@ -45,6 +45,11 @@ def clip_result(period):
             aoi=aoi_path,
             src=src,
             dst=dst))
+    
+    period.s1_finished = True
+    period.save()
+    if period.s2_finished:
+        django_rq.enqueue('files.tasks.predict_rf.predict_rf', period)
 
 
 def concatenate_results(period):
@@ -219,12 +224,10 @@ def concatenate(product):
 
 
 @job("default", timeout=36000)
-def download_scenes(init_date = None, end_date = None):
-    if not init_date and not end_date:
-        today = date.today()
-        twomonthsago = today - dateutil.relativedelta.relativedelta(months=2)
-        init_date = twomonthsago
-        end_date = today
+def download_scenes(period):
+    init_date = period.init_date
+    end_date = period.end_date
+
     aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
 
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS, SCIHUB_URL)
@@ -244,10 +247,10 @@ def download_scenes(init_date = None, end_date = None):
 
     results = api.download_all(products, directory_path=S1_RAW_PATH)
     if len(results[0].items()) > 0:
-        period = Period.objects.create(init_date=init_date, end_date=end_date)
         for k, p in results[0].items():
             prod = Product.objects.create(
                 code=p['id'],
+                sensor_type=Product.SENTINEL1,
                 datetime=p['date'],
                 name='{}.SAFE'.format(p['title']),
                 period=period
