@@ -4,6 +4,7 @@ from django_rq import job
 import os
 from django.conf import settings
 from zipfile import ZipFile
+import shutil
 import subprocess
 from pathlib import Path
 import json
@@ -166,8 +167,7 @@ def download_sentinel2(period):
             return_values.append(rv)
 
             #delete used item
-            cmd = "rm -rf {}".format(os.path.join(IMAGES_RAW_PATH, item))
-            run_subprocess(cmd)
+            shutil.rmtree(os.path.join(IMAGES_RAW_PATH, item))
     
     # si fallan todas las imagenes de sen2cor, levantar excepcion
     error = all([rv == 0 for rv in return_values])
@@ -224,9 +224,7 @@ def download_sentinel2(period):
             raise ValueError('sen2mosaic failed for {}.'.format(item))
 
         #delete useless products
-        products_delete = os.path.join(IMAGES_RAW_PATH,"*.SAFE")
-        cmd = "rm -rf {}".format(products_delete)
-        run_subprocess(cmd)
+        shutil.rmtree(IMAGES_RAW_PATH)
 
         generate_vegetation_indexes(mosaic_name)
         concatenate_results(mosaic_name, date_from, date_to)

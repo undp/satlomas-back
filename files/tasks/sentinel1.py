@@ -9,6 +9,7 @@ import dateutil.relativedelta
 import django_rq
 import numpy as np
 import rasterio
+import shutil
 import subprocess
 import os
 import zipfile
@@ -102,7 +103,7 @@ def median(period):
                 median = np.median(wins, axis=2)
                 dst.write(median, window=win, indexes=band)
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc'))
 
 
 def superimpose(period):
@@ -145,7 +146,7 @@ def calibrate(product):
             src=src,
             dst=dst))
 
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,product.name)))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,product.name))
 
     django_rq.enqueue('files.tasks.sentinel1.despeckle', product)
 
@@ -169,7 +170,7 @@ def despeckle(product):
             src=src,
             dst=dst))
 
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'calib')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'calib'))
     
     django_rq.enqueue('files.tasks.sentinel1.clip', product)
 
@@ -196,8 +197,8 @@ def clip(product):
             src=vh_src,
             dst=vh_dst))
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'despeck')))
-    
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'despeck'))
+
     django_rq.enqueue('files.tasks.sentinel1.concatenate', product)
 
 
@@ -215,7 +216,7 @@ def concatenate(product):
             vh_src=vh_src,
             dst=dst))
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'clip')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'clip'))
 
     product.concatenated = True
     product.save()
