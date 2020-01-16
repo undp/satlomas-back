@@ -164,7 +164,7 @@ def download_sentinel2(period):
             folder_name = os.path.abspath(item)
             rv = os.system("sen2cor -f {}".format(folder_name))
             return_values.append(rv)
-            #TODO: Create Product object
+
             #delete used item
             cmd = "rm -rf {}".format(os.path.join(IMAGES_RAW_PATH, item))
             run_subprocess(cmd)
