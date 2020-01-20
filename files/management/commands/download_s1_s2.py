@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 import django_rq 
 from datetime import datetime, timedelta
+from files.models import Period
 
 class Command(BaseCommand):
     help = 'comando para bajar imagenes de sentinel 1 y sentinel 2'
@@ -17,9 +18,10 @@ class Command(BaseCommand):
             default=self.date_to)
 
     def handle(self, *args, **options):
+        period = Period.objects.create(init_date=options['date_from'], end_date=options['date_to'])
         queue = django_rq.get_queue('default', default_timeout=36000)
-        queue.enqueue("files.tasks.sentinel1.download_scenes",options['date_from'], options['date_to'])
-        queue.enqueue("files.tasks.sentinel2.download_sentinel2",options['date_from'], options['date_to'])
+        queue.enqueue("files.tasks.sentinel1.download_scenes",period)
+        queue.enqueue("files.tasks.sentinel2.download_sentinel2",period)
        
 
         

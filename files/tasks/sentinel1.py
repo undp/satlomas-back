@@ -9,6 +9,7 @@ import dateutil.relativedelta
 import django_rq
 import numpy as np
 import rasterio
+import shutil
 import subprocess
 import os
 import zipfile
@@ -45,6 +46,11 @@ def clip_result(period):
             aoi=aoi_path,
             src=src,
             dst=dst))
+    
+    period.s1_finished = True
+    period.save()
+    if period.s2_finished:
+        django_rq.enqueue('files.tasks.predict_rf.predict_rf', period)
 
 
 def concatenate_results(period):
@@ -97,7 +103,7 @@ def median(period):
                 median = np.median(wins, axis=2)
                 dst.write(median, window=win, indexes=band)
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc'))
 
 
 def superimpose(period):
@@ -140,7 +146,7 @@ def calibrate(product):
             src=src,
             dst=dst))
 
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,product.name)))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,product.name))
 
     django_rq.enqueue('files.tasks.sentinel1.despeckle', product)
 
@@ -164,7 +170,7 @@ def despeckle(product):
             src=src,
             dst=dst))
 
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'calib')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'calib'))
     
     django_rq.enqueue('files.tasks.sentinel1.clip', product)
 
@@ -191,8 +197,8 @@ def clip(product):
             src=vh_src,
             dst=vh_dst))
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'despeck')))
-    
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'despeck'))
+
     django_rq.enqueue('files.tasks.sentinel1.concatenate', product)
 
 
@@ -210,7 +216,7 @@ def concatenate(product):
             vh_src=vh_src,
             dst=dst))
     
-    run_subprocess('rm -rf {}'.format(os.path.join(S1_RAW_PATH,'proc',product.name,'clip')))
+    shutil.rmtree(os.path.join(S1_RAW_PATH,'proc',product.name,'clip'))
 
     product.concatenated = True
     product.save()
@@ -219,12 +225,10 @@ def concatenate(product):
 
 
 @job("default", timeout=36000)
-def download_scenes(init_date = None, end_date = None):
-    if not init_date and not end_date:
-        today = date.today()
-        twomonthsago = today - dateutil.relativedelta.relativedelta(months=2)
-        init_date = twomonthsago
-        end_date = today
+def download_scenes(period):
+    init_date = period.init_date
+    end_date = period.end_date
+
     aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
 
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS, SCIHUB_URL)
@@ -244,10 +248,10 @@ def download_scenes(init_date = None, end_date = None):
 
     results = api.download_all(products, directory_path=S1_RAW_PATH)
     if len(results[0].items()) > 0:
-        period = Period.objects.create(init_date=init_date, end_date=end_date)
         for k, p in results[0].items():
             prod = Product.objects.create(
                 code=p['id'],
+                sensor_type=Product.SENTINEL1,
                 datetime=p['date'],
                 name='{}.SAFE'.format(p['title']),
                 period=period
