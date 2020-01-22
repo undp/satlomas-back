@@ -22,7 +22,6 @@ OUT_HDLR.setLevel( logging.INFO )
 LOG.addHandler( OUT_HDLR )
 LOG.setLevel( logging.INFO )
 
-#HEADERS = { 'User-Agent' : 'get_modis Python %s' % __version__ }
 HEADERS = { 'User-Agent' : 'get_modis Python 3'}
 CHUNKS = 65536
 
