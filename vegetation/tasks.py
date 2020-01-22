@@ -25,6 +25,13 @@ LOG.setLevel( logging.INFO )
 HEADERS = { 'User-Agent' : 'get_modis Python 3'}
 CHUNKS = 65536
 
+MODIS_PLATFORM = 'MOLA'
+MODIS_PRODUCT = 'MYD13Q1.006'
+MODIS_OUT_DIR = os.path.join(settings.BASE_DIR, 'modis','out')
+MODIS_TIF_DIR = os.path.join(settings.BASE_DIR, 'modis','tif')
+H_PERU = ['09', '10', '11']
+V_PERU = ['09', '10', '11']]
+
 
 def return_url(url):
     the_day_today = time.asctime().split()[0]
@@ -240,24 +247,21 @@ def get_modis_peru(date_from, date_to):
     doy_begin = date_from.timetuple().tm_yday
     doy_end = date_to.timetuple().tm_yday
 
-    h_peru = ['09', '10', '11']
-    v_peru = ['09', '10', '11']
+    os.makedirs(MODIS_OUT_DIR, exist_ok=True)
+    os.makedirs(MODIS_TIF_DIR, exist_ok=True)
 
-    os.makedirs(settings.MODIS_OUT_DIR, exist_ok=True)
-    os.makedirs(settings.MODIS_TIF_DIR, exist_ok=True)
-
-    for h in h_peru:
-        for v in v_peru:
+    for h in H_PERU:
+        for v in V_PERU:
             tile = 'h{}v{}'.format(h, v)
 
             get_modisfiles(
                 settings.MODIS_USER, settings.MODIS_PASS, 
-                settings.MODIS_PLATFORM, settings.MODIS_PRODUCT,
+                MODIS_PLATFORM, MODIS_PRODUCT,
                 year, tile, proxy=None,
                 doy_start=doy_begin, doy_end=doy_end,
-                out_dir=settings.MODIS_OUT_DIR,
+                out_dir=MODIS_OUT_DIR,
                 verbose=True, ruff=False,
                 get_xml=False)
 
-    gdal_translate(settings.MODIS_OUT_DIR, settings.MODIS_TIF_DIR)
+    gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
 
