@@ -30,7 +30,7 @@ MODIS_PRODUCT = 'MYD13Q1.006'
 MODIS_OUT_DIR = os.path.join(settings.BASE_DIR, 'modis','out')
 MODIS_TIF_DIR = os.path.join(settings.BASE_DIR, 'modis','tif')
 H_PERU = ['09', '10', '11']
-V_PERU = ['09', '10', '11']]
+V_PERU = ['09', '10', '11']
 
 
 def return_url(url):
