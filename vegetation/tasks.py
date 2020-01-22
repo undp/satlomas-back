@@ -1,4 +1,3 @@
-import optparse
 import os
 try:
     import urllib.request as urllib2
@@ -10,7 +9,6 @@ import logging
 import sys
 import fnmatch
 import requests
-import datetime
 from django.conf import settings
 from django_rq import job
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -238,7 +236,7 @@ def gdal_translate(out_dir, tif_dir):
 
 
 @job("default", timeout=3600)
-def get_modis_peru(date_from = datetime.datetime(2019,10,5), date_to = datetime.datetime(2019,10,10)):
+def get_modis_peru(date_from, date_to):
     year = date_to.year
     doy_begin = date_from.timetuple().tm_yday
     doy_end = date_to.timetuple().tm_yday
