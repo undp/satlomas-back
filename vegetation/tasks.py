@@ -27,8 +27,10 @@ CHUNKS = 65536
 
 MODIS_PLATFORM = 'MOLA'
 MODIS_PRODUCT = 'MYD13Q1.006'
-MODIS_OUT_DIR = os.path.join(settings.BASE_DIR, 'modis','out')
-MODIS_TIF_DIR = os.path.join(settings.BASE_DIR, 'modis','tif')
+MODIS_ROOT = os.path.join(settings.BASE_DIR, 'modis')
+MODIS_OUT_DIR = os.path.join(MODIS_ROOT,'out')
+MODIS_TIF_DIR = os.path.join(MODIS_ROOT,'tif')
+MODIS_CLIP_DIR = os.path.join(MODIS_ROOT, 'clip')
 H_PERU = ['09', '10', '11']
 V_PERU = ['09', '10', '11']
 
@@ -265,3 +267,25 @@ def get_modis_peru(date_from, date_to):
 
     gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
 
+
+def vegetation_mask():
+    area_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'area_monitoreo_4326_b250.geojson')
+    srtm = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
+    srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem_monitoreo.tif')
+    run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
+        gdal_bin_path=settings.GDAL_BIN_PATH,
+        aoi=area_monitoreo,
+        src=srtm,
+        dst=srtm_monitoreo))
+
+    os.makedirs(MODIS_CLIP_DIR, exist_ok=True)
+
+    for f in os.listdir(MODIS_TIF_DIR):
+        if f.endswith('_ndvi.tif'):
+            ndvi = os.path.join(MODIS_TIF_DIR, f)
+            ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
+            run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
+                gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=area_monitoreo,
+                src=ndvi,
+                dst=ndvi_monitoreo))
