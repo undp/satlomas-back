@@ -176,3 +176,8 @@ S2M_PATH = os.getenv('S2M_PATH')
 #OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
 GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
+
+#MODIS
+MODIS_USER = os.getenv('MODIS_USER')
+MODIS_PASS = os.getenv('MODIS_PASS')
+
