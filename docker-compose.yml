@@ -1,8 +1,8 @@
 version: "3.6"
 
-x-app-opts: &app-opts
+x-back-opts: &back-opts
   build: .
-  image: "geolomas:latest"
+  image: "geolomas-back:latest"
   volumes:
     - .:/app
   environment:
@@ -27,8 +27,8 @@ services:
     ports:
       - "6379:6379"
 
-  app:
-    <<: *app-opts
+  api:
+    <<: *back-opts
     command: [
       #"wait-for-postgres.sh", "db",
       "pipenv", "run", "./manage.py", "runserver", "0.0.0.0:8000"
@@ -37,7 +37,7 @@ services:
       - "8000:8000"
 
   worker:
-    <<: *app-opts
+    <<: *back-opts
     command: [
       #"wait-for-postgres.sh", "db",
       "pipenv", "run", "./manage.py", "rqworker"
