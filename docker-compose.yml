@@ -3,12 +3,10 @@ version: "3.6"
 x-back-opts: &back-opts
   build: .
   image: "geolomas-back:latest"
+  env_file:
+    - .env
   volumes:
     - .:/app
-  environment:
-    - DB_HOST=db
-    - DB_PASSWORD=foobar
-    - RQ_REDIS_URL=redis://redis:6379/0
   depends_on:
     - db
     - redis
@@ -18,7 +16,7 @@ services:
     image: "timescale/timescaledb-postgis:latest-pg11"
     environment:
       - PYTHONUNBUFFERED=true
-      - POSTGRES_PASSWORD=foobar
+      - POSTGRES_PASSWORD=postgres
     ports:
       - "5432:5432"
 
@@ -30,7 +28,7 @@ services:
   api:
     <<: *back-opts
     command: [
-      #"wait-for-postgres.sh", "db",
+      "wait-for-postgres.sh", "db",
       "pipenv", "run", "./manage.py", "runserver", "0.0.0.0:8000"
     ]
     ports:
@@ -39,6 +37,6 @@ services:
   worker:
     <<: *back-opts
     command: [
-      #"wait-for-postgres.sh", "db",
+      "wait-for-postgres.sh", "db",
       "pipenv", "run", "./manage.py", "rqworker"
     ]

@@ -21,7 +21,7 @@ COPY Pipfile Pipfile.lock /app/
 RUN pipenv install \
   && pipenv install django-anymail[mailgun] django-rest-auth[with_social]
 
-COPY docker/wait-for-postgres.sh \
+COPY docker/back/wait-for-postgres.sh \
   /usr/local/bin/
 
 EXPOSE 8000
