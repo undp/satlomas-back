@@ -14,6 +14,15 @@ class Place(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class Station(models.Model):
+    name = models.CharField(max_length=255)
+    place_id = models.ForeignKey('Place', on_delete=models.PROTECT)
+    geom = models.PointField()
+    metadata = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class Device(models.Model):
     code = models.CharField(max_length=32)
     location = models.CharField(max_length=64)
