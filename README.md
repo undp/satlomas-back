@@ -3,13 +3,52 @@
 This is the repository for GeoLomas platform backend, which contains the REST
 API and background jobs.
 
+
 ## Requirements
 
 * Python 3
 * PostgreSQL 9.4+ with PostGIS 2 and Timescale extensions
 * GDAL, Proj, etc.
 
+
+## Configuration
+
+Copy `env.sample` as `.env`, and edit it to suit your needs. The following
+variables are mandatory:
+
+- `SECRET_KEY`: This is used to provide cryptographic signing, and should be
+  set to a unique, unpredictable string value.
+- `SCIHUB_USER`: SciHub username. Needed for downloading Sentinel-1/2 datasets.
+- `SCIHUB_PASS`: SciHub password. Needed for downloading Sentinel-1/2 datasets.
+- `MODIS_USER`: USGS username. Needed for downloading MODIS datasets.
+- `MODIS_PASS`: USGS password. Needed for downloading MODIS datasets.
+
+
 ## Development
+
+### With Docker
+
+There is a set of Docker images and docker-compose configuration file that
+manages all services:
+
+* `api` Django app instance for API and Admin
+* `worker`: RQ worker instance
+* `db`: PostgreSQL instance with TimescaleDB and PostGIS extensions
+
+You only need to have Docker and Docker Compose installed.
+
+First step is to run `script/docker-reset.sh` to create database, run
+migrations and create super user.
+
+Afterwards, run `docker-compose up`. If you want to run everything in the
+background, use `docker-compose start`, and afterwards `docker-compose stop` to
+stop everything.
+
+If you need to reset again, just run `script/docker-reset.sh`.  To stop
+everything and delete all volumes and networks run `docker-compose down`.
+
+
+### Without Docker
 
 * Install dependencies
 
