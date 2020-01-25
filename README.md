@@ -47,6 +47,9 @@ stop everything.
 If you need to reset again, just run `script/docker-reset.sh`.  To stop
 everything and delete all volumes and networks run `docker-compose down`.
 
+Youn can use `script/docker-run.sh` to run commands inside Pipenv virtual env.
+For example: `script/docker-run.sh ./manage.py migrate` to run new migrations.
+
 
 ### Without Docker
 
