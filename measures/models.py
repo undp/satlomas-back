@@ -1,9 +1,17 @@
 from datetime import datetime
 
 from django.contrib.postgres.fields import JSONField
-from django.db import models
+from django.contrib.gis.db import models
 
 from .managers import MeasureManager
+
+
+class Place(models.Model):
+    parent_id = models.ForeignKey('self', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    geom = models.PolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class Device(models.Model):
