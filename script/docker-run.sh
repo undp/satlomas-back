@@ -1,2 +1,2 @@
 #!/bin/bash
-docker-compose run api wait-for-postgres.sh db pipenv run "$@"
+docker-compose run api wait-for-postgres.sh db "$@"
