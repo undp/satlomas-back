@@ -23,6 +23,7 @@ django-storages = {extras = ["google"],version = "*"}
 dateutils = "*"
 sentinelsat = "*"
 rasterio = "*"
+djangorestframework-gis = "*"
 
 [requires]
 python_version = "3"
