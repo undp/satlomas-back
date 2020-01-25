@@ -1,5 +1,7 @@
-from django.db import models
 from datetime import datetime
+
+from django.db import models
+
 from .managers import MeasureManager
 
 
@@ -9,18 +11,8 @@ class Device(models.Model):
 
     def __str__(self):
         return '{code} - {location}'.format(code=self.code,
-                                            location=self.location)     
-"""
-Run in SQL
-CREATE TABLE measures_measure (
-    datetime TIMESTAMP not null, 
-    temperature float, 
-    humidity float, 
-    device_id text not null, 
-    PRIMARY KEY(datetime, device_id)
-);
-SELECT create_hypertable('measures_measure','datetime');
-"""
+                                            location=self.location)
+
 
 class Measure(models.Model):
     datetime = models.DateTimeField()
@@ -32,13 +24,10 @@ class Measure(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'measures_measure'
 
-    
     def __str__(self):
         return '{datetime} {device_id} - Temp: {temp} Hum: {hum}'.format(
             datetime=str(self.datetime),
             device_id=self.device_id,
             temp=self.temperature,
-            hum=self.humidity
-        )
+            hum=self.humidity)

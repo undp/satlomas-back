@@ -6,25 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('measures', '0001_initial'),
+        ('measures', '0001_create_device'),
     ]
 
     operations = [
         migrations.CreateModel(
             name='Measure',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id',
+                 models.AutoField(auto_created=True,
+                                  primary_key=True,
+                                  serialize=False,
+                                  verbose_name='ID')),
                 ('datetime', models.DateTimeField()),
                 ('temperature', models.FloatField(blank=True, null=True)),
                 ('humidity', models.FloatField(blank=True, null=True)),
                 ('device_id', models.TextField(blank=True, null=True)),
             ],
-            options={
-                'db_table': 'measures_measure',
-                'managed': False,
-            },
         ),
-        migrations.DeleteModel(
-            name='MeasuresMeasure',
-        ),
+        migrations.RunSQL([
+            "ALTER TABLE measures_measure DROP CONSTRAINT measures_measure_pkey",
+            "ALTER TABLE measures_measure ADD PRIMARY KEY (datetime, device_id)",
+            "SELECT create_hypertable('measures_measure', 'datetime')"
+        ])
     ]
