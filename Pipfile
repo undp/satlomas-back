@@ -8,22 +8,25 @@ yapf = "*"
 pylint = "*"
 
 [packages]
-django = "~=3.0.2"
-djangorestframework = "~=3.10"
-djangorestframework-gis = "~=0.15"
-psycopg2 = "~=2.8.4"
-pre-commit = "*"
-python-dotenv = "*"
-django-rest-auth = {extras = ["with_social"],version = "*"}
-django-cors-headers = "*"
-django-rq = "*"
-rq = "*"
-honcho = "*"
-django-anymail = {extras = ["mailgun"],version = "*"}
-django-storages = {extras = ["google"],version = "*"}
 dateutils = "*"
-sentinelsat = "*"
+django = "~=3.0.2"
+django-anymail = {extras = ["mailgun"],version = "*"}
+django-cors-headers = "*"
+django-jsoneditor = "*"
+django-rest-auth = {extras = ["with_social"],version = "*"}
+django-rq = "*"
+django-storages = {extras = ["google"],version = "*"}
+djangorestframework = "~=3.10"
+djangorestframework-api-key = "*"
+djangorestframework-gis = "~=0.15"
+drf-yasg = "*"
+honcho = "*"
+pre-commit = "*"
+psycopg2 = "~=2.8.4"
+python-dotenv = "*"
 rasterio = "*"
+rq = "*"
+sentinelsat = "*"
 
 [requires]
 python_version = "3"
