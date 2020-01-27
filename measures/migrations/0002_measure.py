@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('measures', '0001_create_device'),
+        ('measures', '0001_initial'),
     ]
 
     operations = [
@@ -18,15 +18,15 @@ class Migration(migrations.Migration):
                                   primary_key=True,
                                   serialize=False,
                                   verbose_name='ID')),
+                ('station_id', models.TextField(blank=True, null=True)),
                 ('datetime', models.DateTimeField()),
                 ('temperature', models.FloatField(blank=True, null=True)),
                 ('humidity', models.FloatField(blank=True, null=True)),
-                ('device_id', models.TextField(blank=True, null=True)),
             ],
         ),
         migrations.RunSQL([
             "ALTER TABLE measures_measure DROP CONSTRAINT measures_measure_pkey",
-            "ALTER TABLE measures_measure ADD PRIMARY KEY (datetime, device_id)",
+            "ALTER TABLE measures_measure ADD PRIMARY KEY (datetime, station_id)",
             "SELECT create_hypertable('measures_measure', 'datetime')"
         ])
     ]
