@@ -25,6 +25,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.getenv('DEBUG', 1)) > 0
 
+
 def get_allowed_hosts():
     """
     Get allowed hosts from .env file
@@ -38,10 +39,10 @@ def get_allowed_hosts():
         hosts = ['.dymaxionlabs.com']
     return hosts
 
+
 ALLOWED_HOSTS = get_allowed_hosts()
 
 WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
-
 
 # Application definition
 
@@ -54,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_gis',
     'rest_framework.authtoken',
     'allauth',
     'allauth.account',
@@ -173,11 +175,10 @@ IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2')
 IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
 S2M_PATH = os.getenv('S2M_PATH')
 
-#OTB
+# OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
 GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
 
-#MODIS
+# MODIS
 MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
-
