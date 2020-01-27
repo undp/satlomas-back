@@ -8,11 +8,12 @@ yapf = "*"
 pylint = "*"
 
 [packages]
-django = "*"
+django = "~=3.0.2"
+djangorestframework = "~=3.10"
+djangorestframework-gis = "~=0.15"
+psycopg2 = "~=2.8.4"
 pre-commit = "*"
 python-dotenv = "*"
-psycopg2 = "*"
-djangorestframework = "*"
 django-rest-auth = {extras = ["with_social"],version = "*"}
 django-cors-headers = "*"
 django-rq = "*"
@@ -23,7 +24,6 @@ django-storages = {extras = ["google"],version = "*"}
 dateutils = "*"
 sentinelsat = "*"
 rasterio = "*"
-djangorestframework-gis = "*"
 
 [requires]
 python_version = "3"
