@@ -169,11 +169,14 @@ RQ_QUEUES = {
 
 RQ_SHOW_ADMIN_LINK = True
 
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+IMAGES_PATH = os.path.join(DATA_DIR, 'images', 's2')
+IMAGES_PATH_S1 = os.path.join(DATA_DIR, 'images', 's1', 'raw')
+
 SCIHUB_URL = os.getenv('SCIHUB_URL')
 SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
-IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2')
-IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
+
 S2M_PATH = os.getenv('S2M_PATH')
 
 # OTB
