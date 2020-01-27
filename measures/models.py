@@ -7,20 +7,33 @@ from .managers import MeasureManager
 
 
 class Place(models.Model):
-    parent_id = models.ForeignKey('self', on_delete=models.CASCADE)
+    parent_id = models.ForeignKey('self',
+                                  on_delete=models.CASCADE,
+                                  null=True,
+                                  blank=True)
     name = models.CharField(max_length=255)
-    geom = models.PolygonField()
+    geom = models.PolygonField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
 class Station(models.Model):
-    name = models.CharField(max_length=255)
-    place_id = models.ForeignKey('Place', on_delete=models.PROTECT)
+    name = models.CharField(max_length=255, blank=True)
+    place_id = models.ForeignKey('Place',
+                                 on_delete=models.PROTECT,
+                                 blank=True,
+                                 null=True)
+    lat = models.DecimalField(max_digits=10, decimal_places=6, null=True)
+    lon = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     geom = models.PointField()
     metadata = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.geom:
+            self.geom = Point(self.lon, self.lat)
+        super(Station, self).save(*args, **kwargs)
 
     def __str__(self):
         return '[{code}] {name} - {place_name}'.format(
