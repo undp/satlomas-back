@@ -63,7 +63,6 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'rest_auth',
     'rest_auth.registration',
-    'corsheaders',
     'drf_yasg',
     'corsheaders',
     'jsoneditor',
@@ -171,6 +170,9 @@ RQ_QUEUES = {
 }
 
 RQ_SHOW_ADMIN_LINK = True
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
+MEDIA_URL = '/uploads/'
 
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 IMAGES_PATH = os.path.join(DATA_DIR, 'images', 's2')
