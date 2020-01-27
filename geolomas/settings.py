@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_gis',
     'rest_framework.authtoken',
-    'rest_framework_api_key',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
