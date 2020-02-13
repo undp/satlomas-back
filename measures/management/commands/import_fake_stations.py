@@ -3,7 +3,8 @@ import os
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from measures.models import Station
+from measures.models import Place, Station
+from django.contrib.gis.geos import Point
 
 
 class Command(BaseCommand):
@@ -15,16 +16,20 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         with open(self.STATIONS_JSON_PATH, 'r') as f:
             body = json.load(f)
-            print(body)
 
-        # for poll_id in options['poll_ids']:
-        #     try:
-        #         poll = Poll.objects.get(pk=poll_id)
-        #     except Poll.DoesNotExist:
-        #         raise CommandError('Poll "%s" does not exist' % poll_id)
+        stations = body['stations']
+        for station in stations:
+            lat, lon = station['latlng']
+            point = Point(lon, lat)
+            place, _ = Place.objects.get_or_create(name=station['dep'])
 
-        #     poll.opened = False
-        #     poll.save()
+            Station.objects.get_or_create(code=station['codigo'],
+                                          defaults=dict(name=station['name'],
+                                                        place=place,
+                                                        lat=lat,
+                                                        lon=lon,
+                                                        geom=point))
 
-        #     self.stdout.write(self.style.SUCCESS(
-        #         'Successfully closed poll "%s"' % poll_id))
+        self.stdout.write(
+            self.style.SUCCESS('Successfully generated {} stations'.format(
+                len(stations))))
