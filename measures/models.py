@@ -7,23 +7,29 @@ from .managers import MeasureManager
 
 
 class Place(models.Model):
-    parent_id = models.ForeignKey('self',
-                                  on_delete=models.CASCADE,
-                                  null=True,
-                                  blank=True)
+    parent = models.ForeignKey('self',
+                               on_delete=models.CASCADE,
+                               null=True,
+                               blank=True)
     name = models.CharField(max_length=255)
     geom = models.PolygonField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        if self.parent_id:
+            return '{parent}/{self}'.format(parent=self.parent, self=self.name)
+        else:
+            return self.name
+
 
 class Station(models.Model):
     code = models.CharField(max_length=30, blank=True)
     name = models.CharField(max_length=255, blank=True)
-    place_id = models.ForeignKey('Place',
-                                 on_delete=models.PROTECT,
-                                 blank=True,
-                                 null=True)
+    place = models.ForeignKey(Place,
+                              on_delete=models.PROTECT,
+                              blank=True,
+                              null=True)
     lat = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     lon = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     geom = models.PointField()
@@ -43,7 +49,7 @@ class Station(models.Model):
 
 class Measure(models.Model):
     datetime = models.DateTimeField()
-    station_id = models.TextField(blank=True, null=True)
+    station = models.TextField(blank=True, null=True)
 
     temperature = models.FloatField(blank=True, null=True)
     humidity = models.FloatField(blank=True, null=True)
