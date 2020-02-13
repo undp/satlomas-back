@@ -18,7 +18,8 @@ class Place(models.Model):
 
     def __str__(self):
         if self.parent_id:
-            return '{parent}/{self}'.format(parent=self.parent, self=self.name)
+            return '{parent} / {self}'.format(parent=self.parent,
+                                              self=self.name)
         else:
             return self.name
 
@@ -43,8 +44,9 @@ class Station(models.Model):
         super(Station, self).save(*args, **kwargs)
 
     def __str__(self):
-        return '[{code}] {name} - {place_name}'.format(
-            code=self.code, name=self.name, place_name=self.place.name)
+        return '{name} ({code}) - {place}'.format(code=self.code,
+                                                  name=self.name,
+                                                  place=self.place)
 
 
 class Measure(models.Model):
@@ -60,7 +62,7 @@ class Measure(models.Model):
         managed = False
 
     def __str__(self):
-        return '{datetime} {station_id} - Temp: {temp} Hum: {hum}'.format(
+        return '{datetime} :: {station} - Temp: {temp} Hum: {hum}'.format(
             datetime=str(self.datetime),
             station_id=self.station_id,
             temp=self.temperature,
