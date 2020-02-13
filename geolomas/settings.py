@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'jsoneditor',
     'django_rq',
+    'leaflet',
     'measures',
     'files',
 ]
