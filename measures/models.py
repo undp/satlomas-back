@@ -18,6 +18,7 @@ class Place(models.Model):
 
 
 class Station(models.Model):
+    code = models.CharField(max_length=30, blank=True)
     name = models.CharField(max_length=255, blank=True)
     place_id = models.ForeignKey('Place',
                                  on_delete=models.PROTECT,
