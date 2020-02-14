@@ -10,6 +10,8 @@ class PlaceSerializer(serializers.ModelSerializer):
 
 
 class StationSerializer(serializers.ModelSerializer):
+    place_name = serializers.ReadOnlyField()
+
     class Meta:
         model = Station
         fields = '__all__'

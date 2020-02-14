@@ -38,6 +38,9 @@ class Station(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def place_name(self):
+        return self.place.name if self.place else ''
+
     def save(self, *args, **kwargs):
         if not self.geom:
             self.geom = Point(self.lon, self.lat)
