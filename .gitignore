@@ -131,3 +131,5 @@ data/images/*
 
 # Vim swap files
 *.swp
+
+/static/
