@@ -27,6 +27,8 @@ rasterio = "*"
 rq = "*"
 sentinelsat = "*"
 django-leaflet = "*"
+gunicorn = "*"
+sentry-sdk = "*"
 
 [requires]
 python_version = "3"
