@@ -187,3 +187,60 @@ When adding new translated strings:
 * Run `django-admin makemessages`
 * Update .po files
 * Run `django-admin compilemessages`
+
+### Deployment
+
+Copy the configuration files for systemd found at `tools/systemd`.
+
+`gunicorn` start the Django service using gunicorn.
+
+```sh
+sudo cp tools/systemd/gunicorn.service /etc/systemd/system/
+sudo systemctl start gunicorn.service
+sudo systemctl enable gunicorn.service
+```
+
+`rqworker@` manages multiple workers for background jobs.
+
+```sh
+sudo cp tools/systemd/rqworker@.service /etc/systemd/system/
+sudo systemctl start rqworker@.service
+sudo systemctl enable rqworker@.service
+```
+
+If you make changes to those files after this, make sure then that systemd is
+reloaded and restart services:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl restart gunicorn rqworker@*
+```
+
+Install nginx. Copy the configuration files found on `tools/nginx` and restart
+nginx.
+
+```
+sudo apt install nginx
+sudo cp tools/nginx/* /etc/nginx/sites-available/
+sudo ln -s /etc/nginx/sites-available/geolomas* /etc/nginx/sites-enabled/
+sudo systemctl restart nginx
+```
+
+Install certbot and configure it for free SSL certificates and automatic
+renewal:
+
+```sh
+sudo apt-get update
+sudo apt-get install software-properties-common
+sudo add-apt-repository universe
+sudo add-apt-repository ppa:certbot/certbot
+sudo apt-get update
+```
+
+```sh
+sudo apt-get install certbot python-certbot-nginx
+```
+
+```sh
+sudo certbot --nginx
+```
