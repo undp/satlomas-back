@@ -18,6 +18,7 @@ if (!mqttPath) {
   process.exit(1);
 }
 
+console.log(`Connecting to ${mqttUrl}`)
 const client = mqtt.connect(mqttUrl, {
   clientId
 });
