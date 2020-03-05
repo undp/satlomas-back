@@ -42,8 +42,6 @@ def get_allowed_hosts():
 
 ALLOWED_HOSTS = get_allowed_hosts()
 
-WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -103,9 +101,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'geolomas.wsgi.application'
 
-CORS_ORIGIN_WHITELIST = [
-    WEBCLIENT_URL,
-]
+# Allow all domains
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
