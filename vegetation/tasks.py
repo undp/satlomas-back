@@ -267,25 +267,58 @@ def get_modis_peru(date_from, date_to):
 
     gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
 
+import rasterio
+import numpy as np
+import subprocess
+def run_subprocess(cmd):
+    print(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+
 
 def vegetation_mask():
     area_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'area_monitoreo_4326_b250.geojson')
-    srtm = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
+    srtm_dem = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
     srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem_monitoreo.tif')
     run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
         gdal_bin_path=settings.GDAL_BIN_PATH,
         aoi=area_monitoreo,
-        src=srtm,
+        src=srtm_dem,
         dst=srtm_monitoreo))
 
     os.makedirs(MODIS_CLIP_DIR, exist_ok=True)
 
-    for f in os.listdir(MODIS_TIF_DIR):
-        if f.endswith('_ndvi.tif'):
-            ndvi = os.path.join(MODIS_TIF_DIR, f)
-            ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
-            run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
-                gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=area_monitoreo,
-                src=ndvi,
-                dst=ndvi_monitoreo))
+    with rasterio.open(srtm_monitoreo) as srtm_src:
+        srtm = srtm_src.read(1)
+
+        LOMAS_MIN = 200
+        LOMAS_MAX = 1800
+        lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
+
+        FACTOR_ESCALA = 0.0001
+        UMBRAL_NDVI = 0.2
+        tope = UMBRAL_NDVI / FACTOR_ESCALA
+
+        for f in os.listdir(MODIS_TIF_DIR):
+            if f.endswith('_ndvi.tif'):
+                ndvi = os.path.join(MODIS_TIF_DIR, f)
+                ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
+                run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
+                    gdal_bin_path=settings.GDAL_BIN_PATH,
+                    aoi=area_monitoreo,
+                    src=ndvi,
+                    dst=ndvi_monitoreo))
+
+                with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
+                    modis_ndvi = modis_ndvi_src.read(1)
+
+                    vegetacion_mask = (modis_ndvi > tope)
+
+                    verde_mask = (vegetacion_mask & lomas_mask)
+                    verde = np.copy(modis_ndvi)
+                    verde[~verde_mask] = 0
+
+                    verde_rango = np.copy(verde)
+                    verde_rango[(verde >= (0.2 / FACTOR_ESCALA)) & (verde < (0.4 / FACTOR_ESCALA))] = 1
+                    verde_rango[(verde >= (0.4 / FACTOR_ESCALA)) & (verde < (0.6 / FACTOR_ESCALA))] = 2
+                    verde_rango[(verde >= (0.6 / FACTOR_ESCALA)) & (verde < (0.8 / FACTOR_ESCALA))] = 3
+                    verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
