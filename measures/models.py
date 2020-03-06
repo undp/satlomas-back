@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from django.contrib.postgres.fields import JSONField
 from django.contrib.gis.db import models
+from django.contrib.postgres.fields import JSONField
+from django.utils.translation import gettext as _
 
 from .managers import MeasureManager
 
@@ -56,8 +57,23 @@ class Measure(models.Model):
     datetime = models.DateTimeField()
     station = models.TextField(blank=True, null=True)
 
-    temperature = models.FloatField(blank=True, null=True)
-    humidity = models.FloatField(blank=True, null=True)
+    temperature = models.FloatField(_("Environmental Temperature"),
+                                    blank=True,
+                                    null=True)
+    humidity = models.FloatField(_("Relative Humidity"), blank=True, null=True)
+    wind_speed = models.FloatField(_("Wind Speed"), blank=True, null=True)
+    wind_direction = models.FloatField(_("Wind Direction"),
+                                       blank=True,
+                                       null=True)
+    pressure = models.FloatField(_("Atmospheric Pressume"),
+                                 blank=True,
+                                 null=True)
+    precipitation = models.FloatField(_("Precipitation"),
+                                      blank=True,
+                                      null=True)
+    pm25 = models.FloatField(_("Particulate Matter (< 25um)"),
+                             blank=True,
+                             null=True)
 
     objects = MeasureManager()
 
