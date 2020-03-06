@@ -1,4 +1,6 @@
-from django.db import models, connection
+import json
+
+from django.db import connection, models
 
 
 class MeasureManager(models.Manager):
@@ -24,7 +26,7 @@ class MeasureManager(models.Manager):
                 VALUES ('{datetime}', '{station_id}', '{attributes}');
             """.format(datetime=str(datetime),
                        station_id=station_id,
-                       attributes=attributes))
+                       attributes=json.dumps(attributes)))
             return self.model(datetime=datetime,
                               station_id=station_id,
                               attributes=attributes)
@@ -39,7 +41,7 @@ class MeasureManager(models.Manager):
             result_list = []
             for row in cursor.fetchall():
                 m = self.model(datetime=row[0],
-                               station_id=row[1],
+                               station=row[1],
                                attributes=row[2])
                 result_list.append(m)
         if len(result_list) == 0:

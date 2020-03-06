@@ -55,25 +55,8 @@ class Station(models.Model):
 
 class Measure(models.Model):
     datetime = models.DateTimeField()
-    station = models.TextField(blank=True, null=True)
-
-    temperature = models.FloatField(_("Environmental Temperature"),
-                                    blank=True,
-                                    null=True)
-    humidity = models.FloatField(_("Relative Humidity"), blank=True, null=True)
-    wind_speed = models.FloatField(_("Wind Speed"), blank=True, null=True)
-    wind_direction = models.FloatField(_("Wind Direction"),
-                                       blank=True,
-                                       null=True)
-    pressure = models.FloatField(_("Atmospheric Pressume"),
-                                 blank=True,
-                                 null=True)
-    precipitation = models.FloatField(_("Precipitation"),
-                                      blank=True,
-                                      null=True)
-    pm25 = models.FloatField(_("Particulate Matter (< 25um)"),
-                             blank=True,
-                             null=True)
+    station = models.ForeignKey(Station, on_delete=models.PROTECT)
+    attributes = JSONField(blank=True)
 
     objects = MeasureManager()
 
@@ -81,8 +64,7 @@ class Measure(models.Model):
         managed = False
 
     def __str__(self):
-        return '{datetime} :: {station} - Temp: {temp} Hum: {hum}'.format(
+        return '{datetime} {station} :: {attributes}'.format(
             datetime=str(self.datetime),
-            station_id=self.station_id,
-            temp=self.temperature,
-            hum=self.humidity)
+            station=self.station,
+            attributes=self.attributes)
