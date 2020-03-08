@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.contrib.gis.db import models
+from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import JSONField
 from django.utils.translation import gettext as _
 
