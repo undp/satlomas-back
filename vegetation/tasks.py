@@ -13,6 +13,7 @@ import requests
 import numpy as np
 import subprocess
 import shutil
+import django_rq
 from django.conf import settings
 from django_rq import job
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -35,8 +36,9 @@ MODIS_ROOT = os.path.join(settings.BASE_DIR, 'modis')
 MODIS_OUT_DIR = os.path.join(MODIS_ROOT,'out')
 MODIS_TIF_DIR = os.path.join(MODIS_ROOT,'tif')
 MODIS_CLIP_DIR = os.path.join(MODIS_ROOT, 'clip')
-H_PERU = ['09', '10', '11']
-V_PERU = ['09', '10', '11']
+VEGETATION_MASK_DIR = os.path.join('data', 'vegetation')
+H_PERU = '10'
+V_PERU = '10'
 
 def run_subprocess(cmd):
     print(cmd)
@@ -259,28 +261,28 @@ def get_modis_peru(date_from, date_to):
     os.makedirs(MODIS_OUT_DIR, exist_ok=True)
     os.makedirs(MODIS_TIF_DIR, exist_ok=True)
 
-    for h in H_PERU:
-        for v in V_PERU:
-            tile = 'h{}v{}'.format(h, v)
+    tile = 'h{}v{}'.format(H_PERU, V_PERU)
 
-            get_modisfiles(
-                settings.MODIS_USER, settings.MODIS_PASS, 
-                MODIS_PLATFORM, MODIS_PRODUCT,
-                year, tile, proxy=None,
-                doy_start=doy_begin, doy_end=doy_end,
-                out_dir=MODIS_OUT_DIR,
-                verbose=True, ruff=False,
-                get_xml=False)
+    get_modisfiles(
+        settings.MODIS_USER, settings.MODIS_PASS, 
+        MODIS_PLATFORM, MODIS_PRODUCT,
+        year, tile, proxy=None,
+        doy_start=doy_begin, doy_end=doy_end,
+        out_dir=MODIS_OUT_DIR,
+        verbose=True, ruff=False,
+        get_xml=False)
 
     gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
 
+    django_rq.enqueue('vegetation.tasks.vegetation_mask', date_from, date_to)
 
 
+@job("default", timeout=3600)
 def vegetation_mask(date_from, date_to):
     area_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'area_monitoreo.geojson')
     srtm_dem = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
     srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem_monitoreo.tif')
-    if not path.exists(srtm_monitoreo)
+    if not os.path.exists(srtm_monitoreo):
         run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'.format(
             gdal_bin_path=settings.GDAL_BIN_PATH,
             aoi=area_monitoreo,
@@ -336,11 +338,16 @@ def vegetation_mask(date_from, date_to):
             period = "{}{}-{}{}".format(
                 ("0" + str(date_from.month))[-2:], date_from.year,
                 ("0" + str(date_to.month))[-2:], date_to.year)
-            with rasterio.open('modis/{}-vegetation_mask.tif'.format(period), 'w', **modis_meta) as dst: 
+            os.makedirs(VEGETATION_MASK_DIR)
+            dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_mask.tif'.format(period))
+            with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
                 dst.write(verde, 1)
 
             modis_meta['dtype'] = "float32"
-            with rasterio.open('modis/{}-vegetation_range.tif'.format(period), 'w', **modis_meta) as dst: 
+            dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_range.tif'.format(period))
+            with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
                 dst.write(verde_rango, 1)
     
     shutil.rmtree(MODIS_CLIP_DIR)
+    shutil.rmtree(MODIS_OUT_DIR)
+    shutil.rmtree(MODIS_TIF_DIR)
