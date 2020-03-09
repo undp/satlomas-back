@@ -298,55 +298,57 @@ def vegetation_mask(date_from, date_to):
         LOMAS_MAX = 1800
         lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
 
-        FACTOR_ESCALA = 0.0001
-        UMBRAL_NDVI = 0.2
-        tope = UMBRAL_NDVI / FACTOR_ESCALA
+    FACTOR_ESCALA = 0.0001
+    UMBRAL_NDVI = 0.2
+    tope = UMBRAL_NDVI / FACTOR_ESCALA
 
-        f = '*h10v10*.hdf_ndvi.tif'
-        ndvi = os.path.join(MODIS_TIF_DIR, f)
-        ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
-        run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'.format(
-            gdal_bin_path=settings.GDAL_BIN_PATH,
-            aoi=area_monitoreo,
-            src=ndvi,
-            dst=ndvi_monitoreo))
+    f = '*h10v10*.hdf_ndvi.tif'
+    ndvi = os.path.join(MODIS_TIF_DIR, f)
+    ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
+    run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'.format(
+        gdal_bin_path=settings.GDAL_BIN_PATH,
+        aoi=area_monitoreo,
+        src=ndvi,
+        dst=ndvi_monitoreo))
 
-        run_subprocess('{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.format(
-            otb_bin_path=settings.OTB_BIN_PATH,
-            inr=srtm_monitoreo,
-            inm=ndvi_monitoreo, 
-            out=ndvi_monitoreo))
+    run_subprocess('{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.format(
+        otb_bin_path=settings.OTB_BIN_PATH,
+        inr=srtm_monitoreo,
+        inm=ndvi_monitoreo, 
+        out=ndvi_monitoreo))
 
-        with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
-            modis_ndvi = modis_ndvi_src.read(1)
+    with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
+        modis_ndvi = modis_ndvi_src.read(1)
 
-            vegetacion_mask = (modis_ndvi > tope)
+        vegetacion_mask = (modis_ndvi > tope)
 
-            verde_mask = (vegetacion_mask & lomas_mask)
-            verde = np.copy(modis_ndvi)
-            verde[~verde_mask] = 0
+        verde_mask = (vegetacion_mask & lomas_mask)
+        verde = np.copy(modis_ndvi)
+        verde[~verde_mask] = 0
 
-            verde_rango = np.copy(verde)
-            verde_rango[(verde >= (0.2 / FACTOR_ESCALA)) & (verde < (0.4 / FACTOR_ESCALA))] = 1
-            verde_rango[(verde >= (0.4 / FACTOR_ESCALA)) & (verde < (0.6 / FACTOR_ESCALA))] = 2
-            verde_rango[(verde >= (0.6 / FACTOR_ESCALA)) & (verde < (0.8 / FACTOR_ESCALA))] = 3
-            verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
+        verde_rango = np.copy(verde)
+        verde_rango[(verde >= (0.2 / FACTOR_ESCALA)) & (verde < (0.4 / FACTOR_ESCALA))] = 1
+        verde_rango[(verde >= (0.4 / FACTOR_ESCALA)) & (verde < (0.6 / FACTOR_ESCALA))] = 2
+        verde_rango[(verde >= (0.6 / FACTOR_ESCALA)) & (verde < (0.8 / FACTOR_ESCALA))] = 3
+        verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
 
-            verde[verde_mask] = 255
-            modis_meta = modis_ndvi_src.profile
+        verde[verde_mask] = 255
+        modis_meta = modis_ndvi_src.profile
 
-            period = "{}{}-{}{}".format(
-                ("0" + str(date_from.month))[-2:], date_from.year,
-                ("0" + str(date_to.month))[-2:], date_to.year)
-            os.makedirs(VEGETATION_MASK_DIR)
-            dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_mask.tif'.format(period))
-            with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
-                dst.write(verde, 1)
+        period = "{}{}-{}{}".format(
+            ("0" + str(date_from.month))[-2:], date_from.year,
+            ("0" + str(date_to.month))[-2:], date_to.year)
 
-            modis_meta['dtype'] = "float32"
-            dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_range.tif'.format(period))
-            with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
-                dst.write(verde_rango, 1)
+        os.makedirs(VEGETATION_MASK_DIR, exist_ok=True)
+
+        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
+            dst.write(verde, 1)
+
+        modis_meta['dtype'] = "float32"
+        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_range.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
+            dst.write(verde_rango, 1)
     
     shutil.rmtree(MODIS_CLIP_DIR)
     shutil.rmtree(MODIS_OUT_DIR)
