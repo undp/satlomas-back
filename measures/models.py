@@ -1,44 +1,71 @@
-from django.db import models
 from datetime import datetime
+
+from django.contrib.gis.db import models
+from django.contrib.gis.geos.point import Point
+from django.contrib.postgres.fields import JSONField
+from django.utils.translation import gettext as _
+
 from .managers import MeasureManager
 
 
-class Device(models.Model):
-    code = models.CharField(max_length=32)
-    location = models.CharField(max_length=64)
+class Place(models.Model):
+    parent = models.ForeignKey('self',
+                               on_delete=models.CASCADE,
+                               null=True,
+                               blank=True)
+    name = models.CharField(max_length=255)
+    geom = models.PolygonField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '{code} - {location}'.format(code=self.code,
-                                            location=self.location)     
-"""
-Run in SQL
-CREATE TABLE measures_measure (
-    datetime TIMESTAMP not null, 
-    temperature float, 
-    humidity float, 
-    device_id text not null, 
-    PRIMARY KEY(datetime, device_id)
-);
-SELECT create_hypertable('measures_measure','datetime');
-"""
+        if self.parent_id:
+            return '{parent} / {self}'.format(parent=self.parent,
+                                              self=self.name)
+        else:
+            return self.name
+
+
+class Station(models.Model):
+    code = models.CharField(max_length=30, blank=True)
+    name = models.CharField(max_length=255, blank=True)
+    place = models.ForeignKey(Place,
+                              on_delete=models.PROTECT,
+                              blank=True,
+                              null=True)
+    lat = models.DecimalField(max_digits=10, decimal_places=6, null=True)
+    lon = models.DecimalField(max_digits=10, decimal_places=6, null=True)
+    geom = models.PointField()
+    metadata = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def place_name(self):
+        return self.place.name if self.place else ''
+
+    def save(self, *args, **kwargs):
+        if not self.geom:
+            self.geom = Point(self.lon, self.lat)
+        super(Station, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return '{name} ({code}) - {place}'.format(code=self.code,
+                                                  name=self.name,
+                                                  place=self.place)
+
 
 class Measure(models.Model):
     datetime = models.DateTimeField()
-    temperature = models.FloatField(blank=True, null=True)
-    humidity = models.FloatField(blank=True, null=True)
-    device_id = models.TextField(blank=True, null=True)
+    station = models.ForeignKey(Station, on_delete=models.PROTECT)
+    attributes = JSONField(blank=True)
 
     objects = MeasureManager()
 
     class Meta:
         managed = False
-        db_table = 'measures_measure'
 
-    
     def __str__(self):
-        return '{datetime} {device_id} - Temp: {temp} Hum: {hum}'.format(
+        return '{datetime} {station} :: {attributes}'.format(
             datetime=str(self.datetime),
-            device_id=self.device_id,
-            temp=self.temperature,
-            hum=self.humidity
-        )
+            station=self.station,
+            attributes=self.attributes)
