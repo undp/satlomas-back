@@ -332,7 +332,27 @@ def vegetation_mask(date_from, date_to):
         verde_rango[(verde >= (0.6 / FACTOR_ESCALA)) & (verde < (0.8 / FACTOR_ESCALA))] = 3
         verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
 
-        verde[verde_mask] = 255
+        verde[verde_mask] = 1
+
+        #Add cloud data to mask
+        f = '*h10v10*.hdf_pixelrel.tif'
+        pixelrel = os.path.join(MODIS_TIF_DIR, f)
+        pixelrel_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
+        run_subprocess('{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'.format(
+            gdal_bin_path=settings.GDAL_BIN_PATH,
+            aoi=area_monitoreo,
+            src=pixelrel,
+            dst=pixelrel_monitoreo))
+        run_subprocess('{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.format(
+            otb_bin_path=settings.OTB_BIN_PATH,
+            inr=srtm_monitoreo,
+            inm=pixelrel_monitoreo, 
+            out=pixelrel_monitoreo))
+        with rasterio.open(pixelrel_monitoreo) as cloud_src:
+            clouds = cloud_src.read(1)
+        #In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
+        verde[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 2
+
         modis_meta = modis_ndvi_src.profile
 
         period = "{}{}-{}{}".format(
