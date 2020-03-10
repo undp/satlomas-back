@@ -25,6 +25,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.getenv('DEBUG', 1)) > 0
 
+
 def get_allowed_hosts():
     """
     Get allowed hosts from .env file
@@ -38,10 +39,8 @@ def get_allowed_hosts():
         hosts = ['.dymaxionlabs.com']
     return hosts
 
+
 ALLOWED_HOSTS = get_allowed_hosts()
-
-WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
-
 
 # Application definition
 
@@ -53,15 +52,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.sites',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'rest_framework',
+    'rest_framework_gis',
     'rest_framework.authtoken',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'rest_auth',
     'rest_auth.registration',
+    'drf_yasg',
     'corsheaders',
+    'jsoneditor',
     'django_rq',
+    'leaflet',
     'measures',
     'files',
 ]
@@ -97,9 +101,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'geolomas.wsgi.application'
 
-CORS_ORIGIN_WHITELIST = [
-    WEBCLIENT_URL,
-]
+# Allow all domains
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
@@ -154,6 +157,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+#STATICFILES_DIRS = [os.path.join(BASE_DIR, 'templates', 'static')]
 
 SITE_ID = 1
 
@@ -166,18 +171,26 @@ RQ_QUEUES = {
 
 RQ_SHOW_ADMIN_LINK = True
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
+MEDIA_URL = '/uploads/'
+
+JSON_EDITOR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.js'
+JSON_EDITOR_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.css'
+
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+IMAGES_PATH = os.path.join(DATA_DIR, 'images', 's2')
+IMAGES_PATH_S1 = os.path.join(DATA_DIR, 'images', 's1', 'raw')
+
 SCIHUB_URL = os.getenv('SCIHUB_URL')
 SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
-IMAGES_PATH = os.path.join(BASE_DIR, 'data', 'images', 's2')
-IMAGES_PATH_S1 = os.path.join(BASE_DIR, 'data', 'images', 's1', 'raw')
+
 S2M_PATH = os.getenv('S2M_PATH')
 
-#OTB
+# OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
 GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
 
-#MODIS
+# MODIS
 MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
-

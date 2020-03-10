@@ -1,0 +1,18 @@
+[Unit]
+Description=RQ worker
+After=network.target
+
+[Service]
+Environment=PYTHONUNBUFFERED=true
+Environment=SENTRY_DNS=https://2dd8f13e32504a0ca9ac927ec6adbcba@sentry.io/1412965
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/google-cloud-sdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+User=ubuntu
+Group=www-data
+SyslogIdentifier=rqworker
+StandardOutput=syslog
+StandardError=syslog
+WorkingDirectory=/home/ubuntu/geolomas-back
+ExecStart=/bin/bash -c '/home/ubuntu/.local/share/virtualenvs/geolomas-back-O5su8kSy/bin/python /home/ubuntu/geolomas-back/manage.py rqworker --sentry-dsn=${SENTRY_DNS}'
+
+[Install]
+WantedBy=multi-user.target
