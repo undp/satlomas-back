@@ -334,7 +334,19 @@ def vegetation_mask(date_from, date_to):
 
         verde[verde_mask] = 1
 
-        #Add cloud data to mask
+        modis_meta = modis_ndvi_src.profile
+
+        period = "{}{}-{}{}".format(
+            ("0" + str(date_from.month))[-2:], date_from.year,
+            ("0" + str(date_to.month))[-2:], date_to.year)
+
+        os.makedirs(VEGETATION_MASK_DIR, exist_ok=True)
+
+        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
+            dst.write(verde, 1)
+
+        #Cloud mask
         f = '*h10v10*.hdf_pixelrel.tif'
         pixelrel = os.path.join(MODIS_TIF_DIR, f)
         pixelrel_monitoreo = os.path.join(MODIS_CLIP_DIR, f) 
@@ -351,25 +363,19 @@ def vegetation_mask(date_from, date_to):
         with rasterio.open(pixelrel_monitoreo) as cloud_src:
             clouds = cloud_src.read(1)
         #In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
-        verde[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 2
+        cloud_mask = np.copy(clouds)
+        cloud_mask[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 1
+        cloud_mask[(clouds != 2) & (clouds != 3)] = 0
 
-        modis_meta = modis_ndvi_src.profile
-
-        period = "{}{}-{}{}".format(
-            ("0" + str(date_from.month))[-2:], date_from.year,
-            ("0" + str(date_to.month))[-2:], date_to.year)
-
-        os.makedirs(VEGETATION_MASK_DIR, exist_ok=True)
-
-        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_mask.tif'.format(period))
+        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-cloud_mask.tif'.format(period))
         with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
-            dst.write(verde, 1)
+            dst.write(cloud_mask, 1)
 
         modis_meta['dtype'] = "float32"
         dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_range.tif'.format(period))
         with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
             dst.write(verde_rango, 1)
-    
+        
     shutil.rmtree(MODIS_CLIP_DIR)
     shutil.rmtree(MODIS_OUT_DIR)
     shutil.rmtree(MODIS_TIF_DIR)
