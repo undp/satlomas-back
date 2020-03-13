@@ -8,8 +8,8 @@ import os
 RESULTS_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
 RESULTS_SRC = os.path.join(RESULTS_DIR, 'src')
 RESULTS_FEAT = os.path.join(RESULTS_DIR, 'feats')
-MODEL_PATH = os.path.join(settings.BASE_DIR, 'files','data','rf_model.yaml')
-SRTM_DEM_PATH = os.path.join(settings.BASE_DIR, 'files','data','srtm_dem.tif')
+MODEL_PATH = os.path.join(settings.BASE_DIR, 'data','rf_model.yaml')
+SRTM_DEM_PATH = os.path.join(settings.BASE_DIR, 'data','srtm_dem.tif')
 
 
 def run_subprocess(cmd):

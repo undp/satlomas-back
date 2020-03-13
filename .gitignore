@@ -127,7 +127,9 @@ dmypy.json
 # Visual Studio code user config dir
 /.vscode/
 
+modis/*
 data/images/*
+data/vegetation/*
 
 # Vim swap files
 *.swp
