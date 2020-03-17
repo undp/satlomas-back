@@ -13,7 +13,7 @@ class Scope(models.Model):
         choices=TYPE_SCOPES,
     )
     period = models.DateField()
-    poly = models.MultiPolygonField(srid=4326)
+    poly = models.MultiPolygonField()
     name = models.CharField(max_length=64)
 
     #objects = models.GeoManager()
