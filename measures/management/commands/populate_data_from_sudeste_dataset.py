@@ -82,8 +82,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         dataset = pd.read_csv(self.CSV_PATH, header=0, index_col=0,nrows=None)
+        self.log_success('Shape of the original csv {}'.format(dataset.shape))
         
-        self.log_success('Shape of the csv {}'.format(dataset.shape))
+        #drop data to make it managable
+        dataset = dataset.loc[dataset.yr > 2010]
+        
+        dataset.fillna(0,inplace=True)
+        
+        self.log_success('Shape of the filtered csv {}'.format(dataset.shape))
         
         # get all the different cities in the dataset
         unique_cities = dataset.city.unique()
@@ -97,16 +103,15 @@ class Command(BaseCommand):
                 self.log_success('Place for {} already exists'.format(city))    
             
             # create the stations of the city
-            # get the slice of the dataset for that city
-            city_df = dataset.loc[dataset.city == city]
-            self.log_success('Dataframe slice has shape {}'.format(city_df.shape))
+            # work with a the slice of the dataset for that city dataset.loc[dataset.city == city]
             
-            unique_stations = city_df.inme.unique()
+            unique_stations = dataset.loc[dataset.city == city].inme.unique()
             for station_code in unique_stations:
                 
-                station_df = city_df.loc[city_df.inme == station_code]
+                # work with slice for city and station
+                #dataset.loc[dataset.city == city].loc[dataset.loc[dataset.city == city].inme == station_code]
                 
-                first = station_df.iloc[0]
+                first = dataset.loc[dataset.city == city].loc[dataset.loc[dataset.city == city].inme == station_code].iloc[0]
                 
                 self.log_success('Creating station {}'.format(station_code))
                 station, created = Station.objects.get_or_create(
@@ -121,11 +126,9 @@ class Command(BaseCommand):
                     self.log_success('Station {} already exists'.format(station))    
                     
                 #get all measures for station , probably simulating or imputing values between hours
-                measures_df = dataset.loc[dataset.inme == station_code]
-                measures_df.fillna(measures_df.mean(),inplace=True)
-                self.log_success('Measures dataframe for station {} has shape {}'.format(station_code,measures_df.shape))
+                # dataset.loc[dataset.inme == station_code]
                 
-                measures_df.apply(lambda x : self.process_measure_row(station,x),axis=1)
+                dataset.loc[dataset.inme == station_code].apply(lambda x : self.process_measure_row(station,x),axis=1)
                 
                 
 
