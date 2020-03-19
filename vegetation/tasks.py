@@ -390,7 +390,7 @@ def vegetation_mask(date_from, date_to):
             tif_src=dst_name,
             geojson_output=output_name))
 
-        VegetationMask(output_name, date_from)
+        VegetationMask.save_from_geojson(output_name, date_from)
         
     shutil.rmtree(MODIS_CLIP_DIR)
     shutil.rmtree(MODIS_OUT_DIR)

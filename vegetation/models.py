@@ -6,6 +6,9 @@ class VegetationMask(models.Model):
     vegetation = models.MultiPolygonField()
     clouds = models.MultiPolygonField()
 
+    class Meta:
+        app_label = 'vegetation'
+
     def save_from_geojson(geojson_path, period):
         from django.contrib.gis.gdal import DataSource
         from django.contrib.gis.geos import GEOSGeometry
@@ -20,13 +23,13 @@ class VegetationMask(models.Model):
             if str(ds[0][x]['DN']) == '1':
                 vegetation_polys.append(geom)
             elif str(ds[0][x]['DN']) == '2':
-                clouds.append(clouds)
+                clouds_polys.append(geom)
             else:
                 pass
         vegetation_mp = unary_union(vegetation_polys)
         clouds_mp = unary_union(clouds_polys)
 
-        return VegetationMask(
+        return VegetationMask.objects.create(
             period=period,
             vegetation=GEOSGeometry(vegetation_mp.wkt),
             clouds=GEOSGeometry(clouds_mp.wkt)
