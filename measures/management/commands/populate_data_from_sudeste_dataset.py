@@ -10,7 +10,7 @@ from django.contrib.gis.geos import Point
 
 
 
-# run this by python manage.py populate_data_from_sudeste_dataset
+# run this by python manage.py populate_data_from_sudeste_dataset >> populate_data.log 2>&1 &
 class Command(BaseCommand):
     
     def log_success(self,msg):
@@ -60,19 +60,20 @@ class Command(BaseCommand):
             )
             self.log_success('Attributes to save {}'.format(attributes))
 
-            new_measure, created = Measure.objects.get_or_create(
-                datetime = timestamp,
-                station = station,
-                attributes = attributes
-            )
-            
-            if created :
-                self.log_success('Measure created: {}'.format(new_measure))
-            else:
-                self.log_success('Measure already exists'.format(new_measure))
+            try:
+                new_measure, created = Measure.objects.get_or_create(
+                    datetime = timestamp,
+                    station = station,
+                    attributes = attributes
+                )
+
+                if created :
+                    self.log_success('Measure created: {}'.format(new_measure))
+                else:
+                    self.log_success('Measure already exists'.format(new_measure))
+            except Exception as e:
+                self.log_success('Exception trying to create measure'.format(e))
                 
-            
-            
 
         
     help = 'Import place, station and measurement data from sudeste dataset'
