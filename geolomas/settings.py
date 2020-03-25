@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'leaflet',
     'measures',
     'files',
+    'scopes',
     'vegetation',
 ]
 
