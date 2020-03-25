@@ -17,6 +17,7 @@ import django_rq
 from django.conf import settings
 from django_rq import job
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from vegetation.models import VegetationMask
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -375,6 +376,21 @@ def vegetation_mask(date_from, date_to):
         dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_range.tif'.format(period))
         with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
             dst.write(verde_rango, 1)
+
+
+        #Create a mask with data from vegetation and clouds
+        verde[cloud_mask == 1] = 2
+        dst_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_cloud_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst: 
+            dst.write(verde, 1)
+        #Create poligons from the mask
+        output_name = os.path.join(VEGETATION_MASK_DIR, '{}-vegetation_cloud_geom.geojson'.format(period))
+        run_subprocess('{gdal_bin_path}/gdal_polygonize.py {tif_src} {geojson_output} -b 1 -f "GeoJSON" DN'.format(
+            gdal_bin_path=settings.GDAL_BIN_PATH,
+            tif_src=dst_name,
+            geojson_output=output_name))
+
+        VegetationMask.save_from_geojson(output_name, date_from)
         
     shutil.rmtree(MODIS_CLIP_DIR)
     shutil.rmtree(MODIS_OUT_DIR)

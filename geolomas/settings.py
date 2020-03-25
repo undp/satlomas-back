@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'measures',
     'files',
     'scopes',
+    'vegetation',
 ]
 
 MIDDLEWARE = [
