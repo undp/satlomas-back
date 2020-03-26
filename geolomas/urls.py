@@ -24,6 +24,7 @@ from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
 from measures.views import PlaceViewSet, StationViewSet
+from scopes.views import TimeSeries
 
 router = SimpleRouter()
 router.register(r'places', PlaceViewSet)
@@ -64,6 +65,9 @@ urlpatterns = [
 
     # Administration
     url(r'^admin/', admin.site.urls),
+
+    #Scopes
+    url(r'^coverage/$', TimeSeries.as_view()),
 
     # ...
     url(r'^', include(router.urls)),
