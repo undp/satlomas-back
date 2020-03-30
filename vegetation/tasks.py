@@ -8,6 +8,7 @@ import calendar
 import logging
 import sys
 import fnmatch
+import geopandas as gpd
 import rasterio
 import requests
 import numpy as np
@@ -389,6 +390,11 @@ def vegetation_mask(date_from, date_to):
             gdal_bin_path=settings.GDAL_BIN_PATH,
             tif_src=dst_name,
             geojson_output=output_name))
+
+        data = gpd.read_file(output_name)
+        data_proj = data.copy()
+        data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=32718)
+        data_proj.to_file(output_name)
 
         VegetationMask.save_from_geojson(output_name, date_from)
         
