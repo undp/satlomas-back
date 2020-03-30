@@ -16,6 +16,20 @@ def intersection_area(geom, date):
     return geom.intersection(vegetation_geom).area
 
 
+def intersection_area_sql(geom, date):
+    from django.db import connection
+    mask = VegetationMask.objects.filter(period=date).first()
+    query = """SELECT ST_Area(a.intersection) FROM
+                (SELECT ST_Intersection(ST_GeomFromText('{wkt_geom}'),
+                ST_GeomFromText('{wkt_mask}')) AS intersection) a;""".format(
+                    wkt_geom=geom.wkt,
+                    wkt_mask=mask.vegetation.wkt
+                )
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        return cursor.fetchall()[0][0]
+
+
 class TimeSeries(APIView):
 
     def post(self, request):
@@ -36,7 +50,7 @@ class TimeSeries(APIView):
         for date in pd.date_range(fdate,edate,freq='M',).strftime("%Y-%m"): 
             response['intersection_area'].append({
                 'date' : datetime.strptime(date, '%Y-%m'),
-                'area' : intersection_area(geom, datetime.strptime(date, '%Y-%m'))
+                'area' : intersection_area_sql(geom, datetime.strptime(date, '%Y-%m'))
             })
 
         return Response(response)
