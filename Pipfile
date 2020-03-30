@@ -10,12 +10,12 @@ pylint = "*"
 [packages]
 dateutils = "*"
 django = "~=3.0.2"
-django-anymail = {extras = ["mailgun"],version = "*"}
+django-anymail = {version = "*",extras = ["mailgun"]}
 django-cors-headers = "*"
 django-jsoneditor = "*"
-django-rest-auth = {extras = ["with_social"],version = "*"}
+django-rest-auth = {version = "*",extras = ["with_social"]}
 django-rq = "*"
-django-storages = {extras = ["google"],version = "*"}
+django-storages = {version = "*",extras = ["google"]}
 djangorestframework = "~=3.10"
 djangorestframework-gis = "~=0.15"
 drf-yasg = "*"
@@ -29,6 +29,7 @@ sentinelsat = "*"
 django-leaflet = "*"
 gunicorn = "*"
 sentry-sdk = "*"
+geopandas = "*"
 
 [requires]
 python_version = "3"
