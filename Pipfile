@@ -29,6 +29,7 @@ sentinelsat = "*"
 django-leaflet = "*"
 gunicorn = "*"
 sentry-sdk = "*"
+pandas = "*"
 
 [requires]
 python_version = "3"
