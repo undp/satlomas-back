@@ -26,5 +26,6 @@ class MeasureManager(models.Manager):
             ])
             cursor.execute("""
                 INSERT INTO measures_measure(datetime, station_id, attributes)
-                VALUES {values};
+                VALUES {values}
+                ON CONFLICT DO NOTHING;
             """.format(values=values))
