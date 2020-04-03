@@ -77,5 +77,6 @@ class ScopeTypes(APIView):
             s = {'type':t[0],'name':t[1],'scopes':[]}
             for scope in Scope.objects.filter(scope_type=t[0]):
                 s['scopes'].append({'name':scope.name,'pk':scope.id})
-            response.append(s)
+            if len(s['scopes']) > 0:
+                response.append(s)
         return Response(response)
