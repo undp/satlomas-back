@@ -6,7 +6,7 @@ from django.shortcuts import render
 from vegetation.models import VegetationMask
 import shapely.wkt
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from scopes.models import Scope
 
 # Create your views here.
@@ -45,8 +45,9 @@ class TimeSeries(APIView):
             scope = Scope.objects.get(pk=int(scope_id))
             geom = shapely.wkt.loads(scope.geom.wkt)
         response = {'intersection_area': []}
-        fdate = data['from_date'] #must be format %Y-%m-%d 
+        fdate = data['from_date']
         edate = data['end_date']
+        edate = datetime.strptime(edate,"%Y-%m-%d") + timedelta(days=31)
         for date in pd.date_range(fdate,edate,freq='M',).strftime("%Y-%m"): 
             response['intersection_area'].append({
                 'date' : date,
