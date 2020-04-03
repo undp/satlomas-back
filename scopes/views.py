@@ -49,8 +49,32 @@ class TimeSeries(APIView):
         edate = data['end_date']
         for date in pd.date_range(fdate,edate,freq='M',).strftime("%Y-%m"): 
             response['intersection_area'].append({
-                'date' : datetime.strptime(date, '%Y-%m'),
+                'date' : date,
                 'area' : intersection_area_sql(geom, datetime.strptime(date, '%Y-%m'))
             })
+        return Response(response)
 
+
+class AvailableDates(APIView):
+
+    def get(self, request):
+        order_masks = VegetationMask.objects.all().order_by('period')
+        response = {
+            'first_date': order_masks.first().period.strftime('%Y-%m-%d %H:%M'),
+            'last_date': order_masks.last().period.strftime('%Y-%m-%d %H:%M'),
+            'availables': [mask.period.strftime('%Y-%m') for mask in order_masks]
+        }
+        return Response(response)
+
+
+class ScopeTypes(APIView):
+
+    def get(self, request):
+        response = []
+        types = Scope._meta.get_field('scope_type').choices
+        for t in Scope._meta.get_field('scope_type').choices:
+            s = {'type':t[0],'name':t[1],'scopes':[]}
+            for scope in Scope.objects.filter(scope_type=t[0]):
+                s['scopes'].append({'name':scope.name,'pk':scope.id})
+            response.append(s)
         return Response(response)
