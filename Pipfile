@@ -30,6 +30,8 @@ django-leaflet = "*"
 gunicorn = "*"
 sentry-sdk = "*"
 geopandas = "*"
+pandas = "*"
+
 
 [requires]
 python_version = "3"
