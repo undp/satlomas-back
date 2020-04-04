@@ -179,6 +179,7 @@ MEDIA_URL = '/uploads/'
 JSON_EDITOR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.js'
 JSON_EDITOR_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.css'
 
+CONFIG_DIR = os.path.join(BASE_DIR, 'config')
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 IMAGES_PATH = os.path.join(DATA_DIR, 'images', 's2')
 IMAGES_PATH_S1 = os.path.join(DATA_DIR, 'images', 's1', 'raw')
