@@ -66,13 +66,13 @@ urlpatterns = [
     # Administration
     url(r'^admin/', admin.site.urls),
 
-    #Scopes
-    url(r'^coverage/$', TimeSeries.as_view()),
-    url(r'^available-dates/$', AvailableDates.as_view()),
-    url(r'^scopes-types/$', ScopeTypes.as_view()),
-
     # Measures
     url(r'^measures/summary/?', MeasureSummaryView.as_view()),
+
+    # Scopes
+    url(r'^scopes/coverage/?', TimeSeries.as_view()),
+    url(r'^scopes/available-dates/?', AvailableDates.as_view()),
+    url(r'^scopes/types/?', ScopeTypes.as_view()),
 
     # ...
     url(r'^', include(router.urls)),
