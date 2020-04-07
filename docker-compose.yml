@@ -27,6 +27,8 @@ services:
 
   api:
     <<: *back-opts
+    stdin_open: true
+    tty: true
     command: [
       "wait-for-postgres.sh", "db",
       "pipenv", "run", "./manage.py", "runserver", "0.0.0.0:8000"
