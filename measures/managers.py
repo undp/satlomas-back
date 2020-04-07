@@ -1,6 +1,35 @@
 import json
 
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.db import connection, models
+from django.db.models import Avg, Count, Func, Max, Min, Sum
+from django.db.models.functions import Cast
+
+from .utils import Day, Month, Week, Year
+
+
+class Year(Func):
+    function = 'EXTRACT'
+    template = '%(function)s(YEAR from %(expressions)s)'
+    output_field = models.IntegerField()
+
+
+class Month(Func):
+    function = 'EXTRACT'
+    template = '%(function)s(MONTH from %(expressions)s)'
+    output_field = models.IntegerField()
+
+
+class Week(Func):
+    function = 'EXTRACT'
+    template = '%(function)s(WEEK from %(expressions)s)'
+    output_field = models.IntegerField()
+
+
+class Day(Func):
+    function = 'EXTRACT'
+    template = '%(function)s(DAY from %(expressions)s)'
+    output_field = models.IntegerField()
 
 
 class MeasureManager(models.Manager):
@@ -29,3 +58,19 @@ class MeasureManager(models.Manager):
                 VALUES {values}
                 ON CONFLICT DO NOTHING;
             """.format(values=values))
+
+    def summary(self,
+                grouping_interval=Day,
+                aggregation_func=Avg,
+                *,
+                station,
+                parameter,
+                time_range):
+        qs = self.filter(station=station)
+        qs = qs.filter(datetime__range=time_range)
+        qs = qs.annotate(time=Week('datetime')).values('time')
+        qs = qs.annotate(temp=aggregation_func(
+            Cast(KeyTextTransform(parameter, "attributes"),
+                 models.FloatField())))
+        qs = qs.order_by('-datetime')
+        return qs
