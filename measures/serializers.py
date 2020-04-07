@@ -15,3 +15,14 @@ class StationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Station
         fields = '__all__'
+
+
+class MeasureSummarySerializer(serializers.Serializer):
+    station = serializers.IntegerField()
+    parameter = serializers.CharField()
+    start = serializers.DateTimeField()
+    end = serializers.DateTimeField()
+    grouping_interval = serializers.ChoiceField(
+        choices=['day', 'week', 'month', 'year'], default='day')
+    aggregation_func = serializers.ChoiceField(
+        choices=['avg', 'sum', 'count', 'min', 'max'], default='avg')

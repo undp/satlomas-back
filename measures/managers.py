@@ -5,8 +5,6 @@ from django.db import connection, models
 from django.db.models import Avg, Count, Func, Max, Min, Sum
 from django.db.models.functions import Cast
 
-from .utils import Day, Month, Week, Year
-
 
 class Year(Func):
     function = 'EXTRACT'
@@ -33,6 +31,9 @@ class Day(Func):
 
 
 class MeasureManager(models.Manager):
+    grouping_intervals = dict(day=Day, week=Week, month=Month, year=Year)
+    aggregation_funcs = dict(avg=Avg, count=Count, max=Max, min=Min, sum=Sum)
+
     def create(self, datetime, station_id, attributes):
         with connection.cursor() as cursor:
             cursor.execute("""
@@ -60,17 +61,21 @@ class MeasureManager(models.Manager):
             """.format(values=values))
 
     def summary(self,
-                grouping_interval=Day,
-                aggregation_func=Avg,
+                grouping_interval='day',
+                aggregation_func='avg',
                 *,
                 station,
                 parameter,
-                time_range):
+                start,
+                end):
+        aggregation_func = self.aggregation_funcs[aggregation_func]
+        grouping_interval = self.grouping_intervals[grouping_interval]
+
         qs = self.filter(station=station)
-        qs = qs.filter(datetime__range=time_range)
-        qs = qs.annotate(time=Week('datetime')).values('time')
-        qs = qs.annotate(temp=aggregation_func(
+        qs = qs.filter(datetime__range=(start, end))
+        qs = qs.annotate(t=grouping_interval('datetime')).values('t')
+        qs = qs.annotate(v=aggregation_func(
             Cast(KeyTextTransform(parameter, "attributes"),
                  models.FloatField())))
-        qs = qs.order_by('-datetime')
+        qs = qs.order_by('-t')
         return qs
