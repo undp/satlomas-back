@@ -30,8 +30,18 @@ class Day(Func):
     output_field = models.IntegerField()
 
 
+class Hour(Func):
+    function = 'EXTRACT'
+    template = '%(function)s(HOUR from %(expressions)s)'
+    output_field = models.IntegerField()
+
+
 class MeasureManager(models.Manager):
-    grouping_intervals = dict(day=Day, week=Week, month=Month, year=Year)
+    grouping_intervals = dict(hour=Hour,
+                              day=Day,
+                              week=Week,
+                              month=Month,
+                              year=Year)
     aggregation_funcs = dict(avg=Avg, count=Count, max=Max, min=Min, sum=Sum)
 
     def create(self, datetime, station_id, attributes):
@@ -75,7 +85,7 @@ class MeasureManager(models.Manager):
         qs = qs.filter(datetime__range=(start, end))
         qs = qs.annotate(t=grouping_interval('datetime')).values('t')
         qs = qs.annotate(v=aggregation_func(
-            Cast(KeyTextTransform(parameter, "attributes"),
+            Cast(KeyTextTransform(parameter, 'attributes'),
                  models.FloatField())))
-        qs = qs.order_by('-t')
+        qs = qs.order_by('t')
         return qs

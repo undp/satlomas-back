@@ -23,6 +23,6 @@ class MeasureSummarySerializer(serializers.Serializer):
     start = serializers.DateTimeField()
     end = serializers.DateTimeField()
     grouping_interval = serializers.ChoiceField(
-        choices=['day', 'week', 'month', 'year'], default='day')
+        choices=['hour', 'day', 'week', 'month', 'year'], default='day')
     aggregation_func = serializers.ChoiceField(
         choices=['avg', 'sum', 'count', 'min', 'max'], default='avg')
