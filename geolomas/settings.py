@@ -68,8 +68,8 @@ INSTALLED_APPS = [
     'leaflet',
     'stations',
     'lomas_changes',
+    'vi_lomas_changes',
     'scopes',
-    'vegetation',
 ]
 
 MIDDLEWARE = [
