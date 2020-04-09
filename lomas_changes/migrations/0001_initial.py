@@ -8,14 +8,17 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
             name='Period',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id',
+                 models.AutoField(auto_created=True,
+                                  primary_key=True,
+                                  serialize=False,
+                                  verbose_name='ID')),
                 ('init_date', models.DateField()),
                 ('end_date', models.DateField()),
             ],
@@ -23,12 +26,19 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Product',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id',
+                 models.AutoField(auto_created=True,
+                                  primary_key=True,
+                                  serialize=False,
+                                  verbose_name='ID')),
                 ('code', models.CharField(max_length=128)),
                 ('name', models.CharField(max_length=128)),
                 ('datetime', models.DateTimeField(null=True)),
                 ('concatenated', models.BooleanField(default=False)),
-                ('period', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='products', to='files.Period')),
+                ('period',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                                   related_name='products',
+                                   to='lomas_changes.Period')),
             ],
         ),
     ]

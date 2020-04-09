@@ -9,7 +9,7 @@ class Period(models.Model):
 
     def __str__(self):
         return '{init_date}_{end_date}'.format(init_date=self.init_date,
-                                                end_date=self.end_date)
+                                               end_date=self.end_date)
 
 
 class Product(models.Model):
@@ -25,7 +25,9 @@ class Product(models.Model):
         max_length=2,
         choices=SENSOR_CHOICES,
     )
-    period = models.ForeignKey(Period, on_delete=models.CASCADE, related_name="products")
+    period = models.ForeignKey(Period,
+                               on_delete=models.CASCADE,
+                               related_name="products")
     name = models.CharField(max_length=128)
     datetime = models.DateTimeField(null=True)
     concatenated = models.BooleanField(default=False)

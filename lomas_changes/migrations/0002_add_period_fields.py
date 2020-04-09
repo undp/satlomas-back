@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('files', '0001_initial'),
+        ('lomas_changes', '0001_initial'),
     ]
 
     operations = [
@@ -25,7 +25,10 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='product',
             name='sensor_type',
-            field=models.CharField(choices=[('S1', 'Sentinel1'), ('S2', 'Sentinel2')], default='S1', max_length=2),
+            field=models.CharField(choices=[('S1', 'Sentinel1'),
+                                            ('S2', 'Sentinel2')],
+                                   default='S1',
+                                   max_length=2),
             preserve_default=False,
         ),
     ]

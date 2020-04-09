@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'django_rq',
     'leaflet',
     'stations',
-    'files',
+    'lomas_changes',
     'scopes',
     'vegetation',
 ]

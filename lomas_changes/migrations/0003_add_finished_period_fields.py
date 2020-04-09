@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('files', '0002_auto_20200115_1814'),
+        ('lomas_changes', '0002_add_period_fields'),
     ]
 
     operations = [
