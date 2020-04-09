@@ -7,12 +7,12 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('measures', '0002_measure'),
+        ('stations', '0002_measurement'),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='measure',
+            name='measurement',
             options={'managed': False},
         ),
         migrations.AddField(
@@ -41,6 +41,6 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                to='measures.Place'),
+                to='stations.Place'),
         ),
     ]

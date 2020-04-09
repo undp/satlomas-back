@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     'jsoneditor',
     'django_rq',
     'leaflet',
-    'measures',
+    'stations',
     'files',
     'scopes',
     'vegetation',

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('measures', '0004_fix_place'),
+        ('stations', '0004_fix_place'),
     ]
 
     operations = [

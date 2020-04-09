@@ -1,10 +1,10 @@
 from django.shortcuts import render
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Measure, Place, Station
-from .serializers import (MeasureSummarySerializer, PlaceSerializer,
+from .models import Measurement, Place, Station
+from .serializers import (MeasurementSummarySerializer, PlaceSerializer,
                           StationSerializer)
 
 
@@ -18,13 +18,13 @@ class StationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = StationSerializer
 
 
-class MeasureSummaryView(APIView):
+class MeasurementSummaryView(APIView):
     def get(self, request, *args, **kwargs):
-        serializer = MeasureSummarySerializer(data=request.query_params)
+        serializer = MeasurementSummarySerializer(data=request.query_params)
         # print("Query params", request.query_params)
         if not serializer.is_valid():
             # print(serializer.errors)
             return Response(data=serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
-        summary = Measure.objects.summary(**serializer.data)
+        summary = Measurement.objects.summary(**serializer.data)
         return Response(summary)

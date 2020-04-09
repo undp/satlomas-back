@@ -36,7 +36,7 @@ class Hour(Func):
     output_field = models.DateTimeField()
 
 
-class MeasureManager(models.Manager):
+class MeasurementManager(models.Manager):
     grouping_intervals = dict(hour=Hour,
                               day=Day,
                               week=Week,
@@ -47,7 +47,7 @@ class MeasureManager(models.Manager):
     def create(self, datetime, station_id, attributes):
         with connection.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO measures_measure(datetime, station_id, attributes)
+                INSERT INTO stations_measurement(datetime, station_id, attributes)
                 VALUES ('{datetime}', '{station_id}', '{attributes}');
             """.format(datetime=str(datetime),
                        station_id=station_id,
@@ -65,7 +65,7 @@ class MeasureManager(models.Manager):
                     attributes=json.dumps(o.attributes)) for o in objs
             ])
             cursor.execute("""
-                INSERT INTO measures_measure(datetime, station_id, attributes)
+                INSERT INTO stations_measurement(datetime, station_id, attributes)
                 VALUES {values}
                 ON CONFLICT DO NOTHING;
             """.format(values=values))

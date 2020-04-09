@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('measures', '0003_add_lat_lon_to_station'),
+        ('stations', '0003_add_lat_lon_to_station'),
     ]
 
     operations = [
@@ -26,6 +26,6 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to='measures.Place'),
+                to='stations.Place'),
         ),
     ]

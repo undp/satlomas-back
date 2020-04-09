@@ -5,7 +5,7 @@ from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import JSONField
 from django.utils.translation import gettext as _
 
-from .managers import MeasureManager
+from .managers import MeasurementManager
 
 
 class Place(models.Model):
@@ -54,12 +54,12 @@ class Station(models.Model):
                                                   place=self.place)
 
 
-class Measure(models.Model):
+class Measurement(models.Model):
     datetime = models.DateTimeField()
     station = models.ForeignKey(Station, on_delete=models.PROTECT)
     attributes = JSONField(blank=True)
 
-    objects = MeasureManager()
+    objects = MeasurementManager()
 
     class Meta:
         managed = False

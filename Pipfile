@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 yapf = "*"
 pylint = "*"
+rope = "*"
 
 [packages]
 dateutils = "*"
@@ -32,7 +33,6 @@ sentry-sdk = "*"
 geopandas = "*"
 pandas = "*"
 shapely = "*"
-
 
 [requires]
 python_version = "3"

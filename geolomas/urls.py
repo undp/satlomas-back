@@ -23,8 +23,8 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from measures.views import PlaceViewSet, StationViewSet, MeasureSummaryView
-from scopes.views import TimeSeries, AvailableDates, ScopeTypes
+from scopes.views import AvailableDates, ScopeTypes, TimeSeries
+from stations.views import MeasurementSummaryView, PlaceViewSet, StationViewSet
 
 router = SimpleRouter()
 router.register(r'places', PlaceViewSet)
@@ -66,8 +66,8 @@ urlpatterns = [
     # Administration
     url(r'^admin/', admin.site.urls),
 
-    # Measures
-    url(r'^measures/summary/?', MeasureSummaryView.as_view()),
+    # Stations
+    url(r'^measurements/summary/?', MeasurementSummaryView.as_view()),
 
     # Scopes
     url(r'^scopes/coverage/?', TimeSeries.as_view()),

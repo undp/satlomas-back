@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand, CommandError
 
-from measures.models import Measure, Place, Station
+from stations.models import Measurement, Place, Station
 
 
 def chunker(seq, size):
@@ -69,35 +69,38 @@ class Command(BaseCommand):
                     self.log_success(
                         'Station {} already exists'.format(station))
 
-                # Get all measures for station, probably simulating or imputing
-                # values between hours.
+                # Get all measurements for station, probably simulating or
+                # imputing values between hours.
                 station_dataset = dataset.loc[dataset.inme == station_code]
                 for chunk in chunker(station_dataset, self.CHUNK_SIZE):
                     objs = [
-                        self.new_measure(station, chunk.iloc[i])
+                        self.new_measurement(station, chunk.iloc[i])
                         for i in range(len(chunk))
                     ]
-                    Measure.objects.bulk_create(objs)
-                    self.log_success("{} measures loaded.".format(len(chunk)))
+                    Measurement.objects.bulk_create(objs)
+                    self.log_success("{} measurements loaded.".format(
+                        len(chunk)))
 
-    def new_measure(self, station, measure):
+    def new_measurement(self, station, measurement):
         direction = 1
 
         for minute in [0, 15, 30, 45]:
-            year, month, day, hour = measure.yr, measure.mo, measure.da, measure.hr
+            year, month, day, hour = measurement.yr, measurement.mo, measurement.da, measurement.hr
             ts = datetime(year, month, day, hour, minute, 0, 0)
 
             delta_min = direction * 0.02 * minute
             direction = direction * -1
 
-            attributes = dict(temperature=measure.temp + delta_min,
-                              humidity=measure.hmdy + delta_min,
-                              wind_speed=measure.wdsp + delta_min,
-                              wind_direction=measure.wdct + delta_min,
-                              pressure=measure.stp + delta_min,
-                              precipitation=measure.prcp + delta_min,
-                              pm25=measure.prcp * 2 + delta_min)
-            return Measure(datetime=ts, station=station, attributes=attributes)
+            attributes = dict(temperature=measurement.temp + delta_min,
+                              humidity=measurement.hmdy + delta_min,
+                              wind_speed=measurement.wdsp + delta_min,
+                              wind_direction=measurement.wdct + delta_min,
+                              pressure=measurement.stp + delta_min,
+                              precipitation=measurement.prcp + delta_min,
+                              pm25=measurement.prcp * 2 + delta_min)
+            return Measurement(datetime=ts,
+                               station=station,
+                               attributes=attributes)
 
     def log_success(self, msg):
         self.stdout.write(self.style.SUCCESS(msg))

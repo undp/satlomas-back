@@ -17,7 +17,7 @@ class StationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MeasureSummarySerializer(serializers.Serializer):
+class MeasurementSummarySerializer(serializers.Serializer):
     station = serializers.IntegerField()
     parameter = serializers.CharField()
     start = serializers.DateTimeField()

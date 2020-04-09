@@ -3,7 +3,8 @@ import os
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from measures.models import Place
+
+from stations.models import Place
 
 
 class Command(BaseCommand):
