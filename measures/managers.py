@@ -7,33 +7,33 @@ from django.db.models.functions import Cast
 
 
 class Year(Func):
-    function = 'EXTRACT'
-    template = '%(function)s(YEAR from %(expressions)s)'
-    output_field = models.IntegerField()
+    function = 'DATE_TRUNC'
+    template = "%(function)s('year', %(expressions)s)"
+    output_field = models.DateTimeField()
 
 
 class Month(Func):
-    function = 'EXTRACT'
-    template = '%(function)s(MONTH from %(expressions)s)'
-    output_field = models.IntegerField()
+    function = 'DATE_TRUNC'
+    template = "%(function)s('month', %(expressions)s)"
+    output_field = models.DateTimeField()
 
 
 class Week(Func):
-    function = 'EXTRACT'
-    template = '%(function)s(WEEK from %(expressions)s)'
-    output_field = models.IntegerField()
+    function = 'DATE_TRUNC'
+    template = "%(function)s('week', %(expressions)s)"
+    output_field = models.DateTimeField()
 
 
 class Day(Func):
-    function = 'EXTRACT'
-    template = '%(function)s(DAY from %(expressions)s)'
-    output_field = models.IntegerField()
+    function = 'DATE_TRUNC'
+    template = "%(function)s('day', %(expressions)s)"
+    output_field = models.DateTimeField()
 
 
 class Hour(Func):
-    function = 'EXTRACT'
-    template = '%(function)s(HOUR from %(expressions)s)'
-    output_field = models.IntegerField()
+    function = 'DATE_TRUNC'
+    template = "%(function)s('hour', %(expressions)s)"
+    output_field = models.DateTimeField()
 
 
 class MeasureManager(models.Manager):
