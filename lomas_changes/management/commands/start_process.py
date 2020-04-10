@@ -7,7 +7,7 @@ from lomas_changes.models import Period
 
 
 class Command(BaseCommand):
-    help = 'comando para bajar imagenes de sentinel 1 y sentinel 2'
+    help = 'Starts processing pipeline for generating a change map'
 
     date_to = datetime.now()
     date_from = date_to - timedelta(days=60)
