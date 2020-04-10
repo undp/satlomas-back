@@ -25,5 +25,4 @@ class Command(BaseCommand):
                                        end_date=options['date_to'])
         queue = django_rq.get_queue('default', default_timeout=36000)
         queue.enqueue("lomas_changes.tasks.sentinel1.download_scenes", period)
-        queue.enqueue("lomas_changes.tasks.sentinel2.download_sentinel2",
-                      period)
+        queue.enqueue("lomas_changes.tasks.sentinel2.download_scenes", period)

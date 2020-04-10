@@ -1,7 +1,5 @@
 import os
 import shutil
-import subprocess
-import zipfile
 from datetime import date
 
 import dateutil.relativedelta
@@ -14,26 +12,11 @@ from rasterio.windows import Window
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 from lomas_changes.models import Period, Product
+from lomas_changes.utils import run_subprocess, unzip, sliding_windows
 
-SCIHUB_URL = 'https://scihub.copernicus.eu/dhus'
 S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
                            'results')
-
-
-def run_subprocess(cmd):
-    print(cmd)
-    subprocess.run(cmd, shell=True, check=True)
-
-
-def unzip(zip_name, extract_folder=None, delete_zip=True):
-    if extract_folder is None:
-        extract_folder = os.path.dirname(zip_name)
-    resultzip = zipfile.ZipFile(zip_name)
-    resultzip.extractall(extract_folder)
-    resultzip.close()
-    if delete_zip:
-        os.remove(zip_name)
 
 
 def clip_result(period):
@@ -77,13 +60,6 @@ def generate_vvvh(period):
     run_subprocess(
         '{otb_bin_path}/otbcli_BandMath -il {src} -out {dst} -exp "im1b1 / im1b2"'
         .format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
-
-
-def sliding_windows(size, width, height):
-    """Slide a window of +size+ pixels"""
-    for i in range(0, height, size):
-        for j in range(0, width, size):
-            yield Window(j, i, min(width - j, size), min(height - i, size))
 
 
 def median(period):
@@ -252,7 +228,8 @@ def download_scenes(period):
 
     aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
 
-    api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS, SCIHUB_URL)
+    api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS,
+                      settings.SCIHUB_URL)
 
     footprint = geojson_to_wkt(read_geojson(aoi_path))
     products = api.query(footprint,

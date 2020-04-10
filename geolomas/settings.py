@@ -184,7 +184,7 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 IMAGES_PATH = os.path.join(DATA_DIR, 'images', 's2')
 IMAGES_PATH_S1 = os.path.join(DATA_DIR, 'images', 's1', 'raw')
 
-SCIHUB_URL = os.getenv('SCIHUB_URL')
+SCIHUB_URL = os.getenv('SCIHUB_URL', 'https://scihub.copernicus.eu/dhus')
 SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
