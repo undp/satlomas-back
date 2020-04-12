@@ -4,6 +4,7 @@ import django_rq
 from django.core.management.base import BaseCommand, CommandError
 
 from lomas_changes.models import Period
+from lomas_changes.tasks import sentinel1, sentinel2
 
 
 class Command(BaseCommand):
@@ -23,6 +24,5 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         period = Period.objects.create(init_date=options['date_from'],
                                        end_date=options['date_to'])
-        queue = django_rq.get_queue('default', default_timeout=36000)
-        queue.enqueue("lomas_changes.tasks.sentinel1.download_scenes", period)
-        queue.enqueue("lomas_changes.tasks.sentinel2.download_scenes", period)
+        sentinel1.download_scenes(period)
+        sentinel2.download_scenes(period)

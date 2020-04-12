@@ -6,7 +6,6 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from django.conf import settings
-from django_rq import job
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
@@ -15,10 +14,7 @@ from lomas_changes.utils import run_subprocess
 
 appdir = os.path.dirname(lomas_changes.__file__)
 
-# import django_rq; from datetime import date; date_from = date(2019,4,1); date_to = date(2019,4,10);queue = django_rq.get_queue('default', default_timeout=36000);queue.enqueue("files.tasks.download_sentinel2", date_from, date_to);w = django_rq.get_worker(); w.work()
 
-
-@job("default", timeout=3600)
 def download_scenes(period):
     date_from = period.init_date
     date_to = period.end_date

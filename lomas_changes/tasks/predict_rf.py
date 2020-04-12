@@ -1,20 +1,16 @@
 from django.conf import settings
-from django_rq import job
 
 import shutil
 import subprocess
 import os
+
+from lomas_changes.utils import run_subprocess
 
 RESULTS_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
 RESULTS_SRC = os.path.join(RESULTS_DIR, 'src')
 RESULTS_FEAT = os.path.join(RESULTS_DIR, 'feats')
 MODEL_PATH = os.path.join(settings.BASE_DIR, 'data', 'rf_model.yaml')
 SRTM_DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
-
-
-def run_subprocess(cmd):
-    print(cmd)
-    subprocess.run(cmd, shell=True, check=True)
 
 
 def superimpose(inm, inr):
@@ -66,7 +62,6 @@ def classify_image():
                 out=os.path.join(RESULTS_DIR, 'cover.tif')))
 
 
-@job("default", timeout=3600)
 def predict_rf(period):
     date_from = period.init_date
     date_to = period.end_date

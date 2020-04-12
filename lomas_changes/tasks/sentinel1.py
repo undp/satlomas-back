@@ -7,12 +7,12 @@ import django_rq
 import numpy as np
 import rasterio
 from django.conf import settings
-from django_rq import job
 from rasterio.windows import Window
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 from lomas_changes.models import Period, Product
-from lomas_changes.utils import run_subprocess, unzip, sliding_windows
+from lomas_changes.predict_rf import predict_rf
+from lomas_changes.utils import run_subprocess, sliding_windows, unzip
 
 S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
@@ -39,7 +39,7 @@ def clip_result(period):
     period.s1_finished = True
     period.save()
     if period.s2_finished:
-        django_rq.enqueue('files.tasks.predict_rf.predict_rf', period)
+        predict_rf(period)
 
 
 def concatenate_results(period):
@@ -112,7 +112,6 @@ def superimpose(period):
                         out=inm))
 
 
-@job("default", timeout=3600)
 def manage_results(period):
     superimpose(period)
     median(period)
@@ -121,7 +120,6 @@ def manage_results(period):
     clip_result(period)
 
 
-@job("default", timeout=3600)
 def calibrate(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'calib')
     os.makedirs(dst_folder, exist_ok=True)
@@ -140,10 +138,9 @@ def calibrate(product):
 
     shutil.rmtree(os.path.join(S1_RAW_PATH, product.name))
 
-    django_rq.enqueue('files.tasks.sentinel1.despeckle', product)
+    despeckle(product)
 
 
-@job("default", timeout=3600)
 def despeckle(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'despeck')
     os.makedirs(dst_folder, exist_ok=True)
@@ -162,10 +159,9 @@ def despeckle(product):
 
     shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc', product.name, 'calib'))
 
-    django_rq.enqueue('files.tasks.sentinel1.clip', product)
+    clip(product)
 
 
-@job("default", timeout=3600)
 def clip(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'clip')
     os.makedirs(dst_folder, exist_ok=True)
@@ -193,10 +189,9 @@ def clip(product):
 
     shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc', product.name, 'despeck'))
 
-    django_rq.enqueue('files.tasks.sentinel1.concatenate', product)
+    concatenate(product)
 
 
-@job("default", timeout=3600)
 def concatenate(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'concatenate')
     os.makedirs(dst_folder, exist_ok=True)
@@ -217,11 +212,9 @@ def concatenate(product):
     product.save()
     if not Product.objects.filter(period=product.period,
                                   concatenated=False).exists():
-        django_rq.enqueue('files.tasks.sentinel1.manage_results',
-                          product.period)
+        manage_results(product.period)
 
 
-@job("default", timeout=36000)
 def download_scenes(period):
     init_date = period.init_date
     end_date = period.end_date
@@ -253,4 +246,4 @@ def download_scenes(period):
                                           name='{}.SAFE'.format(p['title']),
                                           period=period)
             unzip(p['path'])
-            django_rq.enqueue('files.tasks.sentinel1.calibrate', prod)
+            calibrate(prod)
