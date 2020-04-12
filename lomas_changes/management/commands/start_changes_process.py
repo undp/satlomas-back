@@ -9,8 +9,8 @@ from lomas_changes.models import Period
 class Command(BaseCommand):
     help = 'Starts processing pipeline for generating a change map'
 
-    date_to = datetime.now()
-    date_from = date_to - timedelta(days=60)
+    date_to = datetime.now().replace(day=1)
+    date_from = date_to - timedelta(months=2)
 
     def add_arguments(self, parser):
         parser.add_argument('--date-from',
