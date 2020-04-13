@@ -33,6 +33,7 @@ sentry-sdk = "*"
 geopandas = "*"
 pandas = "*"
 shapely = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3"
