@@ -12,7 +12,7 @@ from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
 from lomas_changes.models import Period, Product
-from lomas_changes.predict_rf import predict_rf
+from lomas_changes.tasks import predict_rf
 from lomas_changes.utils import run_subprocess, sliding_windows, unzip
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
@@ -42,7 +42,7 @@ def clip_result(period):
     period.s1_finished = True
     period.save()
     if period.s2_finished:
-        predict_rf(period)
+        predict_rf.predict_rf(period)
 
 
 def concatenate_results(period):
