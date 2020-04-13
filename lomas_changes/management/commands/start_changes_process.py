@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import django_rq
 from django.core.management.base import BaseCommand, CommandError
+from dateutil.relativedelta import relativedelta
 
 from lomas_changes.models import Period
 from lomas_changes.tasks import sentinel1, sentinel2
@@ -11,7 +12,7 @@ class Command(BaseCommand):
     help = 'Starts processing pipeline for generating a change map'
 
     date_to = datetime.now().replace(day=1)
-    date_from = date_to - timedelta(months=2)
+    date_from = date_to - relativedelta(months=1)
 
     def add_arguments(self, parser):
         parser.add_argument('--date-from',
