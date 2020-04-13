@@ -2,6 +2,8 @@ import os
 import zipfile
 import subprocess
 
+from rasterio.windows import Window
+
 
 def run_subprocess(cmd):
     print(cmd)
