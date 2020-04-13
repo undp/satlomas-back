@@ -4,6 +4,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from zipfile import ZipFile
+from glob import glob
 
 from django.conf import settings
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
