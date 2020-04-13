@@ -14,6 +14,8 @@ from lomas_changes.utils import run_subprocess
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
+AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
+
 
 def download_scenes(period):
     date_from = period.init_date
@@ -265,12 +267,11 @@ def clip_results(date_from, date_to):
                                             date_to.year, date_to.month)
 
     srcs = [tif_10m, tif_20m]
-    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
 
     for src in srcs:
         run_subprocess(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=aoi_path,
+                    aoi=AOI_PATH,
                     src=os.path.join(mosaic_path, src),
                     dst=os.path.join(results_src, src)))

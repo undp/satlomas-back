@@ -21,6 +21,8 @@ S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
                            'results')
 
+AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
+
 
 def clip_result(period):
     src = os.path.join(S1_RES_PATH, str(period.pk), 'concatenate.tiff')
@@ -31,11 +33,10 @@ def clip_result(period):
                                          period.end_date.year,
                                          period.end_date.month)
     dst = os.path.join(RESULTS_SRC, dst_name)
-    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
     run_subprocess(
         '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
         .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=aoi_path,
+                aoi=AOI_PATH,
                 src=src,
                 dst=dst))
 
@@ -168,7 +169,6 @@ def despeckle(product):
 def clip(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'clip')
     os.makedirs(dst_folder, exist_ok=True)
-    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
 
     vv_src = os.path.join(S1_RAW_PATH, 'proc', product.name, 'despeck',
                           'vv.tiff')
@@ -176,7 +176,7 @@ def clip(product):
     run_subprocess(
         '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
         .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=aoi_path,
+                aoi=AOI_PATH,
                 src=vv_src,
                 dst=vv_dst))
 
@@ -186,7 +186,7 @@ def clip(product):
     run_subprocess(
         '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
         .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=aoi_path,
+                aoi=AOI_PATH,
                 src=vh_src,
                 dst=vh_dst))
 
@@ -222,12 +222,10 @@ def download_scenes(period):
     init_date = period.init_date
     end_date = period.end_date
 
-    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
-
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS,
                       settings.SCIHUB_URL)
 
-    footprint = geojson_to_wkt(read_geojson(aoi_path))
+    footprint = geojson_to_wkt(read_geojson(AOI_PATH))
     products = api.query(footprint,
                          date=(init_date, end_date),
                          platformname='Sentinel-1',
