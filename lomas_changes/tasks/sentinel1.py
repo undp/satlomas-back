@@ -28,9 +28,22 @@ def download_scenes(period):
     init_date = period.init_date
     end_date = period.end_date
 
+    # Check if result has already been done
+    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results',
+            'src')
+    scene_filename = 's1_{}{}_{}{}.tif'.format(period.init_date.year,
+            period.init_date.month, period.end_date.year,
+            period.end_date.month)
+    scene_path = os.path.join(scene_dir, scene_filename)
+    if os.path.exists(scene_path):
+        print("Scene for period {}-{} already done:".format(init_date, end_date), scene_path)
+        return
+
+    # Prepare API client for download
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS,
                       settings.SCIHUB_URL)
 
+    # Query scenes
     footprint = geojson_to_wkt(read_geojson(AOI_PATH))
     products = api.query(footprint,
                          date=(init_date, end_date),
@@ -50,6 +63,7 @@ def download_scenes(period):
         for k, v in products.items() if not os.path.exists(
             os.path.join(S1_RAW_PATH, '{}.zip'.format(v['title'])))
     }
+
     # Download products
     results = api.download_all(products_to_download,
                                directory_path=S1_RAW_PATH)
