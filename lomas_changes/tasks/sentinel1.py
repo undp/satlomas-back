@@ -1,6 +1,7 @@
 import os
 import shutil
 from datetime import date
+from glob import glob
 
 import dateutil.relativedelta
 import django_rq
@@ -69,6 +70,8 @@ def download_scenes(period):
     generate_vvvh(period)
     concatenate_results(period)
     clip_result(period)
+
+    clean_temp_files()
 
 
 def unzip_product(product):
@@ -177,15 +180,19 @@ def superimpose(products):
     ref_product = products[0]
     ref_name = '{}.SAFE'.format(ref_product['title'])
 
-    inr = os.path.join(S1_RAW_PATH, 'proc', ref_name, 'concatenate', 'concatenate.tiff')
-    dst = os.path.join(S1_RAW_PATH, 'proc', ref_name, 'concatenate', 'aligned.tiff')
+    inr = os.path.join(S1_RAW_PATH, 'proc', ref_name, 'concatenate',
+                       'concatenate.tiff')
+    dst = os.path.join(S1_RAW_PATH, 'proc', ref_name, 'concatenate',
+                       'aligned.tiff')
     if not os.path.exists(dst):
         shutil.copyfile(inr, dst)
 
     for p in products[1:]:
         name = '{}.SAFE'.format(p['title'])
-        inm = os.path.join(S1_RAW_PATH, 'proc', name, 'concatenate', 'concatenate.tiff')
-        dst = os.path.join(S1_RAW_PATH, 'proc', name, 'concatenate', 'aligned.tiff')
+        inm = os.path.join(S1_RAW_PATH, 'proc', name, 'concatenate',
+                           'concatenate.tiff')
+        dst = os.path.join(S1_RAW_PATH, 'proc', name, 'concatenate',
+                           'aligned.tiff')
         if not os.path.exists(dst):
             run_subprocess(
                 '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'
@@ -226,8 +233,7 @@ def median(products, period):
                         for p in products:
                             name = '{}.SAFE'.format(p['title'])
                             path = os.path.join(S1_RAW_PATH, 'proc', name,
-                                                'concatenate',
-                                                'aligned.tiff')
+                                                'concatenate', 'aligned.tiff')
                             src = rasterio.open(path)
                             w = src.read(band, window=win)
                             imgs.append(w)
@@ -235,8 +241,6 @@ def median(products, period):
                         wins = np.dstack(imgs)
                         median = np.median(wins, axis=2)
                         dst.write(median, window=win, indexes=band)
-
-    #shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc'))
 
 
 def generate_vvvh(period):
@@ -281,3 +285,9 @@ def clip_result(period):
                     aoi=AOI_PATH,
                     src=src,
                     dst=dst))
+
+
+def clean_temp_files():
+    shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc'))
+    for dirname in glob(os.path.join(S1_RAW_PATH, '*.SAFE')):
+        shutil.rmtree(dirname)
