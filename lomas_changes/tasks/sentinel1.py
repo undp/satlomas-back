@@ -10,9 +10,12 @@ from django.conf import settings
 from rasterio.windows import Window
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
+import lomas_changes
 from lomas_changes.models import Period, Product
 from lomas_changes.predict_rf import predict_rf
 from lomas_changes.utils import run_subprocess, sliding_windows, unzip
+
+APPDIR = os.path.dirname(lomas_changes.__file__)
 
 S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
@@ -28,7 +31,7 @@ def clip_result(period):
                                          period.end_date.year,
                                          period.end_date.month)
     dst = os.path.join(RESULTS_SRC, dst_name)
-    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
+    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
     run_subprocess(
         '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
         .format(gdal_bin_path=settings.GDAL_BIN_PATH,
@@ -165,7 +168,7 @@ def despeckle(product):
 def clip(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', product.name, 'clip')
     os.makedirs(dst_folder, exist_ok=True)
-    aoi_path = os.path.join(settings.BASE_DIR, 'files', 'aoi_4326.geojson')
+    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
 
     vv_src = os.path.join(S1_RAW_PATH, 'proc', product.name, 'despeck',
                           'vv.tiff')

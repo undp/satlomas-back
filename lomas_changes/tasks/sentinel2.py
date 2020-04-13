@@ -12,7 +12,7 @@ import lomas_changes
 from lomas_changes.models import Product
 from lomas_changes.utils import run_subprocess
 
-appdir = os.path.dirname(lomas_changes.__file__)
+APPDIR = os.path.dirname(lomas_changes.__file__)
 
 
 def download_scenes(period):
@@ -29,7 +29,7 @@ def download_scenes(period):
 
     # search by polygon, time, and Hub query keywords
     footprint = geojson_to_wkt(
-        read_geojson(os.path.join(appdir, 'data', 'extent.geojson')))
+        read_geojson(os.path.join(APPDIR, 'data', 'extent.geojson')))
 
     products = api.query(footprint,
                          date=(date_from, date_to),
@@ -265,7 +265,7 @@ def clip_results(date_from, date_to):
                                             date_to.year, date_to.month)
 
     srcs = [tif_10m, tif_20m]
-    aoi_path = os.path.join(appdir, 'data', 'extent.geojson')
+    aoi_path = os.path.join(APPDIR, 'data', 'extent.geojson')
 
     for src in srcs:
         run_subprocess(
