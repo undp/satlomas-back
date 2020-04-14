@@ -24,11 +24,10 @@ class Scope(models.Model):
     name = models.CharField(max_length=64)
 
     def __str__(self):
-        return "{} - {}".format(self.name, self.scope_type)
+        return "{} - {}".format(self.scope_type, self.name)
 
-    #objects = models.GeoManager()
     @classmethod
-    def save_scope(cls, path, scope_type = None):
+    def save_scope(cls, path, scope_type=None):
         """Save scopes from geojson
 
         Parameters
@@ -37,7 +36,7 @@ class Scope(models.Model):
             The geojson path
 
         scope_type : str, optional
-            Scope type, if None it will try to be completed by scope name 
+            Scope type, if None it will try to be completed by scope name
         """
         import os
         from django.contrib.gis.gdal import DataSource
@@ -58,16 +57,14 @@ class Scope(models.Model):
                 scope_type = 'SA'
             else:
                 Exception("File doesn't match with any scope type")
-        
+
         ds = DataSource(path)
-        for x in range(0,len(ds[0])):
+        for x in range(0, len(ds[0])):
             feature = ds[0][x]
             mp = GEOSGeometry(feature.geom.wkt)
-            return cls.objects.create(
-                scope_type=scope_type,
-                name=str(ds[0][x]['name']),
-                geom=mp
-            )
+            return cls.objects.create(scope_type=scope_type,
+                                      name=str(ds[0][x]['name']),
+                                      geom=mp)
 
     @classmethod
     def initial_load(cls, path):
@@ -83,4 +80,3 @@ class Scope(models.Model):
         scopes_files = [f for f in os.listdir(path) if isfile(join(path, f))]
         for f in scopes_files:
             cls.save_scope(join(path, f))
-
