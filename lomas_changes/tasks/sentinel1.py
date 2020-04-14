@@ -11,7 +11,6 @@ from django.conf import settings
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
-from lomas_changes.models import Period, Product
 from lomas_changes.tasks import predict_rf
 from lomas_changes.utils import run_subprocess, sliding_windows, unzip
 

@@ -10,7 +10,6 @@ from django.conf import settings
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
-from lomas_changes.models import Product
 from lomas_changes.utils import run_subprocess
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
