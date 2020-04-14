@@ -69,8 +69,8 @@ def download_scenes(period):
 
     # Run s2m preprocess (sen2cor) on raw directory
     # s2m preprocess -res 20 /path/to/DATA_dir/
-    cmd = "python3 {}/preprocess.py -v -o {} {}".format(
-        settings.S2M_CLI_PATH, S2_L1C_PATH, S2_L2A_PATH)
+    cmd = "python3 {}/preprocess.py -v -p {} -o {} {}".format(
+        settings.S2M_CLI_PATH, settings.S2M_NUM_JOBS, S2_RAW_PATH, S2_RAW_PATH)
     rv = os.system(cmd)
     if rv != 0:
         raise ValueError('s2m preprocess failed for {}.'.format(item))

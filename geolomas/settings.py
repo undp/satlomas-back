@@ -190,6 +190,7 @@ SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
 # Sen2mosaic
 S2M_CLI_PATH = os.getenv('S2M_CLI_PATH')
+S2M_NUM_JOBS = int(os.getenv("S2M_NUM_JOBS", 1))
 
 # OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
