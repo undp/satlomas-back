@@ -1,3 +1,7 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import ParameterRule, ScopeRule, ScopeTypeRule
+
+admin.site.register(ParameterRule)
+admin.site.register(ScopeRule)
+admin.site.register(ScopeTypeRule)
