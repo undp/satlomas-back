@@ -21,8 +21,8 @@ AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 
 
 def download_scenes(period):
-    date_from = period.init_date
-    date_to = period.end_date
+    date_from = period.date_from
+    date_to = period.date_to
 
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
@@ -69,9 +69,14 @@ def download_scenes(period):
         unzip_product(p)
 
     # Get the list of L1C products still to be processed to L2A
-    l1c_can_prods = get_canonical_names(glob(os.path.join(S2_L1C_PATH, '*.SAFE')))
-    l2a_can_prods = get_canonical_names(glob(os.path.join(S2_L2A_PATH, '*.SAFE')))
-    missing_l1c_prods = [l1c_can_prods[k] for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())]
+    l1c_can_prods = get_canonical_names(
+        glob(os.path.join(S2_L1C_PATH, '*.SAFE')))
+    l2a_can_prods = get_canonical_names(
+        glob(os.path.join(S2_L2A_PATH, '*.SAFE')))
+    missing_l1c_prods = [
+        l1c_can_prods[k]
+        for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())
+    ]
 
     # Create symbolic links for products that need to be processed
     wip_dir = os.path.join(S2_L1C_PATH, 'wip')
@@ -287,6 +292,5 @@ def clip_results(date_from, date_to):
 def get_canonical_names(prods):
     r = [os.path.basename(p) for p in prods]
     r = [n.split('_') for n in r]
-    r = ["_".join([ps[i] for i in [0,2,4,5]]) for ps in r]
+    r = ["_".join([ps[i] for i in [0, 2, 4, 5]]) for ps in r]
     return dict(zip(r, prods))
-

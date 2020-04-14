@@ -23,7 +23,9 @@ class Command(BaseCommand):
                             default=self.date_to)
 
     def handle(self, *args, **options):
-        period = Period.objects.create(init_date=options['date_from'],
-                                       end_date=options['date_to'])
+        date_from = options['date_from'].date()
+        date_to = options['date_to'].date()
+        period, _ = Person.objects.get_or_create(date_from=date_from,
+                                                 date_to=date_to)
         sentinel1.download_scenes(period)
         sentinel2.download_scenes(period)

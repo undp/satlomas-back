@@ -25,18 +25,21 @@ AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 
 
 def download_scenes(period):
-    init_date = period.init_date
-    end_date = period.end_date
+    date_from = period.date_from
+    date_to = period.date_to
 
     # Check if result has already been done
     scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results',
-            'src')
-    scene_filename = 's1_{}{}_{}{}.tif'.format(period.init_date.year,
-            period.init_date.month, period.end_date.year,
-            period.end_date.month)
+                             'src')
+    scene_filename = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
+                                               period.date_from.month,
+                                               period.date_to.year,
+                                               period.date_to.month)
     scene_path = os.path.join(scene_dir, scene_filename)
     if os.path.exists(scene_path):
-        print("Scene for period {}-{} already done:".format(init_date, end_date), scene_path)
+        print(
+            "Scene for period {}-{} already done:".format(date_from, date_to),
+            scene_path)
         return
 
     # Prepare API client for download
@@ -46,7 +49,7 @@ def download_scenes(period):
     # Query scenes
     footprint = geojson_to_wkt(read_geojson(AOI_PATH))
     products = api.query(footprint,
-                         date=(init_date, end_date),
+                         date=(date_from, date_to),
                          platformname='Sentinel-1',
                          producttype='GRD',
                          polarisationmode='VV VH',
@@ -287,10 +290,10 @@ def clip_result(period):
     results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images',
                                    'results', 'src')
     os.makedirs(results_src_dir, exist_ok=True)
-    dst_name = 's1_{}{}_{}{}.tif'.format(period.init_date.year,
-                                         period.init_date.month,
-                                         period.end_date.year,
-                                         period.end_date.month)
+    dst_name = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
+                                         period.date_from.month,
+                                         period.date_to.year,
+                                         period.date_to.month)
     dst = os.path.join(results_src_dir, dst_name)
     if not os.path.exists(dst):
         run_subprocess(

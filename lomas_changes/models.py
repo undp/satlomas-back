@@ -2,14 +2,11 @@ from django.db import models
 
 
 class Period(models.Model):
-    init_date = models.DateField()
-    end_date = models.DateField()
-    s1_finished = models.BooleanField(default=False)
-    s2_finished = models.BooleanField(default=False)
+    date_from = models.DateField()
+    date_to = models.DateField()
 
     def __str__(self):
-        return '{init_date}_{end_date}'.format(init_date=self.init_date,
-                                               end_date=self.end_date)
+        return '{} - {}'.format(self.date_from, self.date_to)
 
 
 class Product(models.Model):

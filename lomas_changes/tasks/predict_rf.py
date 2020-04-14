@@ -63,8 +63,8 @@ def classify_image():
 
 
 def predict_rf(period):
-    date_from = period.init_date
-    date_to = period.end_date
+    date_from = period.date_from
+    date_to = period.date_to
     period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year,
                                 date_to.month)
     s2_10m = "s2_{}_10m".format(period)
