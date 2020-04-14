@@ -7,3 +7,12 @@ class Period(models.Model):
 
     def __str__(self):
         return '{} - {}'.format(self.date_from, self.date_to)
+
+
+class CoverageMeasurement(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    scope = models.ForeignKey('scopes.Scope',
+                              on_delete=models.SET_NULL,
+                              null=True)
+    change_area = models.FloatField()
+    perc_change_area = models.FloatField()
