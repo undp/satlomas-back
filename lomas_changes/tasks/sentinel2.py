@@ -15,7 +15,8 @@ from lomas_changes.utils import run_subprocess
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
-S2_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'raw')
+S2_L1C_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l1c')
+S2_L2A_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l2a')
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 
 
@@ -50,38 +51,54 @@ def download_scenes(period):
     for p in products:
         print(products[p]['title'])
 
-    os.makedirs(S2_RAW_PATH, exist_ok=True)
+    os.makedirs(S2_L1C_PATH, exist_ok=True)
 
     # Filter already downloaded products
     products_to_download = {
         k: v
         for k, v in products.items() if not os.path.exists(
-            os.path.join(S2_RAW_PATH, '{}.zip'.format(v['title'])))
+            os.path.join(S2_L1C_PATH, '{}.zip'.format(v['title'])))
     }
 
     # Download products
-    results = api.download_all(products, directory_path=S2_RAW_PATH)
+    results = api.download_all(products, directory_path=S2_L1C_PATH)
     products = list(products.values())
 
     # Unzip
     for p in products:
         unzip_product(p)
 
+    # Get the list of L1C products still to be processed to L2A
+    l1c_can_prods = get_canonical_names(glob(os.path.join(S2_L1C_PATH, '*.SAFE')))
+    l2a_can_prods = get_canonical_names(glob(os.path.join(S2_L2A_PATH, '*.SAFE')))
+    missing_l1c_prods = [l1c_can_prods[k] for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())]
+
+    # Create symbolic links for products that need to be processed
+    wip_dir = os.path.join(S2_L1C_PATH, 'wip')
+    if os.path.exists(wip_dir):
+        shutil.rmtree(wip_dir)
+    os.makedirs(os.path.join(S2_L1C_PATH, 'wip'))
+    for p in missing_l1c_prods:
+        name = os.path.basename(p)
+        os.symlink(p, os.path.join(wip_dir, name))
+
     # Run s2m preprocess (sen2cor) on raw directory
     # s2m preprocess -res 20 /path/to/DATA_dir/
     cmd = "python3 {}/preprocess.py -v -p {} -o {} {}".format(
-        settings.S2M_CLI_PATH, settings.S2M_NUM_JOBS, S2_RAW_PATH, S2_RAW_PATH)
+        settings.S2M_CLI_PATH, settings.S2M_NUM_JOBS, S2_L2A_PATH, wip_dir)
     rv = os.system(cmd)
     if rv != 0:
-        raise ValueError('s2m preprocess failed for {}.'.format(item))
+        raise ValueError('s2m preprocess failed')
+
+    shutil.rmtree(wip_dir)
 
     # Obtain necesary gdal info
     gdal_info = False
-    for item in os.listdir(S2_RAW_PATH):
+    for item in os.listdir(S2_L2A_PATHS):
         if item.startswith("S2B_MSIL2A") and item.endswith(".SAFE"):
             info = None
             for filename in Path(os.path.join(
-                    S2_RAW_PATH, item)).rglob("*/IMG_DATA/R20m/*.jp2"):
+                    S2_L2A_PATH, item)).rglob("*/IMG_DATA/R20m/*.jp2"):
                 print("get info from {}".format(filename))
                 info = subprocess.getoutput(
                     "gdalinfo -json {}".format(filename))
@@ -118,20 +135,21 @@ def download_scenes(period):
                                                     date_to.month)
         cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
             settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-            mosaic_path, S2_RAW_PATH)
+            mosaic_path, S2_L2A_PATHS)
         rv = os.system(cmd)
         if rv != 0:
             raise ValueError('s2m mosaic failed for {}.'.format(item))
 
         cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
             settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-            mosaic_path, S2_RAW_PATH)
+            mosaic_path, S2_L2A_PATH)
         rv = os.system(cmd)
         if rv != 0:
             raise ValueError('s2m mosaic failed for {}.'.format(item))
 
         #delete useless products
-        #shutil.rmtree(S2_RAW_PATH)
+        #shutil.rmtree(S2_L1C_PATH)
+        #shutil.rmtree(S2_L2A_PATH)
 
         generate_vegetation_indexes(mosaic_name)
         concatenate_results(mosaic_name, date_from, date_to)
@@ -150,8 +168,8 @@ def download_scenes(period):
 def unzip_product(product):
     print("### Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
-    zip_path = os.path.join(S2_RAW_PATH, filename)
-    outdir = os.path.join(S2_RAW_PATH, '{}.SAFE'.format(product['title']))
+    zip_path = os.path.join(S2_L1C_PATH, filename)
+    outdir = os.path.join(S2_L1C_PATH, '{}.SAFE'.format(product['title']))
     if not os.path.exists(outdir):
         unzip(zip_path, delete_zip=False)
 
@@ -264,3 +282,11 @@ def clip_results(date_from, date_to):
                     aoi=AOI_PATH,
                     src=os.path.join(mosaic_path, src),
                     dst=os.path.join(results_src, src)))
+
+
+def get_canonical_names(prods):
+    r = [os.path.basename(p) for p in prods]
+    r = [n.split('_') for n in r]
+    r = ["_".join([ps[i] for i in [0,2,4,5]]) for ps in r]
+    return dict(zip(r, prods))
+
