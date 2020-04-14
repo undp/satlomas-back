@@ -27,11 +27,10 @@ def download_scenes(period):
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
               "Please read the Configuration section on README."
 
-    # connect to the API
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS,
                       settings.SCIHUB_URL)
 
-    # search by polygon, time, and Hub query keywords
+    # Search by polygon, time, and Hub query keywords
     footprint = geojson_to_wkt(
         read_geojson(os.path.join(APPDIR, 'data', 'extent.geojson')))
 
@@ -40,17 +39,14 @@ def download_scenes(period):
                          platformname='Sentinel-2',
                          cloudcoverpercentage=(0, 100))
 
-    # me quedo solo con los productos de nivel 1 que son los que usa sen2cor
+    # Skip L2A products
     l2 = []
     for p in products:
         if 'MSIL2A' in products[p]['title']:
             l2.append(p)
-
-    # remuevo productos L2
     for p in l2:
         products.pop(p)
 
-    # productos a descargar
     for p in products:
         print(products[p]['title'])
 
@@ -67,24 +63,19 @@ def download_scenes(period):
     results = api.download_all(products, directory_path=S2_RAW_PATH)
     products = list(products.values())
 
-    # unzip
+    # Unzip
     for p in products:
         unzip_product(p)
 
-    # run sen2cor on each L1 product
-    return_values = []
-    for item in glob(os.path.join(S2_RAW_PATH, "*.SAFE")):
-        print("Running sen2cor for {}".format(item))
-        folder_name = os.path.abspath(item)
-        rv = os.system("sen2cor -f {}".format(folder_name))
-        return_values.append(rv)
+    # Run s2m preprocess (sen2cor) on raw directory
+    # s2m preprocess -res 20 /path/to/DATA_dir/
+    cmd = "python3 {}/preprocess.py -v -o {} {}".format(
+        settings.S2M_CLI_PATH, S2_L1C_PATH, S2_L2A_PATH)
+    rv = os.system(cmd)
+    if rv != 0:
+        raise ValueError('s2m preprocess failed for {}.'.format(item))
 
-    # if all images fail, throw error
-    error = all([rv == 0 for rv in return_values])
-    if error == False:
-        raise ValueError('All sen2cor images failed.')
-
-    # obtain necesary gdal info
+    # Obtain necesary gdal info
     gdal_info = False
     for item in os.listdir(S2_RAW_PATH):
         if item.startswith("S2B_MSIL2A") and item.endswith(".SAFE"):
@@ -116,7 +107,7 @@ def download_scenes(period):
                            info["cornerCoordinates"]["lowerRight"][1])
                 break
 
-    # s2m
+    # Build mosaic
     if gdal_info:
         mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic')
         os.makedirs(mosaic_path, exist_ok=True)
@@ -125,21 +116,19 @@ def download_scenes(period):
                                                     date_from.month,
                                                     date_to.year,
                                                     date_to.month)
-        cmd = "python3 {} -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name,
+        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
+            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
             mosaic_path, S2_RAW_PATH)
         rv = os.system(cmd)
-        # si return value != 0, s2m falló, generar excepcion
         if rv != 0:
-            raise ValueError('sen2mosaic failed for {}.'.format(item))
+            raise ValueError('s2m mosaic failed for {}.'.format(item))
 
-        cmd = "python3 {} -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
-            settings.S2M_PATH, xmin, ymin, xmax, ymax, mosaic_name,
+        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
+            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
             mosaic_path, S2_RAW_PATH)
         rv = os.system(cmd)
-        # si return value != 0, s2m falló, generar excepcion
         if rv != 0:
-            raise ValueError('sen2mosaic failed for {}.'.format(item))
+            raise ValueError('s2m mosaic failed for {}.'.format(item))
 
         #delete useless products
         #shutil.rmtree(S2_RAW_PATH)

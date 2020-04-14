@@ -188,7 +188,8 @@ SCIHUB_URL = os.getenv('SCIHUB_URL', 'https://scihub.copernicus.eu/dhus')
 SCIHUB_USER = os.getenv('SCIHUB_USER')
 SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
-S2M_PATH = os.getenv('S2M_PATH')
+# Sen2mosaic
+S2M_CLI_PATH = os.getenv('S2M_CLI_PATH')
 
 # OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
