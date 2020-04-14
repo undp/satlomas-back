@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'lomas_changes',
     'vi_lomas_changes',
     'scopes',
+    'alerts',
 ]
 
 MIDDLEWARE = [
