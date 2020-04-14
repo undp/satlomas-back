@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = 'Starts processing pipeline for generating a change map'
 
     date_to = datetime.now().replace(day=1)
-    date_from = date_to - relativedelta(months=2)
+    date_from = date_to - relativedelta(months=1)
 
     def add_arguments(self, parser):
         parser.add_argument('--date-from',
