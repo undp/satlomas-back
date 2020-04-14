@@ -26,6 +26,8 @@ class ScopeTypeRule(models.Model):
                                                  limit_choices_to=LIMITS)
     threshold_type = models.CharField(max_length=1, choices=THRESHOLD_TYPES)
     threshold = models.FloatField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class ScopeRule(models.Model):
@@ -36,12 +38,16 @@ class ScopeRule(models.Model):
                                                  limit_choices_to=LIMITS)
     threshold_type = models.CharField(max_length=1, choices=THRESHOLD_TYPES)
     threshold = models.FloatField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class ParameterRule(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     parameter = models.CharField(max_length=64)
     threshold = models.FloatField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 # class Alert(models.Model):
