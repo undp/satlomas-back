@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.gis',
     'django_extensions',
+    'auditlog',
     'rest_framework',
     'rest_framework_gis',
     'rest_framework.authtoken',
