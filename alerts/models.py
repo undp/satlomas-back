@@ -44,6 +44,10 @@ class ScopeRule(models.Model):
 
 class ParameterRule(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    station = models.ForeignKey('stations.Station',
+                                on_delete=models.CASCADE,
+                                null=True,
+                                blank=True)
     parameter = models.CharField(max_length=64)
     threshold = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
