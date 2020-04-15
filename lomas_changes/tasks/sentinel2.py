@@ -11,7 +11,7 @@ from django.conf import settings
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
-from lomas_changes.utils import run_subprocess
+from lomas_changes.utils import run_subprocess, unzip
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
@@ -79,20 +79,11 @@ def download_scenes(period):
         for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())
     ]
 
-    def sen2_preprocess(p):
-        cmd = "python3 {}/preprocess.py -v -o {} {}".format(
-            settings.S2M_CLI_PATH, S2_L2A_PATH, wip_dir)
-        os.system(cmd)
-
     # Run s2m preprocess (sen2cor) on raw directory
-    with mp.Pool(settings.S2M_NUM_JOBS) as p:
-        p.map(sen2_preprocess, missing_l1c_prods)
+    with mp.Pool(settings.S2M_NUM_JOBS) as pool:
+        pool.map(sen2_preprocess, missing_l1c_prods)
 
     # Build mosaic
-    if not gdal_info:
-        print("No GDAL info found on raw folder.")
-        return
-
     mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic')
     os.makedirs(mosaic_path, exist_ok=True)
 
@@ -104,19 +95,14 @@ def download_scenes(period):
                                                date_from.month,
                                                date_to.year,
                                                date_to.month)
-    cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-        settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-        mosaic_path, S2_L2A_PATH)
-    rv = os.system(cmd)
-    if rv != 0:
-        raise ValueError('s2m mosaic failed for {}.'.format(item))
 
-    cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
-        settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-        mosaic_path, S2_L2A_PATH)
-    rv = os.system(cmd)
-    if rv != 0:
-        raise ValueError('s2m mosaic failed for {}.'.format(item))
+    for res in [10, 20]:
+        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res {} -n {} -v -o {} {}".format(
+            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax,
+            res, mosaic_name, mosaic_path, S2_L2A_PATH)
+        rv = os.system(cmd)
+        if rv != 0:
+            raise ValueError('s2m mosaic failed')
 
     generate_vegetation_indexes(mosaic_name)
     concatenate_results(mosaic_name, date_from, date_to)
@@ -198,10 +184,10 @@ def concatenate_results(mosaic_name, date_from, date_to):
     R10m_B03 = os.path.join(mosaic_path, '{}_R10m_B03.tif'.format(mosaic_name))
     R10m_B04 = os.path.join(mosaic_path, '{}_R10m_B04.tif'.format(mosaic_name))
     R10m_B08 = os.path.join(mosaic_path, '{}_R10m_B08.tif'.format(mosaic_name))
-    R10m_NDVI = os.path.join(mosaic_path, 'R10m_NDVI.tif')
-    R10m_NDVI = os.path.join(mosaic_path, 'R10m_NDWI.tif')
-    R10m_EVI = os.path.join(mosaic_path, 'R10m_EVI.tif')
-    R10m_SAVI = os.path.join(mosaic_path, 'R10m_SAVI.tif')
+    R10m_NDVI = os.path.join(mosaic_path, '{}_R10m_NDVI.tif'.format(mosaic_name))
+    R10m_NDVI = os.path.join(mosaic_path, '{}_R10m_NDWI.tif'.format(mosaic_name))
+    R10m_EVI = os.path.join(mosaic_path, '{}_R10m_EVI.tif'.format(mosaic_name))
+    R10m_SAVI = os.path.join(mosaic_path, '{}_R10m_SAVI.tif'.format(mosaic_name))
     src = ' '.join([
         R10m_B02, R10m_B03, R10m_B04, R10m_B08, R10m_NDVI, R10m_NDVI, R10m_EVI,
         R10m_SAVI
@@ -252,3 +238,10 @@ def get_canonical_names(prods):
     r = [n.split('_') for n in r]
     r = ["_".join([ps[i] for i in [0, 2, 4, 5]]) for ps in r]
     return dict(zip(r, prods))
+
+
+def sen2_preprocess(product_path):
+    cmd = "python3 {}/preprocess.py -v -o {} {}".format(
+        settings.S2M_CLI_PATH, S2_L2A_PATH, product_path)
+    os.system(cmd)
+
