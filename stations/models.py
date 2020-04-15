@@ -1,4 +1,5 @@
 from datetime import datetime
+from auditlog.registry import auditlog
 
 from django.contrib.gis.db import models
 from django.contrib.gis.geos.point import Point
@@ -86,3 +87,7 @@ class Prediction(models.Model):
             datetime=str(self.datetime),
             station=self.station,
             attributes=self.attributes)
+
+
+auditlog.register(Place)
+auditlog.register(Station)
