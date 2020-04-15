@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "752466612646233601ccb25d3bf1aaafdca1e57712032ffef16c4ee19d386cd0"
+            "sha256": "01d0c381d5c4f24c9bb1fd70a681bb36ea25a625f7f489380f4ca8e698ae4b5f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -159,6 +159,10 @@
             ],
             "index": "pypi",
             "version": "==7.1.0"
+        },
+        "django-auditlog": {
+            "git": "https://github.com/dymaxionlabs/django-auditlog.git",
+            "ref": "027868d86346c82310d8b23abb4a2285469bebf0"
         },
         "django-cors-headers": {
             "hashes": [
@@ -361,10 +365,10 @@
         },
         "identify": {
             "hashes": [
-                "sha256:2bb8760d97d8df4408f4e805883dad26a2d076f04be92a10a3e43f09c6060742",
-                "sha256:faffea0fd8ec86bb146ac538ac350ed0c73908326426d387eded0bcc9d077522"
+                "sha256:23c18d97bb50e05be1a54917ee45cc61d57cb96aedc06aabb2b02331edf0dbf0",
+                "sha256:88ed90632023e52a6495749c6732e61e08ec9f4f04e95484a5c37b9caf40283c"
             ],
-            "version": "==1.4.14"
+            "version": "==1.4.15"
         },
         "idna": {
             "hashes": [
@@ -971,11 +975,11 @@
         },
         "yapf": {
             "hashes": [
-                "sha256:712e23c468506bf12cadd10169f852572ecc61b266258422d45aaf4ad7ef43de",
-                "sha256:cad8a272c6001b3401de3278238fdc54997b6c2e56baa751788915f879a52fca"
+                "sha256:3000abee4c28daebad55da6c85f3cd07b8062ce48e2e9943c8da1b9667d48427",
+                "sha256:3abf61ba67cf603069710d30acbc88cfe565d907e16ad81429ae90ce9651e0c9"
             ],
             "index": "pypi",
-            "version": "==0.29.0"
+            "version": "==0.30.0"
         }
     }
 }
