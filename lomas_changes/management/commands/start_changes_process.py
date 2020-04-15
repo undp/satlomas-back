@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from dateutil.relativedelta import relativedelta
 
 from lomas_changes.models import Period
-from lomas_changes.tasks import sentinel1, sentinel2
+from lomas_changes.tasks import sentinel1, sentinel2, predict_rf
 
 
 class Command(BaseCommand):
@@ -25,7 +25,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         date_from = options['date_from'].date()
         date_to = options['date_to'].date()
-        period, _ = Person.objects.get_or_create(date_from=date_from,
+        period, _ = Period.objects.get_or_create(date_from=date_from,
                                                  date_to=date_to)
         sentinel1.download_scenes(period)
         sentinel2.download_scenes(period)
+        predict_rf.predict_rf(period)

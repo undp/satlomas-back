@@ -13,6 +13,44 @@ MODEL_PATH = os.path.join(settings.BASE_DIR, 'data', 'rf_model.yaml')
 SRTM_DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
 
 
+def predict_rf(period):
+    date_from = period.date_from
+    date_to = period.date_to
+    period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year,
+                                date_to.month)
+    s2_10m = "s2_{}_10m".format(period)
+    s2_20m = "s2_{}_20m".format(period)
+    s1 = "s1_{}".format(period)
+    srtm = "srtm_dem"
+
+    shutil.copyfile(os.path.join(RESULTS_SRC, "{}.tif".format(s2_10m)),
+                    os.path.join(RESULTS_FEAT, "{}.tif".format(s2_10m)))
+    superimpose(s2_20m, s2_10m)
+    superimpose(s1, s2_10m)
+
+    shutil.copyfile(SRTM_DEM_PATH,
+                    os.path.join(RESULTS_SRC, "{}.tif".format(srtm)))
+    superimpose(srtm, s2_10m)
+
+    for b in range(1, 9):
+        extract_local_stats(s2_10m, b)
+        extract_haralick(s2_10m, b)
+
+    for b in range(1, 7):
+        extract_local_stats(s2_20m, b)
+        extract_haralick(s2_20m, b)
+
+    for b in range(1, 4):
+        extract_local_stats(s1, b)
+        extract_haralick(s1, b)
+
+    extract_local_stats(srtm, 1)
+    extract_haralick(srtm, 1)
+
+    concatenate_images()
+    classify_image()
+
+
 def superimpose(inm, inr):
     run_subprocess(
         '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
@@ -61,40 +99,3 @@ def classify_image():
                 model=MODEL_PATH,
                 out=os.path.join(RESULTS_DIR, 'cover.tif')))
 
-
-def predict_rf(period):
-    date_from = period.date_from
-    date_to = period.date_to
-    period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year,
-                                date_to.month)
-    s2_10m = "s2_{}_10m".format(period)
-    s2_20m = "s2_{}_20m".format(period)
-    s1 = "s1_{}".format(period)
-    srtm = "srtm_dem"
-
-    shutil.copyfile(os.path.join(RESULTS_SRC, "{}.tif".format(s2_10m)),
-                    os.path.join(RESULTS_FEAT, "{}.tif".format(s2_10m)))
-    superimpose(s2_20m, s2_10m)
-    superimpose(s1, s2_10m)
-
-    shutil.copyfile(SRTM_DEM_PATH,
-                    os.path.join(RESULTS_SRC, "{}.tif".format(srtm)))
-    superimpose(srtm, s2_10m)
-
-    for b in range(1, 9):
-        extract_local_stats(s2_10m, b)
-        extract_haralick(s2_10m, b)
-
-    for b in range(1, 7):
-        extract_local_stats(s2_20m, b)
-        extract_haralick(s2_20m, b)
-
-    for b in range(1, 4):
-        extract_local_stats(s1, b)
-        extract_haralick(s1, b)
-
-    extract_local_stats(srtm, 1)
-    extract_haralick(srtm, 1)
-
-    concatenate_images()
-    classify_image()

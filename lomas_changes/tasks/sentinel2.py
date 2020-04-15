@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import multiprocessing as mp
 from pathlib import Path
 from zipfile import ZipFile
 from glob import glob
@@ -17,6 +18,7 @@ APPDIR = os.path.dirname(lomas_changes.__file__)
 S2_L1C_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l1c')
 S2_L2A_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l2a')
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
+AOI_UTM_PATH = os.path.join(APPDIR, 'data', 'extent_utm.geojson')
 
 
 def download_scenes(period):
@@ -77,96 +79,53 @@ def download_scenes(period):
         for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())
     ]
 
-    # Create symbolic links for products that need to be processed
-    wip_dir = os.path.join(S2_L1C_PATH, 'wip')
-    if os.path.exists(wip_dir):
-        shutil.rmtree(wip_dir)
-    os.makedirs(os.path.join(S2_L1C_PATH, 'wip'))
-    for p in missing_l1c_prods:
-        name = os.path.basename(p)
-        os.symlink(p, os.path.join(wip_dir, name))
+    def sen2_preprocess(p):
+        cmd = "python3 {}/preprocess.py -v -o {} {}".format(
+            settings.S2M_CLI_PATH, S2_L2A_PATH, wip_dir)
+        os.system(cmd)
 
     # Run s2m preprocess (sen2cor) on raw directory
-    # s2m preprocess -res 20 /path/to/DATA_dir/
-    cmd = "python3 {}/preprocess.py -v -p {} -o {} {}".format(
-        settings.S2M_CLI_PATH, settings.S2M_NUM_JOBS, S2_L2A_PATH, wip_dir)
-    rv = os.system(cmd)
-    if rv != 0:
-        raise ValueError('s2m preprocess failed')
-
-    shutil.rmtree(wip_dir)
-
-    # Obtain necesary gdal info
-    gdal_info = False
-    for item in os.listdir(S2_L2A_PATHS):
-        if item.startswith("S2B_MSIL2A") and item.endswith(".SAFE"):
-            info = None
-            for filename in Path(os.path.join(
-                    S2_L2A_PATH, item)).rglob("*/IMG_DATA/R20m/*.jp2"):
-                print("get info from {}".format(filename))
-                info = subprocess.getoutput(
-                    "gdalinfo -json {}".format(filename))
-                break
-
-            if info == None:
-                print("No GDAL info found on this folder.")
-                continue
-            else:
-                gdal_info = True
-                info = json.loads(info)
-                print(info)
-                print(info["cornerCoordinates"]["upperLeft"])
-                print(info["cornerCoordinates"]["lowerRight"])
-
-                xmin = min(info["cornerCoordinates"]["upperLeft"][0],
-                           info["cornerCoordinates"]["lowerRight"][0])
-                ymin = min(info["cornerCoordinates"]["upperLeft"][1],
-                           info["cornerCoordinates"]["lowerRight"][1])
-                xmax = max(info["cornerCoordinates"]["upperLeft"][0],
-                           info["cornerCoordinates"]["lowerRight"][0])
-                ymax = max(info["cornerCoordinates"]["upperLeft"][1],
-                           info["cornerCoordinates"]["lowerRight"][1])
-                break
+    with mp.Pool(settings.S2M_NUM_JOBS) as p:
+        p.map(sen2_preprocess, missing_l1c_prods)
 
     # Build mosaic
-    if gdal_info:
-        mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic')
-        os.makedirs(mosaic_path, exist_ok=True)
-
-        mosaic_name = '{}{}_{}{}_mosaic.tif'.format(date_from.year,
-                                                    date_from.month,
-                                                    date_to.year,
-                                                    date_to.month)
-        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
-            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-            mosaic_path, S2_L2A_PATHS)
-        rv = os.system(cmd)
-        if rv != 0:
-            raise ValueError('s2m mosaic failed for {}.'.format(item))
-
-        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
-            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
-            mosaic_path, S2_L2A_PATH)
-        rv = os.system(cmd)
-        if rv != 0:
-            raise ValueError('s2m mosaic failed for {}.'.format(item))
-
-        #delete useless products
-        #shutil.rmtree(S2_L1C_PATH)
-        #shutil.rmtree(S2_L2A_PATH)
-
-        generate_vegetation_indexes(mosaic_name)
-        concatenate_results(mosaic_name, date_from, date_to)
-        clip_results(date_from, date_to)
-        period.s2_finished = True
-        period.save()
-
-        if period.s1_finished:
-            django_rq.enqueue('lomas_changes.tasks.predict_rf.predict_rf',
-                              period)
-
-    else:
+    if not gdal_info:
         print("No GDAL info found on raw folder.")
+        return
+
+    mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic')
+    os.makedirs(mosaic_path, exist_ok=True)
+
+    xmin, ymin, xmax, ymax = [260572.3994411753083114,
+                              8620358.0515629947185516,
+                              324439.4877797830849886,
+                              8720597.2414500378072262]
+    mosaic_name = 's2_{}{}_{}{}_mosaic'.format(date_from.year,
+                                               date_from.month,
+                                               date_to.year,
+                                               date_to.month)
+    cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 20 -n {} -v -o {} {}".format(
+        settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
+        mosaic_path, S2_L2A_PATH)
+    rv = os.system(cmd)
+    if rv != 0:
+        raise ValueError('s2m mosaic failed for {}.'.format(item))
+
+    cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res 10 -n {} -v -o {} {}".format(
+        settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, mosaic_name,
+        mosaic_path, S2_L2A_PATH)
+    rv = os.system(cmd)
+    if rv != 0:
+        raise ValueError('s2m mosaic failed for {}.'.format(item))
+
+    generate_vegetation_indexes(mosaic_name)
+    concatenate_results(mosaic_name, date_from, date_to)
+    clip_results(date_from, date_to)
+
+    # Clean temp files
+    shutil.rmtree(S2_L1C_PATH)
+    shutil.rmtree(S2_L2A_PATH)
+    shutil.rmtree(mosaic_path)
 
 
 def unzip_product(product):
@@ -184,7 +143,7 @@ def generate_vegetation_indexes(mosaic_name):
     rgb = os.path.join(mosaic_path, '{}_R10m_RGB.vrt'.format(mosaic_name))
 
     #ndiv
-    dst = os.path.join(mosaic_path, 'R10m_NDVI.tif')
+    dst = os.path.join(mosaic_path, '{}_R10m_NDVI.tif'.format(mosaic_name))
     exp = '(im1b1 - im2b1) / (im1b1 + im2b1)'
     run_subprocess(
         '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
@@ -195,7 +154,7 @@ def generate_vegetation_indexes(mosaic_name):
                 exp=exp))
 
     #ndwi
-    dst = os.path.join(mosaic_path, 'R10m_NDWI.tif')
+    dst = os.path.join(mosaic_path, '{}_R10m_NDWI.tif'.format(mosaic_name))
     exp = '(im1b1 - im2b2) / (im1b1 + im2b2)'
     run_subprocess(
         '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
@@ -206,7 +165,7 @@ def generate_vegetation_indexes(mosaic_name):
                 exp=exp))
 
     #evi
-    dst = os.path.join(mosaic_path, 'R10m_EVI.tif')
+    dst = os.path.join(mosaic_path, '{}_R10m_EVI.tif'.format(mosaic_name))
     exp = '(2.5 * ((im1b1 - im2b1) / (im1b1 + 6 * im2b1 - 7.5 * im2b3 + 1)))'
     run_subprocess(
         '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
@@ -217,7 +176,7 @@ def generate_vegetation_indexes(mosaic_name):
                 exp=exp))
 
     #savi
-    dst = os.path.join(mosaic_path, 'R10m_SAVI.tif')
+    dst = os.path.join(mosaic_path, '{}_R10m_SAVI.tif'.format(mosaic_name))
     exp = '((im1b1 - im2b1) * 1.5 / (im1b1 + im2b1 + 0.5))'
     run_subprocess(
         '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
@@ -283,7 +242,7 @@ def clip_results(date_from, date_to):
         run_subprocess(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=AOI_PATH,
+                    aoi=AOI_UTM_PATH,
                     src=os.path.join(mosaic_path, src),
                     dst=os.path.join(results_src, src)))
 
