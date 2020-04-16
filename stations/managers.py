@@ -89,3 +89,31 @@ class MeasurementManager(models.Manager):
                  models.FloatField())))
         qs = qs.order_by('t')
         return qs
+
+
+class PredictionManager(models.Manager):
+    def create(self, datetime, station_id, attributes):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO stations_prediction(datetime, station_id, attributes)
+                VALUES ('{datetime}', '{station_id}', '{attributes}');
+            """.format(datetime=str(datetime),
+                       station_id=station_id,
+                       attributes=json.dumps(attributes)))
+            return self.model(datetime=datetime,
+                              station_id=station_id,
+                              attributes=attributes)
+
+    def bulk_create(self, objs):
+        with connection.cursor() as cursor:
+            values = ', '.join([
+                "('{datetime}', '{station_id}', '{attributes}')".format(
+                    datetime=str(o.datetime),
+                    station_id=o.station_id,
+                    attributes=json.dumps(o.attributes)) for o in objs
+            ])
+            cursor.execute("""
+                INSERT INTO stations_prediction(datetime, station_id, attributes)
+                VALUES {values}
+                ON CONFLICT DO NOTHING;
+            """.format(values=values))
