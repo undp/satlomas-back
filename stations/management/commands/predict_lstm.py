@@ -196,7 +196,7 @@ class Command(BaseCommand):
         tic = time.time() 
         pred,mae = predict_with_model(datapoint,model_package_name,future_steps = future_steps)
         prediction_time = time.time()-tic
-        self.log_success('#{},prediction_time,{}'.format(model_package_name,prediction_time))
+        self.log_success('#{},{},prediction_time,{}'.format(model_package_name,future_steps,prediction_time))
 
         # writing predictions
         time_delta = np.timedelta64(15,'m')
@@ -205,7 +205,7 @@ class Command(BaseCommand):
         tic = time.time()
         self.save_predictions(target_sensor,pred,last_datetime,numeric_var,time_delta)
         save_time = time.time()-tic
-        self.log_success('#{},save_time,{}'.format(model_package_name,save_time))
+        self.log_success('#{},{},save_time,{}'.format(model_package_name,future_steps,save_time))
 
     help = 'Predict using a LSTM Neural net trained for time series prediction'
 
