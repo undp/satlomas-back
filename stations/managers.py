@@ -84,9 +84,14 @@ class MeasurementManager(models.Manager):
         qs = self.filter(station=station)
         qs = qs.filter(datetime__range=(start, end))
         qs = qs.annotate(t=grouping_interval('datetime')).values('t')
-        qs = qs.annotate(v=aggregation_func(
-            Cast(KeyTextTransform(parameter, 'attributes'),
-                 models.FloatField())))
+        if isinstance(parameter, list):
+            qs = qs.annotate(v=[aggregation_func(
+                Cast(KeyTextTransform(p, 'attributes'),
+                    models.FloatField())) for p in parameter])
+        else:
+            qs = qs.annotate(v=aggregation_func(
+                Cast(KeyTextTransform(parameter, 'attributes'),
+                    models.FloatField())))
         qs = qs.order_by('t')
         return qs
 
