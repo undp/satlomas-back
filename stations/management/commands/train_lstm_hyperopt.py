@@ -21,7 +21,8 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from stations.models import Measurement, Place, Station
 
 
-# run this by python manage.py train_lstm_hyperopt
+# run this by: 
+# nohup python manage.py train_lstm_hyperopt config_train_lstm_temp_server_hyperopt.json 2014-01-01 >> train_lstm_temp_A620.log 2>&1 &
 class Command(BaseCommand):
     """
     Read a time series from database
@@ -332,17 +333,25 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            'config_file',
+            type=str,
+            help=
+            'File to read configurations from')
+        
+        parser.add_argument(
             'since_date',
             type=str,
             help=
             'YYYY-MM-DD date since when we are fetching measurements to train')
 
     def handle(self, *args, **options):
+        
+        self.config_file = os.path.join(settings.CONFIG_DIR,options['config_file'])
+        self.log_success('Config file read from parameters {}'.format(self.config_file))
 
         since_date = options['since_date'].split('-')
         self.log_success('Since date argument {}'.format(since_date))
 
-        # TODO : read the file from command line?
         script_config = LSTMHyperoptTrainingScriptConfig(self.config_file)
         self.log_success('Script-config: {}'.format(script_config))
         self.train_lstm(script_config, since_date)
