@@ -6,6 +6,11 @@ from django.db.models import Avg, Count, Func, Max, Min, Sum
 from django.db.models.functions import Cast
 
 
+def get_param_annotation(param, aggregation_func):
+    return {
+        param: aggregation_func(Cast(KeyTextTransform(param, 'attributes'), models.FloatField())),
+    }
+
 class Year(Func):
     function = 'DATE_TRUNC'
     template = "%(function)s('year', %(expressions)s)"
@@ -84,9 +89,13 @@ class MeasurementManager(models.Manager):
         qs = self.filter(station=station)
         qs = qs.filter(datetime__range=(start, end))
         qs = qs.annotate(t=grouping_interval('datetime')).values('t')
-        qs = qs.annotate(v=aggregation_func(
-            Cast(KeyTextTransform(parameter, 'attributes'),
-                 models.FloatField())))
+        if len(parameter.split(",")) == 1:
+            qs = qs.annotate(v=aggregation_func(
+                Cast(KeyTextTransform(parameter, 'attributes'),
+                    models.FloatField())))
+        else:
+            for param in parameter.split(","):
+                qs = qs.annotate(**get_param_annotation(param, aggregation_func))
         qs = qs.order_by('t')
         return qs
 
