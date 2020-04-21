@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'django_extensions',
     'rest_framework',
     'rest_framework_gis',
     'rest_framework.authtoken',
@@ -199,3 +200,9 @@ GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
 # MODIS
 MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
+
+# shellplus notebook config
+NOTEBOOK_ARGUMENTS = [
+    '--ip', '0.0.0.0',
+    '--port', '8888'
+]
