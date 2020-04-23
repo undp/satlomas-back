@@ -24,11 +24,6 @@ from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
 from scopes.views import AvailableDates, ScopeTypes, TimeSeries
-from stations.views import MeasurementSummaryView, PlaceViewSet, StationViewSet
-
-router = SimpleRouter()
-router.register(r'places', PlaceViewSet)
-router.register(r'stations', StationViewSet)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -66,21 +61,17 @@ urlpatterns = [
     # Administration
     url(r'^admin/', admin.site.urls),
 
-    # Stations
-    url(r'^measurements/summary/?', MeasurementSummaryView.as_view()),
-
     # Scopes
     url(r'^scopes/coverage/?', TimeSeries.as_view()),
     url(r'^scopes/available-dates/?', AvailableDates.as_view()),
     url(r'^scopes/types/?', ScopeTypes.as_view()),
-
-    # ...
-    url(r'^', include(router.urls)),
 ]
 
 # API documentation only if DEBUG=1
 if settings.DEBUG:
     urlpatterns += swagger_urls
+
+urlpatterns += [path('stations/', include('stations.urls'))]
 
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

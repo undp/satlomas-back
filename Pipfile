@@ -35,6 +35,7 @@ rq = "*"
 sentinelsat = "*"
 sentry-sdk = "*"
 shapely = "*"
+djangorestframework-csv = "*"
 
 [requires]
 python_version = "3"
