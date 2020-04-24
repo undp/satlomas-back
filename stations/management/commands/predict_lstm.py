@@ -36,8 +36,8 @@ from keras.models import load_model
 from sklearn.metrics import mean_absolute_error, r2_score
 
 
-
-# run cmd example python python manage.py predict_lstm config_train_lstm_temp_server_hyperopt.json 'models/esp:10_eps:150_loss:mean_squared_error_opt:adam_pstps:5_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-05_19:56:02.model' 4
+# how to run this ? 
+# nohup python manage.py predict_lstm config_train_lstm_temp_server_A620_temprature.json 'models/esp:10_eps:200_loss:mean_squared_error_opt:adam_pstps:8_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-22_23:09:03.model' 24 60 >> predict_lstm_temp_A620.log 2>&1 &
 class Command(BaseCommand):
    
     """
@@ -144,7 +144,7 @@ class Command(BaseCommand):
     def log_success(self, msg):
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def predict_lstm(self, script_config, model_package_name , future_steps):
+    def predict_lstm(self, script_config, model_package_name , future_steps, step_mins = 15):
         """
         Function to use a trained LSTM neural network to predict measurements
         """
@@ -199,7 +199,7 @@ class Command(BaseCommand):
         self.log_success('#{},{},prediction_time,{}'.format(model_package_name,future_steps,prediction_time))
 
         # writing predictions
-        time_delta = np.timedelta64(15,'m')
+        time_delta = np.timedelta64(step_mins,'m')
         last_datetime = raw_dataset.tail(1).datetime.values[0] 
 
         tic = time.time()
@@ -207,7 +207,13 @@ class Command(BaseCommand):
         save_time = time.time()-tic
         self.log_success('#{},{},save_time,{}'.format(model_package_name,future_steps,save_time))
 
-    help = 'Predict using a LSTM Neural net trained for time series prediction'
+    help = '''
+    Predict using a LSTM Neural net trained for time series prediction
+    
+    How to use this?
+    
+    nohup python manage.py predict_lstm config_train_lstm_temp_server_A620_temprature.json 'models/esp:10_eps:200_loss:mean_squared_error_opt:adam_pstps:8_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-22_23:09:03.model' 24 60 >> predict_lstm_temp_A620.log 2>&1 &
+    '''
 
     #config_file = os.path.join(settings.CONFIG_DIR,'config_train_lstm_temp_server.json')
 
@@ -229,6 +235,12 @@ class Command(BaseCommand):
             type=int,
             help=
             'Steps in the future to predict')
+        
+        parser.add_argument(
+            'step_mins',
+            type=int,
+            help=
+            'How many minutes is a step?')
 
     def handle(self, *args, **options):
 
@@ -252,10 +264,16 @@ class Command(BaseCommand):
         try:
             future_steps = int(options['future_steps'])
         except Exception as e :
-            self.log_success('Error trying to read model_package_path parameter : {}'.format(e))
+            self.log_success('Error trying to read future_steps parameter : {}'.format(e))
 
         self.log_success('Future steps to call predict_lstm is {}'.format(future_steps))
 
+        try:
+            step_mins = int(options['step_mins'])
+        except Exception as e :
+            self.log_success('Error trying to read step_mins parameter : {}'.format(e))
 
-        self.predict_lstm(script_config,model_package_path,future_steps)
+        self.log_success('Each step is  {} minutes'.format(step_mins))
+
+        self.predict_lstm(script_config,model_package_path,future_steps,step_mins)
 
