@@ -18,6 +18,8 @@ APPDIR = os.path.dirname(lomas_changes.__file__)
 S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
                            'results')
+GEOID_PATH = os.path.join(settings.BASE_DIR, 'data', 'egm96.grd')
+DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'dem')
 
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 
@@ -74,6 +76,7 @@ def download_scenes(period):
     for p in products:
         unzip_product(p)
         calibrate(p)
+        orthorectify(p)
         despeckle(p)
         clip(p)
         concatenate(p)
@@ -120,6 +123,28 @@ def calibrate(product):
             format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
 
+def orthorectify(product):
+    print("# Orthorectify", product['title'])
+    name = '{}.SAFE'.format(product['title'])
+
+    dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho')
+    os.makedirs(dst_folder, exist_ok=True)
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    dst = os.path.join(dst_folder, 'vv.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
+            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    dst = os.path.join(dst_folder, 'vh.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
+            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+
+
 def despeckle(product):
     print("# Despeckle", product['title'])
     name = '{}.SAFE'.format(product['title'])
@@ -127,14 +152,14 @@ def despeckle(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'despeck')
     os.makedirs(dst_folder, exist_ok=True)
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vv.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
         run_subprocess(
             '{otb_bin_path}/otbcli_Despeckle -in {src} -out {dst}'.format(
                 otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
         run_subprocess(
