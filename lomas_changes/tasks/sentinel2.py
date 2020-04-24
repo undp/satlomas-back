@@ -25,6 +25,20 @@ def download_scenes(period):
     date_from = period.date_from
     date_to = period.date_to
 
+    # Check if result has already been done
+    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results',
+                             'src')
+    scene_filename = 's2_{}{}_{}{}*.tif'.format(period.date_from.year,
+                                                period.date_from.month,
+                                                period.date_to.year,
+                                                period.date_to.month)
+    scene_path = os.path.join(scene_dir, scene_filename)
+    if len(glob(scene_path)) == 2:
+        print(
+            "Scene for period {}-{} already done:".format(date_from, date_to),
+            scene_path)
+        return
+
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
               "Please read the Configuration section on README."
