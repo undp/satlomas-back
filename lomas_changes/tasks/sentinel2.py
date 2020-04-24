@@ -66,9 +66,8 @@ def download_scenes(period):
     for p in products:
         print(products[p]['title'])
 
-    os.makedirs(S2_L1C_PATH, exist_ok=True)
-
     # Filter already downloaded products
+    os.makedirs(S2_L1C_PATH, exist_ok=True)
     products_to_download = {
         k: v
         for k, v in products.items() if not os.path.exists(
@@ -84,6 +83,7 @@ def download_scenes(period):
         unzip_product(p)
 
     # Get the list of L1C products still to be processed to L2A
+    os.makedirs(S2_L2A_PATH, exist_ok=True)
     l1c_can_prods = get_canonical_names(
         glob(os.path.join(S2_L1C_PATH, '*.SAFE')))
     l2a_can_prods = get_canonical_names(
