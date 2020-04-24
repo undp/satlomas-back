@@ -122,10 +122,7 @@ def download_scenes(period):
     concatenate_results(mosaic_name, date_from, date_to)
     clip_results(date_from, date_to)
 
-    # Clean temp files
-    shutil.rmtree(S2_L1C_PATH)
-    shutil.rmtree(S2_L2A_PATH)
-    shutil.rmtree(mosaic_path)
+    clean_temp_files()
 
 
 def unzip_product(product):
@@ -259,3 +256,8 @@ def sen2_preprocess(product_path):
         settings.S2M_CLI_PATH, S2_L2A_PATH, product_path)
     os.system(cmd)
 
+
+def clean_temp_files():
+    shutil.rmtree(S2_L1C_PATH)
+    shutil.rmtree(S2_L2A_PATH)
+    shutil.rmtree(mosaic_path)
