@@ -35,7 +35,9 @@ class ParameterRuleForm(forms.ModelForm):
 
 
 class ParameterRuleAdmin(FilterUserAdmin):
-    list_display = ['parameter', 'threshold', 'created_at', 'updated_at']
+    list_display = [
+        'station', 'parameter', 'threshold', 'created_at', 'updated_at'
+    ]
     exclude = ('user', )
     form = ParameterRuleForm
 
