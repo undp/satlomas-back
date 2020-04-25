@@ -34,3 +34,17 @@ class VegetationMask(models.Model):
             period=period,
             vegetation=GEOSGeometry(vegetation_mp.wkt),
             clouds=GEOSGeometry(clouds_mp.wkt))
+
+
+class CoverageMeasurement(models.Model):
+    date_from = models.DateField()
+    date_to = models.DateField()
+    scope = models.ForeignKey('scopes.Scope',
+                              related_name='vi_lomas_changes_scope',
+                              on_delete=models.SET_NULL,
+                              null=True)
+    change_area = models.FloatField()
+    perc_change_area = models.FloatField()
+
+    class Meta:
+        unique_together = ['date_from', 'date_to', 'scope']
