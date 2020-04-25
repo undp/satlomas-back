@@ -1,6 +1,7 @@
 import os
 import shutil
 from datetime import date
+import multiprocessing as mp
 from glob import glob
 
 import dateutil.relativedelta
@@ -73,13 +74,8 @@ def download_scenes(period):
     products = list(products.values())
 
     # Process the images of each product
-    for p in products:
-        unzip_product(p)
-        calibrate(p)
-        orthorectify(p)
-        despeckle(p)
-        clip(p)
-        concatenate(p)
+    with mp.Pool(24) as pool:
+        pool.map(process_product, products)
 
     # Create a median composite from all images of each band, generate extra
     # bands and concatenate results into a single multiband imafge.
@@ -93,7 +89,7 @@ def download_scenes(period):
 
 
 def unzip_product(product):
-    print("### Unzip", product['title'])
+    print("# Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S1_RAW_PATH, filename)
     outdir = os.path.join(S1_RAW_PATH, '{}.SAFE'.format(product['title']))
@@ -331,3 +327,13 @@ def clean_temp_files():
     shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc'))
     for dirname in glob(os.path.join(S1_RAW_PATH, '*.SAFE')):
         shutil.rmtree(dirname)
+
+
+def process_product(p):
+    unzip_product(p)
+    calibrate(p)
+    orthorectify(p)
+    despeckle(p)
+    clip(p)
+    concatenate(p)
+

@@ -126,7 +126,7 @@ def download_scenes(period):
 
 
 def unzip_product(product):
-    print("### Unzip", product['title'])
+    print("# Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S2_L1C_PATH, filename)
     outdir = os.path.join(S2_L1C_PATH, '{}.SAFE'.format(product['title']))
