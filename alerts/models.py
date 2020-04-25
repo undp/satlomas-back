@@ -61,3 +61,23 @@ class ParameterRule(models.Model):
 
     class Meta:
         unique_together = ['user', 'station', 'parameter']
+
+
+class Alert(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rule_content_type = models.ForeignKey(ContentType,
+                                          on_delete=models.CASCADE,
+                                          related_name="%(class)s_related",
+                                          limit_choices_to=RULE_MODELS)
+    rule_id = models.PositiveIntegerField()
+    rule = GenericForeignKey('rule_content_type', 'rule_id')
+
+    measurement_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
+    measurement_id = models.PositiveIntegerField()
+    measurement = GenericForeignKey('measurement_content_type',
+                                    'measurement_id')
+
+    created_at = models.DateTimeField(auto_now_add=True)
