@@ -63,10 +63,8 @@ class AlertAdmin(FilterUserAdmin):
     list_display = [
         'created_at',
         'rule_content_type',
-        'rule_id',
         'rule',
         'measurement_content_type',
-        'measurement_id',
         'measurement',
     ]
     exclude = ('user', )

@@ -34,6 +34,13 @@ class ScopeTypeRule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return '{m_type} {t_type} > {threshold} ({scope_type})'.format(
+            m_type=self.measurement_content_type,
+            t_type=self.get_threshold_type_display(),
+            threshold=self.threshold,
+            scope_type=self.scope_type)
+
 
 class ScopeRule(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -46,6 +53,13 @@ class ScopeRule(models.Model):
     threshold = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return '{m_type} {t_type} > {threshold} ({scope})'.format(
+            m_type=self.measurement_content_type,
+            t_type=self.get_threshold_type_display(),
+            threshold=self.threshold,
+            scope=self.scope.name)
 
 
 class ParameterRule(models.Model):
@@ -61,6 +75,13 @@ class ParameterRule(models.Model):
 
     class Meta:
         unique_together = ['user', 'station', 'parameter']
+
+    def __str__(self):
+        station_s = self.station.name if self.station else 'cualquier estación'
+        return '{parameter} > {threshold} ({station})'.format(
+            parameter=self.parameter,
+            threshold=self.threshold,
+            station=station_s)
 
 
 class Alert(models.Model):
