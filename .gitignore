@@ -134,3 +134,4 @@ data/vi/*
 *.swp
 
 /static/
+/data/dem/*.omd
