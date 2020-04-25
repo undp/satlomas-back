@@ -9,8 +9,8 @@ from scopes.models import Scope
 CHANGES_APPS = ['lomas_changes', 'vi_lomas_changes']
 # FIXME generate based on CHANGES_APPS
 LIMITS = models.Q(
-    app_label='lomas_changes', model='coverage_measurements') | models.Q(
-        app_label='vi_lomas_changes', model='coverage_measurements')
+    app_label='lomas_changes', model='coveragemeasurement') | models.Q(
+        app_label='vi_lomas_changes', model='coveragemeasurement')
 
 THRESHOLD_TYPES = [
     ('A', 'Area'),
