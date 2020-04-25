@@ -53,6 +53,9 @@ class ParameterRule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ['user', 'station', 'parameter']
+
 
 # class Alert(models.Model):
 #     rule_content_type = models.ForeignKey(ContentType,
