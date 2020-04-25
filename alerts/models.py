@@ -19,7 +19,7 @@ THRESHOLD_TYPES = [
 
 
 class ScopeTypeRule(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     scope_type = models.CharField(max_length=2, choices=Scope.SCOPE_TYPE)
     measurement_content_type = models.ForeignKey(ContentType,
                                                  on_delete=models.CASCADE,
@@ -31,7 +31,7 @@ class ScopeTypeRule(models.Model):
 
 
 class ScopeRule(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     scope = models.ForeignKey('scopes.Scope', on_delete=models.CASCADE)
     measurement_content_type = models.ForeignKey(ContentType,
                                                  on_delete=models.CASCADE,
@@ -43,7 +43,7 @@ class ScopeRule(models.Model):
 
 
 class ParameterRule(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     station = models.ForeignKey('stations.Station',
                                 on_delete=models.CASCADE,
                                 null=True,
