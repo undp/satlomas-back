@@ -1,6 +1,7 @@
-from django.contrib import admin
 from django import forms
-from .models import ParameterRule, ScopeRule, ScopeTypeRule
+from django.contrib import admin
+
+from .models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
 
 
 class FilterUserAdmin(admin.ModelAdmin):
@@ -58,6 +59,20 @@ class ScopeTypeRuleAdmin(FilterUserAdmin):
     exclude = ('user', )
 
 
+class AlertAdmin(FilterUserAdmin):
+    list_display = [
+        'created_at',
+        'rule_content_type',
+        'rule_id',
+        'rule',
+        'measurement_content_type',
+        'measurement_id',
+        'measurement',
+    ]
+    exclude = ('user', )
+
+
 admin.site.register(ParameterRule, ParameterRuleAdmin)
 admin.site.register(ScopeRule, ScopeRuleAdmin)
 admin.site.register(ScopeTypeRule, ScopeTypeRuleAdmin)
+admin.site.register(Alert, AlertAdmin)
