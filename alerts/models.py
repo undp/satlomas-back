@@ -119,6 +119,7 @@ class Alert(models.Model):
     measurement_id = models.PositiveIntegerField()
     measurement = GenericForeignKey('measurement_content_type',
                                     'measurement_id')
+    last_seen_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -132,3 +133,4 @@ class Alert(models.Model):
 auditlog.register(ScopeTypeRule)
 auditlog.register(ScopeRule)
 auditlog.register(ParameterRule)
+auditlog.register(Alert, include_fields=['last_seen'])
