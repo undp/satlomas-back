@@ -162,7 +162,7 @@
         },
         "django-auditlog": {
             "git": "https://github.com/dymaxionlabs/django-auditlog.git",
-            "ref": "027868d86346c82310d8b23abb4a2285469bebf0"
+            "ref": "74c93a3220883c3c3f39793978d16dc0cab2c560"
         },
         "django-cors-headers": {
             "hashes": [
