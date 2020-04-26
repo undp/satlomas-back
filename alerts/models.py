@@ -1,6 +1,7 @@
+from auditlog.registry import auditlog
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth.models import User
 from django.db import models
 
 from scopes.models import Scope
@@ -118,6 +119,7 @@ class Alert(models.Model):
     measurement_id = models.PositiveIntegerField()
     measurement = GenericForeignKey('measurement_content_type',
                                     'measurement_id')
+    last_seen_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -126,3 +128,9 @@ class Alert(models.Model):
         r_type = self.rule_content_type
         m_type = self.measurement_content_type
         return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'
+
+
+auditlog.register(ScopeTypeRule)
+auditlog.register(ScopeRule)
+auditlog.register(ParameterRule)
+auditlog.register(Alert, include_fields=['last_seen'])

@@ -12,12 +12,14 @@ rope = "*"
 dateutils = "*"
 django = "~=3.0.2"
 django-anymail = {version = "*",extras = ["mailgun"]}
+django-auditlog = {git = "https://github.com/dymaxionlabs/django-auditlog.git"}
 django-cors-headers = "*"
 django-extensions = "*"
 django-jsoneditor = "*"
 django-leaflet = "*"
 django-rest-auth = {version = "*",extras = ["with_social"]}
 djangorestframework = "~=3.10"
+djangorestframework-csv = "*"
 djangorestframework-gis = "~=0.15"
 django-rq = "*"
 django-storages = {version = "*",extras = ["google"]}
@@ -35,7 +37,6 @@ rq = "*"
 sentinelsat = "*"
 sentry-sdk = "*"
 shapely = "*"
-djangorestframework-csv = "*"
 
 [requires]
 python_version = "3"
