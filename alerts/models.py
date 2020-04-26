@@ -6,12 +6,14 @@ from django.db import models
 from scopes.models import Scope
 
 # FIXME Move this to Settings
-CHANGES_APPS = ['lomas_changes', 'vi_lomas_changes']
+CHANGE_APPS = ['lomas_changes', 'vi_lomas_changes']
 
-# FIXME generate based on CHANGES_APPS
+# FIXME generate based on CHANGE_APPS
 COVERAGE_MEASUREMENT_MODELS = models.Q(
     app_label='lomas_changes', model='coveragemeasurement') | models.Q(
         app_label='vi_lomas_changes', model='coveragemeasurement')
+MEASUREMENT_MODELS = COVERAGE_MEASUREMENT_MODELS | models.Q(
+    app_label='stations', model='measurement')
 
 RULE_MODELS = models.Q(model='scopetyperule') | models.Q(
     model='scoperule') | models.Q(model='parameterrule')
@@ -112,7 +114,7 @@ class Alert(models.Model):
     measurement_content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE,
-        limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
+        limit_choices_to=MEASUREMENT_MODELS)
     measurement_id = models.PositiveIntegerField()
     measurement = GenericForeignKey('measurement_content_type',
                                     'measurement_id')
