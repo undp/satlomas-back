@@ -13,7 +13,6 @@ import numpy as np
 import rasterio
 import requests
 from django.conf import settings
-from django_rq import job
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from vi_lomas_changes.models import VegetationMask
@@ -37,13 +36,183 @@ CHUNKS = 65536
 
 MODIS_PLATFORM = 'MOLA'
 MODIS_PRODUCT = 'MYD13Q1.006'
-MODIS_ROOT = os.path.join(settings.BASE_DIR, 'modis')
-MODIS_OUT_DIR = os.path.join(MODIS_ROOT, 'out')
-MODIS_TIF_DIR = os.path.join(MODIS_ROOT, 'tif')
-MODIS_CLIP_DIR = os.path.join(MODIS_ROOT, 'clip')
-VEGETATION_MASK_DIR = os.path.join('data', 'vegetation')
 H_PERU = '10'
 V_PERU = '10'
+
+LOMAS_MIN = 200
+LOMAS_MAX = 1800
+FACTOR_ESCALA = 0.0001
+UMBRAL_NDVI = 0.2
+
+VI_ROOT = os.path.join(settings.BASE_DIR, 'data', 'vi')
+VI_RAW_DIR = os.path.join(VI_ROOT, 'raw')
+VI_TIF_DIR = os.path.join(VI_ROOT, 'tif')
+VI_CLIP_DIR = os.path.join(VI_ROOT, 'clip')
+VI_MASK_DIR = os.path.join(VI_ROOT, 'masks')
+
+
+def get_modis_peru(date_from, date_to):
+    year = date_to.year
+    doy_begin = date_from.timetuple().tm_yday
+    doy_end = date_to.timetuple().tm_yday
+
+    os.makedirs(VI_RAW_DIR, exist_ok=True)
+    os.makedirs(VI_TIF_DIR, exist_ok=True)
+
+    # Download MODIS hdf files
+    tile = 'h{}v{}'.format(H_PERU, V_PERU)
+    get_modisfiles(settings.MODIS_USER,
+                   settings.MODIS_PASS,
+                   MODIS_PLATFORM,
+                   MODIS_PRODUCT,
+                   year,
+                   tile,
+                   proxy=None,
+                   doy_start=doy_begin,
+                   doy_end=doy_end,
+                   out_dir=VI_RAW_DIR,
+                   verbose=True,
+                   ruff=False,
+                   get_xml=False)
+
+    # Extract subdatasets as GTiffs
+    gdal_translate(VI_RAW_DIR, VI_TIF_DIR)
+
+    # Clip SRTM to AOI
+    # FIXME This should be a separate management command
+    area_monitoreo = os.path.join(settings.BASE_DIR, 'data',
+                                  'area_monitoreo.geojson')
+    srtm_dem = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
+    srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data',
+                                  'srtm_dem_monitoreo.tif')
+    if not os.path.exists(srtm_monitoreo):
+        run_subprocess(
+            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                    aoi=area_monitoreo,
+                    src=srtm_dem,
+                    dst=srtm_monitoreo))
+
+    # Calculate SRTM mask
+    os.makedirs(VI_CLIP_DIR, exist_ok=True)
+    with rasterio.open(srtm_monitoreo) as srtm_src:
+        srtm = srtm_src.read(1)
+        lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
+
+    tope = UMBRAL_NDVI / FACTOR_ESCALA
+
+    # Clip NDVI to AOI
+    f = '*h10v10*.hdf_ndvi.tif'
+    ndvi = os.path.join(VI_TIF_DIR, f)
+    ndvi_monitoreo = os.path.join(VI_CLIP_DIR, f)
+    run_subprocess(
+        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
+        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=area_monitoreo,
+                src=ndvi,
+                dst=ndvi_monitoreo))
+
+    # Superimpose clipped SRTM and NDVI rasters to align them
+    run_subprocess(
+        '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
+        format(otb_bin_path=settings.OTB_BIN_PATH,
+               inr=srtm_monitoreo,
+               inm=ndvi_monitoreo,
+               out=ndvi_monitoreo))
+
+    with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
+        modis_ndvi = modis_ndvi_src.read(1)
+
+        vegetacion_mask = (modis_ndvi > tope)
+
+        verde_mask = (vegetacion_mask & lomas_mask)
+        verde = np.copy(modis_ndvi)
+        verde[~verde_mask] = 0
+
+        verde_rango = np.copy(verde)
+        verde_rango[(verde >= (0.2 / FACTOR_ESCALA))
+                    & (verde < (0.4 / FACTOR_ESCALA))] = 1
+        verde_rango[(verde >= (0.4 / FACTOR_ESCALA))
+                    & (verde < (0.6 / FACTOR_ESCALA))] = 2
+        verde_rango[(verde >= (0.6 / FACTOR_ESCALA))
+                    & (verde < (0.8 / FACTOR_ESCALA))] = 3
+        verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
+
+        verde[verde_mask] = 1
+
+        modis_meta = modis_ndvi_src.profile
+
+        period = "{}{}-{}{}".format(
+            ("0" + str(date_from.month))[-2:], date_from.year,
+            ("0" + str(date_to.month))[-2:], date_to.year)
+
+        os.makedirs(VI_MASK_DIR, exist_ok=True)
+
+        dst_name = os.path.join(VI_MASK_DIR,
+                                '{}-vegetation_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+            dst.write(verde, 1)
+
+        # Cloud mask
+        f = '*h10v10*.hdf_pixelrel.tif'
+        pixelrel = os.path.join(VI_TIF_DIR, f)
+        pixelrel_monitoreo = os.path.join(VI_CLIP_DIR, f)
+        run_subprocess(
+            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
+            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                    aoi=area_monitoreo,
+                    src=pixelrel,
+                    dst=pixelrel_monitoreo))
+        run_subprocess(
+            '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'
+            .format(otb_bin_path=settings.OTB_BIN_PATH,
+                    inr=srtm_monitoreo,
+                    inm=pixelrel_monitoreo,
+                    out=pixelrel_monitoreo))
+
+        with rasterio.open(pixelrel_monitoreo) as cloud_src:
+            clouds = cloud_src.read(1)
+
+        # In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
+        cloud_mask = np.copy(clouds)
+        cloud_mask[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 1
+        cloud_mask[(clouds != 2) & (clouds != 3)] = 0
+
+        dst_name = os.path.join(VI_MASK_DIR,
+                                '{}-cloud_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+            dst.write(cloud_mask, 1)
+
+        modis_meta['dtype'] = "float32"
+        dst_name = os.path.join(VI_MASK_DIR,
+                                '{}-vegetation_range.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+            dst.write(verde_rango, 1)
+
+        # Create a mask with data from vegetation and clouds
+        verde[cloud_mask == 1] = 2
+        dst_name = os.path.join(VI_MASK_DIR,
+                                '{}-vegetation_cloud_mask.tif'.format(period))
+        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+            dst.write(verde, 1)
+
+        # Create poligons from the mask
+        output_name = os.path.join(
+            VI_MASK_DIR, '{}-vegetation_cloud_geom.geojson'.format(period))
+        run_subprocess(
+            '{gdal_bin_path}/gdal_polygonize.py {tif_src} {geojson_output} -b 1 -f "GeoJSON" DN'
+            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                    tif_src=dst_name,
+                    geojson_output=output_name))
+
+        data = gpd.read_file(output_name)
+        data_proj = data.copy()
+        data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=32718)
+        data_proj.to_file(output_name)
+
+        VegetationMask.save_from_geojson(output_name, date_from)
+
+    clean_temp_files()
 
 
 def run_subprocess(cmd):
@@ -271,171 +440,7 @@ def gdal_translate(out_dir, tif_dir):
             rv = os.system(cmd)
 
 
-@job("default", timeout=3600)
-def get_modis_peru(date_from, date_to):
-    year = date_to.year
-    doy_begin = date_from.timetuple().tm_yday
-    doy_end = date_to.timetuple().tm_yday
-
-    os.makedirs(MODIS_OUT_DIR, exist_ok=True)
-    os.makedirs(MODIS_TIF_DIR, exist_ok=True)
-
-    tile = 'h{}v{}'.format(H_PERU, V_PERU)
-
-    get_modisfiles(settings.MODIS_USER,
-                   settings.MODIS_PASS,
-                   MODIS_PLATFORM,
-                   MODIS_PRODUCT,
-                   year,
-                   tile,
-                   proxy=None,
-                   doy_start=doy_begin,
-                   doy_end=doy_end,
-                   out_dir=MODIS_OUT_DIR,
-                   verbose=True,
-                   ruff=False,
-                   get_xml=False)
-
-    gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
-
-    django_rq.enqueue('vegetation.tasks.vegetation_mask', date_from, date_to)
-
-
-@job("default", timeout=3600)
-def vegetation_mask(date_from, date_to):
-    area_monitoreo = os.path.join(settings.BASE_DIR, 'data',
-                                  'area_monitoreo.geojson')
-    srtm_dem = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
-    srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data',
-                                  'srtm_dem_monitoreo.tif')
-    if not os.path.exists(srtm_monitoreo):
-        run_subprocess(
-            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=area_monitoreo,
-                    src=srtm_dem,
-                    dst=srtm_monitoreo))
-
-    os.makedirs(MODIS_CLIP_DIR, exist_ok=True)
-
-    with rasterio.open(srtm_monitoreo) as srtm_src:
-        srtm = srtm_src.read(1)
-
-        LOMAS_MIN = 200
-        LOMAS_MAX = 1800
-        lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
-
-    FACTOR_ESCALA = 0.0001
-    UMBRAL_NDVI = 0.2
-    tope = UMBRAL_NDVI / FACTOR_ESCALA
-
-    f = '*h10v10*.hdf_ndvi.tif'
-    ndvi = os.path.join(MODIS_TIF_DIR, f)
-    ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f)
-    run_subprocess(
-        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
-        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=area_monitoreo,
-                src=ndvi,
-                dst=ndvi_monitoreo))
-
-    run_subprocess(
-        '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
-        format(otb_bin_path=settings.OTB_BIN_PATH,
-               inr=srtm_monitoreo,
-               inm=ndvi_monitoreo,
-               out=ndvi_monitoreo))
-
-    with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
-        modis_ndvi = modis_ndvi_src.read(1)
-
-        vegetacion_mask = (modis_ndvi > tope)
-
-        verde_mask = (vegetacion_mask & lomas_mask)
-        verde = np.copy(modis_ndvi)
-        verde[~verde_mask] = 0
-
-        verde_rango = np.copy(verde)
-        verde_rango[(verde >= (0.2 / FACTOR_ESCALA))
-                    & (verde < (0.4 / FACTOR_ESCALA))] = 1
-        verde_rango[(verde >= (0.4 / FACTOR_ESCALA))
-                    & (verde < (0.6 / FACTOR_ESCALA))] = 2
-        verde_rango[(verde >= (0.6 / FACTOR_ESCALA))
-                    & (verde < (0.8 / FACTOR_ESCALA))] = 3
-        verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
-
-        verde[verde_mask] = 1
-
-        modis_meta = modis_ndvi_src.profile
-
-        period = "{}{}-{}{}".format(
-            ("0" + str(date_from.month))[-2:], date_from.year,
-            ("0" + str(date_to.month))[-2:], date_to.year)
-
-        os.makedirs(VEGETATION_MASK_DIR, exist_ok=True)
-
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde, 1)
-
-        #Cloud mask
-        f = '*h10v10*.hdf_pixelrel.tif'
-        pixelrel = os.path.join(MODIS_TIF_DIR, f)
-        pixelrel_monitoreo = os.path.join(MODIS_CLIP_DIR, f)
-        run_subprocess(
-            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=area_monitoreo,
-                    src=pixelrel,
-                    dst=pixelrel_monitoreo))
-        run_subprocess(
-            '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'
-            .format(otb_bin_path=settings.OTB_BIN_PATH,
-                    inr=srtm_monitoreo,
-                    inm=pixelrel_monitoreo,
-                    out=pixelrel_monitoreo))
-        with rasterio.open(pixelrel_monitoreo) as cloud_src:
-            clouds = cloud_src.read(1)
-        #In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
-        cloud_mask = np.copy(clouds)
-        cloud_mask[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 1
-        cloud_mask[(clouds != 2) & (clouds != 3)] = 0
-
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-cloud_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(cloud_mask, 1)
-
-        modis_meta['dtype'] = "float32"
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_range.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde_rango, 1)
-
-        #Create a mask with data from vegetation and clouds
-        verde[cloud_mask == 1] = 2
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_cloud_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde, 1)
-        #Create poligons from the mask
-        output_name = os.path.join(
-            VEGETATION_MASK_DIR,
-            '{}-vegetation_cloud_geom.geojson'.format(period))
-        run_subprocess(
-            '{gdal_bin_path}/gdal_polygonize.py {tif_src} {geojson_output} -b 1 -f "GeoJSON" DN'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    tif_src=dst_name,
-                    geojson_output=output_name))
-
-        data = gpd.read_file(output_name)
-        data_proj = data.copy()
-        data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=32718)
-        data_proj.to_file(output_name)
-
-        VegetationMask.save_from_geojson(output_name, date_from)
-
-    shutil.rmtree(MODIS_CLIP_DIR)
-    shutil.rmtree(MODIS_OUT_DIR)
-    shutil.rmtree(MODIS_TIF_DIR)
+def clean_temp_files():
+    shutil.rmtree(VI_CLIP_DIR)
+    shutil.rmtree(VI_RAW_DIR)
+    shutil.rmtree(VI_TIF_DIR)
