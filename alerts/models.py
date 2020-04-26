@@ -84,6 +84,10 @@ class ParameterRule(models.Model):
             station=station_s)
 
 
+class AlertCheck(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Alert(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     rule_content_type = models.ForeignKey(ContentType,
