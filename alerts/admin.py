@@ -71,8 +71,12 @@ class AlertAdmin(FilterUserAdmin):
     exclude = ('user', )
 
 
+class AlertCheckAdmin(admin.ModelAdmin):
+    list_display = ('created_at', )
+
+
 admin.site.register(ParameterRule, ParameterRuleAdmin)
 admin.site.register(ScopeRule, ScopeRuleAdmin)
 admin.site.register(ScopeTypeRule, ScopeTypeRuleAdmin)
-admin.site.register(AlertCheck)
 admin.site.register(Alert, AlertAdmin)
+admin.site.register(AlertCheck, AlertCheckAdmin)
