@@ -69,6 +69,7 @@ class ParameterRule(models.Model):
                                 null=True,
                                 blank=True)
     parameter = models.CharField(max_length=64)
+    is_absolute = models.BooleanField(default=False)
     threshold = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -78,10 +79,8 @@ class ParameterRule(models.Model):
 
     def __str__(self):
         station_s = self.station.name if self.station else 'cualquier estación'
-        return '{parameter} > {threshold} ({station})'.format(
-            parameter=self.parameter,
-            threshold=self.threshold,
-            station=station_s)
+        abs_s = ' (absoluto)' if self.is_absolute else ''
+        return f'{self.parameter}{abs_s} > {self.threshold} ({station_s})'
 
 
 class AlertCheck(models.Model):
