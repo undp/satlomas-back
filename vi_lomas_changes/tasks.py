@@ -24,12 +24,13 @@ except ImportError:
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-LOG = logging.getLogger(__name__)
-OUT_HDLR = logging.StreamHandler(sys.stdout)
-OUT_HDLR.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-OUT_HDLR.setLevel(logging.INFO)
-LOG.addHandler(OUT_HDLR)
-LOG.setLevel(logging.INFO)
+# Configure logger
+logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
 
 HEADERS = {'User-Agent': 'get_modis Python 3'}
 CHUNKS = 65536
@@ -224,7 +225,7 @@ def return_url(url):
     the_day_today = time.asctime().split()[0]
     the_hour_now = int(time.asctime().split()[3].split(":")[0])
     if the_day_today == "Wed" and 14 <= the_hour_now <= 17:
-        LOG.info("Sleeping for %d hours... Yawn!" % (18 - the_hour_now))
+        logger.info("Sleeping for %d hours... Yawn!" % (18 - the_hour_now))
         time.sleep(60 * 60 * (18 - the_hour_now))
 
     req = urllib2.Request("%s" % (url), None, HEADERS)
@@ -367,7 +368,7 @@ def get_modisfiles(username,
 
     if not os.path.exists(out_dir):
         if verbose:
-            LOG.info("Creating outupt dir %s" % out_dir)
+            logger.info("Creating outupt dir %s" % out_dir)
         os.makedirs(out_dir)
     if doy_end == -1:
         if calendar.isleap(year):
@@ -395,13 +396,13 @@ def get_modisfiles(username,
                             them_urls.append("%s/%s/%s" % (url, date, fname))
                         else:
                             if verbose:
-                                LOG.info("File %s already present. Skipping" %
-                                         fname)
+                                logger.info(
+                                    "File %s already present. Skipping" %
+                                    fname)
 
-    # si el vector tiene al menos una url (longitud > 0)
+    # Use the last product
     if len(them_urls) > 0:
-        them_urls = [them_urls[-1]]  # me quedo con el ultimo producto
-    # si el vector esta vacio lo que sigue no hace nada
+        them_urls = [them_urls[-1]]
 
     with requests.Session() as s:
         s.auth = (username, password)
@@ -413,8 +414,8 @@ def get_modisfiles(username,
                 raise IOError("Can't start download... [%s]" % the_url)
             file_size = int(r.headers['content-length'])
             fname = the_url.split("/")[-1]
-            LOG.info("Starting download on %s(%d bytes) ..." %
-                     (os.path.join(out_dir, fname), file_size))
+            logger.info("Starting download on %s(%d bytes) ..." %
+                        (os.path.join(out_dir, fname), file_size))
             with open(os.path.join(out_dir, fname), 'wb') as fp:
                 for chunk in r.iter_content(chunk_size=CHUNKS):
                     if chunk:
@@ -422,9 +423,10 @@ def get_modisfiles(username,
                 fp.flush()
                 os.fsync(fp)
                 if verbose:
-                    LOG.info("\tDone!")
+                    logger.info("\tDone!")
+
     if verbose:
-        LOG.info("Completely finished downlading all there was")
+        logger.info("Completely finished downlading all there was")
 
 
 def gdal_translate(out_dir, tif_dir):
