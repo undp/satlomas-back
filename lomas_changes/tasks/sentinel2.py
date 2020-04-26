@@ -245,7 +245,7 @@ def get_canonical_names(prods):
 
 
 def sen2_preprocess(product_path, period_s):
-    cmd = "python3 {}/preprocess.py -v -o {} {}".format(
+    cmd = "python3 {}/preprocess.py -v -o {} -res 10 {}".format(
         settings.S2M_CLI_PATH, os.path.join(S2_L2A_PATH, period_s), product_path)
     print(cmd)
     os.system(cmd)
