@@ -30,7 +30,7 @@ class ScopeTypeRule(models.Model):
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
     change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
-    valid_min = models.FloatField(default=0)
+    valid_min = models.FloatField(default=-5)
     valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -54,7 +54,7 @@ class ScopeRule(models.Model):
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
     change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
-    valid_min = models.FloatField(default=0)
+    valid_min = models.FloatField(default=-5)
     valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -78,7 +78,7 @@ class ParameterRule(models.Model):
                                 blank=True)
     parameter = models.CharField(max_length=64)
     is_absolute = models.BooleanField(default=False)
-    valid_min = models.FloatField(default=0)
+    valid_min = models.FloatField(default=-5)
     valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -118,3 +118,9 @@ class Alert(models.Model):
                                     'measurement_id')
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        t = self.created_at
+        r_type = self.rule_content_type
+        m_type = self.measurement_content_type
+        return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'

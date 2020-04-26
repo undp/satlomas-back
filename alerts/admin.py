@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 
-from .models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
+from .models import Alert, AlertCheck, ParameterRule, ScopeRule, ScopeTypeRule
 
 
 class FilterUserAdmin(admin.ModelAdmin):
@@ -74,4 +74,5 @@ class AlertAdmin(FilterUserAdmin):
 admin.site.register(ParameterRule, ParameterRuleAdmin)
 admin.site.register(ScopeRule, ScopeRuleAdmin)
 admin.site.register(ScopeTypeRule, ScopeTypeRuleAdmin)
+admin.site.register(AlertCheck)
 admin.site.register(Alert, AlertAdmin)

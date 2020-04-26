@@ -8,8 +8,11 @@ from django.db.models.functions import Cast, Lag
 
 def get_param_annotation(param, aggregation_func):
     return {
-        param: aggregation_func(Cast(KeyTextTransform(param, 'attributes'), models.FloatField())),
+        param:
+        aggregation_func(
+            Cast(KeyTextTransform(param, 'attributes'), models.FloatField())),
     }
+
 
 class Year(Func):
     function = 'DATE_TRUNC'
@@ -98,10 +101,11 @@ class MeasurementManager(models.Manager):
         if len(parameter.split(",")) == 1:
             qs = qs.annotate(v=aggregation_func(
                 Cast(KeyTextTransform(parameter, 'attributes'),
-                    models.FloatField())))
+                     models.FloatField())))
         else:
             for param in parameter.split(","):
-                qs = qs.annotate(**get_param_annotation(param, aggregation_func))
+                qs = qs.annotate(
+                    **get_param_annotation(param, aggregation_func))
         qs = qs.order_by('t')
         return qs
 
