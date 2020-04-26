@@ -45,6 +45,8 @@ class CoverageMeasurement(models.Model):
                               null=True)
     change_area = models.FloatField()
     perc_change_area = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ['date_from', 'date_to', 'scope']
