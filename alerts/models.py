@@ -16,7 +16,7 @@ COVERAGE_MEASUREMENT_MODELS = models.Q(
 RULE_MODELS = models.Q(model='scopetyperule') | models.Q(
     model='scoperule') | models.Q(model='parameterrule')
 
-THRESHOLD_TYPES = [
+CHANGE_TYPES = [
     ('A', 'Area'),
     ('P', 'Percentage'),
 ]
@@ -29,17 +29,21 @@ class ScopeTypeRule(models.Model):
         ContentType,
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
-    threshold_type = models.CharField(max_length=1, choices=THRESHOLD_TYPES)
-    threshold = models.FloatField(default=5)
+    change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
+    valid_min = models.FloatField(default=0)
+    valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '{m_type} {t_type} > {threshold} ({scope_type})'.format(
+        return '{m_type} {c_type} {valid_range} ({scope_type})'.format(
             m_type=self.measurement_content_type,
-            t_type=self.get_threshold_type_display(),
-            threshold=self.threshold,
+            c_type=self.get_change_type_display(),
+            valid_range=self.get_valid_range_display(),
             scope_type=self.scope_type)
+
+    def get_valid_range_display(self):
+        return f'{self.valid_min} - {self.valid_max}'
 
 
 class ScopeRule(models.Model):
@@ -49,17 +53,21 @@ class ScopeRule(models.Model):
         ContentType,
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
-    threshold_type = models.CharField(max_length=1, choices=THRESHOLD_TYPES)
-    threshold = models.FloatField(default=5)
+    change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
+    valid_min = models.FloatField(default=0)
+    valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '{m_type} {t_type} > {threshold} ({scope})'.format(
+        return '{m_type} {c_type} {valid_range} ({scope})'.format(
             m_type=self.measurement_content_type,
-            t_type=self.get_threshold_type_display(),
-            threshold=self.threshold,
+            c_type=self.get_change_type_display(),
+            valid_range=self.get_valid_range_display(),
             scope=self.scope.name)
+
+    def get_valid_range_display(self):
+        return f'{self.valid_min} - {self.valid_max}'
 
 
 class ParameterRule(models.Model):
@@ -70,7 +78,8 @@ class ParameterRule(models.Model):
                                 blank=True)
     parameter = models.CharField(max_length=64)
     is_absolute = models.BooleanField(default=False)
-    threshold = models.FloatField(default=5)
+    valid_min = models.FloatField(default=0)
+    valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -80,7 +89,11 @@ class ParameterRule(models.Model):
     def __str__(self):
         station_s = self.station.name if self.station else 'cualquier estación'
         abs_s = ' (absoluto)' if self.is_absolute else ''
-        return f'{self.parameter}{abs_s} > {self.threshold} ({station_s})'
+        valid_range = self.get_valid_range_display()
+        return f'{self.parameter}{abs_s} {valid_range} ({station_s})'
+
+    def get_valid_range_display(self):
+        return f'{self.valid_min} - {self.valid_max}'
 
 
 class AlertCheck(models.Model):

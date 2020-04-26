@@ -37,7 +37,8 @@ class ParameterRuleForm(forms.ModelForm):
 
 class ParameterRuleAdmin(FilterUserAdmin):
     list_display = [
-        'station', 'parameter', 'threshold', 'created_at', 'updated_at'
+        'station', 'parameter', 'get_valid_range_display', 'created_at',
+        'updated_at'
     ]
     exclude = ('user', )
     form = ParameterRuleForm
@@ -45,16 +46,16 @@ class ParameterRuleAdmin(FilterUserAdmin):
 
 class ScopeRuleAdmin(FilterUserAdmin):
     list_display = [
-        'scope', 'measurement_content_type', 'threshold_type', 'threshold',
-        'created_at', 'updated_at'
+        'scope', 'measurement_content_type', 'change_type',
+        'get_valid_range_display', 'created_at', 'updated_at'
     ]
     exclude = ('user', )
 
 
 class ScopeTypeRuleAdmin(FilterUserAdmin):
     list_display = [
-        'scope_type', 'measurement_content_type', 'threshold_type',
-        'threshold', 'created_at', 'updated_at'
+        'scope_type', 'measurement_content_type', 'change_type',
+        'get_valid_range_display', 'created_at', 'updated_at'
     ]
     exclude = ('user', )
 
