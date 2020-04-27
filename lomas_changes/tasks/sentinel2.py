@@ -124,11 +124,11 @@ def download_scenes(period):
 
 
 def unzip_product(product, period_s):
-    print("# Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S2_L1C_PATH, period_s, filename)
     outdir = os.path.join(S2_L1C_PATH, period_s, '{}.SAFE'.format(product['title']))
     if not os.path.exists(outdir):
+        print("# Unzip", product['title'])
         unzip(zip_path, delete_zip=False)
 
 
@@ -255,4 +255,4 @@ def clean_temp_files(period_s):
     for dirname in glob(os.path.join(S2_L1C_PATH, period_s, '*.SAFE')):
         shutil.rmtree(dirname)
     shutil.rmtree(os.path.join(S2_L2A_PATH, period_s))
-    shutil.rmtree(os.path.join(IMAGES_PATH, 'mosaic', period_s))
+    shutil.rmtree(os.path.join(settings.IMAGES_PATH, 'mosaic', period_s))

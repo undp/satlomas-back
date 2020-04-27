@@ -192,7 +192,9 @@ SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
 # Sen2mosaic
 S2M_CLI_PATH = os.getenv('S2M_CLI_PATH')
-S2M_NUM_JOBS = int(os.getenv("S2M_NUM_JOBS", 1))
+
+# Number of cores to use for multi processing S1 images
+S1_PROC_NUM_JOBS = int(os.getenv("S1_PROC_NUM_JOBS", 3))
 
 # OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
