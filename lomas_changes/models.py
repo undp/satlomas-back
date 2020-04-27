@@ -1,4 +1,7 @@
-from django.db import models
+import uuid
+
+from django.contrib.gis.db import models
+from django.contrib.postgres.fields import JSONField
 
 
 class Period(models.Model):
@@ -7,6 +10,30 @@ class Period(models.Model):
 
     def __str__(self):
         return '{} - {}'.format(self.date_from, self.date_to)
+
+
+class Raster(models.Model):
+    slug = models.SlugField()
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    area_geom = models.PolygonField()
+    extra_fields = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('slug', 'period'), )
+
+    def __str__(self):
+        return f'{self.period} {self.name}'
+
+    def tiles_url(self):
+        return f'{settings.TILE_SERVER_URL}/{self.slug}' + '/{z}/{x}/{y}.png'
+
+    def extent(self):
+        """ Get area extent """
+        return self.area_geom and self.area_geom.extent
 
 
 class CoverageMeasurement(models.Model):
