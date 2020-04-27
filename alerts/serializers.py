@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from alerts.models import ParameterRule, ScopeRule, ScopeTypeRule
+from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
 
 class ParameterRuleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,4 +16,10 @@ class ScopeRuleSerializer(serializers.ModelSerializer):
 class ScopeTypeRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScopeTypeRule
+        exclude = ('user', )
+
+
+class AlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Alert
         exclude = ('user', )

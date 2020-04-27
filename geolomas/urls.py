@@ -24,7 +24,8 @@ from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
 from scopes.views import AvailableDates, ScopeTypes, TimeSeries
-from alerts.views import ParameterRuleViewSet, ScopeRuleViewSet, ScopeTypeRuleViewSet
+from alerts.views import (AlertViewSet, ParameterRuleViewSet, 
+                          ScopeRuleViewSet, ScopeTypeRuleViewSet)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -56,6 +57,7 @@ router = SimpleRouter()
 router.register(r'parameter-rules', ParameterRuleViewSet)
 router.register(r'scopes-rules', ScopeRuleViewSet)
 router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
+router.register(r'alerts', AlertViewSet)
 
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),
