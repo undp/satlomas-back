@@ -1,7 +1,17 @@
+import uuid
+
 from django.contrib.gis.db import models
+from django.contrib.postgres.fields import JSONField
 
 
-# Create your models here.
+class Period(models.Model):
+    date_from = models.DateField()
+    date_to = models.DateField()
+
+    def __str__(self):
+        return '{} - {}'.format(self.date_from, self.date_to)
+
+
 class VegetationMask(models.Model):
     period = models.DateField()
     vegetation = models.MultiPolygonField()
