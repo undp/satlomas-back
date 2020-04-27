@@ -62,7 +62,6 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'rest_auth',
-    'rest_auth.registration',
     'drf_yasg',
     'corsheaders',
     'jsoneditor',
