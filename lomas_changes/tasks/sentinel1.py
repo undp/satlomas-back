@@ -71,7 +71,7 @@ def download_scenes(period):
     products = list(products.values())
 
     # Process the images of each product
-    with mp.Pool(24) as pool:
+    with mp.Pool(settings.S1_PROC_NUM_JOBS) as pool:
         pool.map(process_product, products)
 
     # Create a median composite from all images of each band, generate extra
