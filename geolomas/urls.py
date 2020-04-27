@@ -24,6 +24,7 @@ from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
 from scopes.views import AvailableDates, ScopeTypes, TimeSeries
+from alerts.views import ParameterRuleViewSet, ScopeRuleViewSet, ScopeTypeRuleViewSet
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -51,6 +52,11 @@ swagger_urls = [
         name='schema-redoc'),
 ]
 
+router = SimpleRouter()
+router.register(r'parameter-rules', ParameterRuleViewSet)
+router.register(r'scopes-rules', ScopeRuleViewSet)
+router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
+
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),
 
@@ -72,6 +78,6 @@ if settings.DEBUG:
     urlpatterns += swagger_urls
 
 urlpatterns += [path('stations/', include('stations.urls'))]
-
+urlpatterns += router.urls
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
