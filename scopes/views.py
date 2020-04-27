@@ -65,14 +65,22 @@ class TimeSeries(APIView):
 class AvailableDates(APIView):
     def get(self, request):
         order_masks = VegetationMask.objects.all().order_by('period')
-        response = {
-            'first_date':
-            order_masks.first().period.strftime('%Y-%m-%d %H:%M'),
-            'last_date': order_masks.last().period.strftime('%Y-%m-%d %H:%M'),
-            'availables':
-            [mask.period.strftime('%Y-%m') for mask in order_masks]
-        }
-        return Response(response)
+        if order_masks.count() > 0:
+            response = {
+                'first_date':
+                order_masks.first().period.strftime('%Y-%m-%d %H:%M'),
+                'last_date':
+                order_masks.last().period.strftime('%Y-%m-%d %H:%M'),
+                'availables':
+                [mask.period.strftime('%Y-%m') for mask in order_masks]
+            }
+            return Response(response)
+        else:
+            return Response({
+                'first_date': None,
+                'last_date': None,
+                'availables': []
+            })
 
 
 class ScopeTypes(APIView):
