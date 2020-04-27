@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'lomas_changes',
     'vi_lomas_changes',
     'scopes',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -199,3 +200,9 @@ GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
 # MODIS
 MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
+
+# NOTEBOOK configs
+NOTEBOOK_ARGUMENTS = [
+    '--ip', '0.0.0.0',
+    '--port', '8888',
+]
