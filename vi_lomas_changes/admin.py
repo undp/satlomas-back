@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CoverageMeasurement
+from .models import CoverageMeasurement, VegetationMask
 
 
 class CoverageMeasurementAdmin(admin.ModelAdmin):
@@ -13,4 +13,5 @@ class CoverageMeasurementAdmin(admin.ModelAdmin):
     ]
 
 
+admin.site.register(VegetationMask)
 admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)
