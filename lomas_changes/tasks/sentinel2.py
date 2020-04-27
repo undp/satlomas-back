@@ -111,7 +111,7 @@ def download_scenes(period):
     for res in [10, 20]:
         cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res {} -n {} -v -o {} {}".format(
             settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax,
-            res, mosaic_name, mosaic_path, S2_L2A_PATH)
+            res, mosaic_name, mosaic_path, l2a_path)
         rv = os.system(cmd)
         if rv != 0:
             raise ValueError('s2m mosaic failed')
