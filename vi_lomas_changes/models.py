@@ -102,6 +102,9 @@ class CoverageMeasurement(models.Model):
                               related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
                               null=True)
+    changes_mask = models.ForeignKey(ChangesMask,
+                                     on_delete=models.SET_NULL,
+                                     null=True)
     change_area = models.FloatField()
     perc_change_area = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
