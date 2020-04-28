@@ -61,17 +61,7 @@ class Mask(models.Model):
         return f'{self.period} {self.mask_type}'
 
 
-class ChangesMask(models.Model):
-    period = models.ForeignKey(Period, on_delete=models.PROTECT)
-    mask = models.OneToOneField(Mask, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (('period', 'mask'), )
-
-    def __str__(self):
-        return f'ChangeMask: {self.mask}'
-
-
+# Deprecated. Use Mask
 class VegetationMask(models.Model):
     period = models.DateField()
     vegetation = models.MultiPolygonField()
@@ -79,31 +69,6 @@ class VegetationMask(models.Model):
 
     class Meta:
         app_label = 'vi_lomas_changes'
-
-    def save_from_geojson(geojson_path, period):
-        from django.contrib.gis.gdal import DataSource
-        from django.contrib.gis.geos import GEOSGeometry
-        import shapely.wkt
-        from shapely.ops import unary_union
-
-        ds = DataSource(geojson_path)
-        vegetation_polys = []
-        clouds_polys = []
-        for x in range(0, len(ds[0]) - 1):
-            geom = shapely.wkt.loads(ds[0][x].geom.wkt)
-            if str(ds[0][x]['DN']) == '1':
-                vegetation_polys.append(geom)
-            elif str(ds[0][x]['DN']) == '2':
-                clouds_polys.append(geom)
-            else:
-                pass
-        vegetation_mp = unary_union(vegetation_polys)
-        clouds_mp = unary_union(clouds_polys)
-
-        return VegetationMask.objects.create(
-            period=period,
-            vegetation=GEOSGeometry(vegetation_mp.wkt),
-            clouds=GEOSGeometry(clouds_mp.wkt))
 
 
 class CoverageMeasurement(models.Model):
@@ -113,11 +78,8 @@ class CoverageMeasurement(models.Model):
                               related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
                               null=True)
-    changes_mask = models.ForeignKey(ChangesMask,
-                                     on_delete=models.SET_NULL,
-                                     null=True)
-    change_area = models.FloatField()
-    perc_change_area = models.FloatField()
+    area = models.FloatField()
+    perc_area = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -129,5 +91,5 @@ class CoverageMeasurement(models.Model):
             dfrom=self.date_from,
             dto=self.date_to,
             scope=self.scope.name,
-            value=self.change_area,
-            perc=self.perc_change_area)
+            area=self.area,
+            perc_area=self.perc_area)

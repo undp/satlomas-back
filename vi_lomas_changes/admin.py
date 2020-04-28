@@ -8,8 +8,8 @@ class CoverageMeasurementAdmin(admin.ModelAdmin):
         'date_from',
         'date_to',
         'scope',
-        'change_area',
-        'perc_change_area',
+        'area',
+        'perc_area',
     ]
 
 
