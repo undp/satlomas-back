@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import JSONField
 
@@ -22,7 +23,7 @@ class Raster(models.Model):
     file = models.FileField(upload_to=raster_path, blank=True, null=True)
     name = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
-    area_geom = models.PolygonField()
+    area_geom = models.PolygonField(blank=True, null=True)
     extra_fields = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
