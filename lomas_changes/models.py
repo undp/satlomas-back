@@ -36,6 +36,31 @@ class Raster(models.Model):
         return self.area_geom and self.area_geom.extent
 
 
+class Mask(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    mask_type = models.CharField(max_length=32, blank=True, null=True)
+    geom = models.MultiPolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('period', 'mask_type'), )
+
+    def __str__(self):
+        return f'{self.period} {self.mask_type}'
+
+
+class ChangesMask(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    mask = models.OneToOneField(Mask, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (('period', 'mask'), )
+
+    def __str__(self):
+        return f'ChangeMask: {self.mask}'
+
+
 class CoverageMeasurement(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
