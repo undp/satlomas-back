@@ -173,6 +173,14 @@ RQ_QUEUES = {
     }
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer', ),
+    'DEFAULT_AUTHENTICATION_CLASSES':
+    ('geolomas.authentication.TokenAuthentication', ),
+    'DEFAULT_PERMISSION_CLASSES':
+    ('rest_framework.permissions.IsAuthenticated', )
+}
+
 RQ_SHOW_ADMIN_LINK = True
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
