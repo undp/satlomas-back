@@ -29,6 +29,15 @@ class ScopeTypeRuleSerializer(serializers.ModelSerializer):
 
 
 class AlertSerializer(serializers.ModelSerializer):
+    rule_content_type = serializers.SerializerMethodField('get_rule_content_type')
+    measurement_content_type = serializers.SerializerMethodField('get_measurement_content_type')
+
+    def get_rule_content_type(self, instance):
+        return instance.rule_content_type.model
+
+    def get_measurement_content_type(self, instance):
+        return instance.measurement_content_type.model
+
     class Meta:
         model = Alert
-        exclude = ('user', )
+        exclude = ('user', 'measurement_id', )
