@@ -17,7 +17,7 @@ from geolomasexp.model import (build_lstm_nnet, eval_regression_performance,
 from geolomasexp.model_hyperopt import get_lstm_nnet_opt
 from hyperopt import fmin, hp, tpe
 from keras.models import load_model
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score , max_error
 from stations.models import Measurement, Place, Station
 
 
@@ -292,6 +292,22 @@ class Command(BaseCommand):
                                               scaler,
                                               measure=r2_score)
         self.log_success("Test R2 {}".format(test_r2))
+        
+
+        train_max_e = eval_regression_performance(trainset,
+                                                lstm_nnet,
+                                                scaler,
+                                                measure=max_error)
+
+        self.log_success("Train MAXE {} ".format(train_max_e))
+
+        test_max_e = eval_regression_performance(dataset_splits['testset'],
+                                               lstm_nnet,
+                                               scaler,
+                                               measure=max_error)
+
+        self.log_success("Test MAXE {}".format(test_max_e))
+
 
         # Saving the training result
         results = pd.DataFrame({
@@ -307,6 +323,8 @@ class Command(BaseCommand):
             'test_mae': [test_mae],
             'train_r2': [train_r2],
             'test_r2': [test_r2],
+            'train_max_e': [train_max_e],
+            'test_max_e': [test_max_e],
             'train_time': [train_time],
             'train_eval_time': [train_eval_time],
             'test_eval_time': [test_eval_time],
