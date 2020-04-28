@@ -4,6 +4,14 @@ from django.conf import settings
 from scopes.models import Scope
 import os
 
+SCOPE_TYPES_BY_NAME = {
+    'acr': 'AC',
+    'ecosistemas_fragiles': 'EF',
+    'corredores_ecologicos': 'CE',
+    'distritos': 'DI',
+    'sitios_arqueologicos': 'SA',
+}
+
 
 class Command(BaseCommand):
     help = 'Populate Scope table with basic geojson of scopes'
@@ -46,30 +54,27 @@ class Command(BaseCommand):
         from django.contrib.gis.geos import GEOSGeometry
 
         if scope_type is None:
-            scope_type = ""
-            f = os.path.basename(path)
-            if f.startswith("acr"):
-                scope_type = "AC"
-            elif f.startswith("ecosistemas"):
-                scope_type = 'EF'
-            elif f.startswith("corredores"):
-                scope_type = 'CE'
-            elif f.startswith("distritos"):
-                scope_type = 'DS'
-            elif f.startswith('sitios'):
-                scope_type = 'SA'
-            else:
-                Exception("File doesn't match with any scope type")
+            name, _ = os.path.splitext(os.path.basename(path))
+            scope_type = SCOPE_TYPES_BY_NAME[name]
 
         ds = DataSource(path)
-        features = ds[0]
-        for i in range(len(features)):
-            feature = features[i]
-            geom = GEOSGeometry(feature.geom.wkt)
+        layer = ds[0]
+
+        epsg_id = layer.srs['AUTHORITY', 1]
+        if epsg_id != '4326':
+            raise RuntimeError(f"SRS is not epsg:4326 but epsg:{epsg_id}")
+
+        for i, feature in enumerate(layer):
+            if not feature['name']:
+                raise RuntimeError(
+                    f"Feature {i} from {path} has no 'name' field")
+
+            geom = GEOSGeometry(feature.geom.wkt, srid=4326)
             scope, created = Scope.objects.get_or_create(
                 scope_type=scope_type,
                 name=str(feature['name']),
                 defaults=dict(geom=geom))
+
             if created:
                 self.log_success("{} - {} created.".format(
                     scope.scope_type, scope.name))
