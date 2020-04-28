@@ -26,6 +26,7 @@ from rest_framework.routers import SimpleRouter
 from scopes.views import AvailableDates, ScopeTypes, TimeSeries
 from alerts.views import (AlertViewSet, ParameterRuleViewSet, 
                           ScopeRuleViewSet, ScopeTypeRuleViewSet)
+from stations.views import StationViewSet
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -58,6 +59,7 @@ router.register(r'parameter-rules', ParameterRuleViewSet)
 router.register(r'scopes-rules', ScopeRuleViewSet)
 router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
 router.register(r'alerts', AlertViewSet)
+router.register(r'stations', StationViewSet)
 
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),
