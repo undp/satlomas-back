@@ -3,8 +3,10 @@ from datetime import datetime, timedelta
 import django_rq
 from dateutil.relativedelta import relativedelta
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
-from vi_lomas_changes.tasks import get_modis_peru
+from vi_lomas_changes.models import Period
+from vi_lomas_changes.tasks import process_all
 
 
 class Command(BaseCommand):
@@ -25,5 +27,8 @@ class Command(BaseCommand):
             default=self.date_to,
             help="End date to download the rasters. Format yyyy-mm-dd")
 
+    @transaction.atomic
     def handle(self, *args, **options):
-        get_modis_peru(options['date_from'], options['date_to'])
+        period, _ = Period.objects.get_or_create(
+            date_from=options['date_from'], date_to=options['date_to'])
+        process_all(period)
