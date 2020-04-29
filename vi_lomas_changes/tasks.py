@@ -11,6 +11,7 @@ from glob import glob
 import django_rq
 import geopandas as gpd
 import numpy as np
+import pyproj
 import rasterio
 import requests
 import shapely.wkt
@@ -23,8 +24,7 @@ from shapely.ops import unary_union
 
 import vi_lomas_changes
 from scopes.models import Scope
-from vi_lomas_changes.models import (ChangesMask, CoverageMeasurement, Mask,
-                                     Raster)
+from vi_lomas_changes.models import CoverageMeasurement, Mask, Raster
 
 try:
     import urllib.request as urllib2
@@ -300,10 +300,10 @@ def create_masks(period):
                src=src_path,
                dst=dst_path))
 
-    logging.info("Reproject to epsg:32718")
+    logging.info("Reproject to epsg:4326")
     data = gpd.read_file(dst_path)
     data_proj = data.copy()
-    data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=32718)
+    data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=4326)
     data_proj.to_file(dst_path)
 
     logger.info("Load vegetation mask to DB")
@@ -340,21 +340,30 @@ def generate_measurements(period):
     for scope in Scope.objects.all():
         mask = Mask.objects.filter(period=period, mask_type='ndvi').first()
 
-        query = """SELECT ST_Area(a.intersection) AS area FROM
-                   (SELECT ST_Intersection(ST_GeomFromText('{wkt_geom}'),
-                   ST_GeomFromText('{wkt_mask}')) AS intersection) a;""".format(
-            wkt_geom=scope.geom.wkt, wkt_mask=mask.geom.wkt)
+        # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
+        query = """
+            SELECT ST_Area(a.int) AS area,
+                   ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
+            FROM (
+                SELECT ST_Intersection(
+                    ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                    ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+            """.format(wkt_scope=scope.geom.wkt,
+                       wkt_mask=mask.geom.wkt,
+                       srid=32718)
+
         with connection.cursor() as cursor:
             cursor.execute(query)
-            area = cursor.fetchall()[0][0]
+            res = cursor.fetchall()
+            area, scope_area = res[0]
 
-        total_area = scope.geom.area
-        area_perc = area / total_area
-        CoverageMeasurement.get_or_create(date_from=period.date_from,
-                                          date_to=period.date_to,
-                                          scope=scope,
-                                          defaults=dict(area=area,
-                                                        area_perc=area_perc))
+        measurement, created = CoverageMeasurement.objects.get_or_create(
+            date_from=period.date_from,
+            date_to=period.date_to,
+            scope=scope,
+            defaults=dict(area=area, perc_area=area / scope_area))
+        if created:
+            logger.info(f"New measurement: {measurement}")
 
 
 def run_command(cmd):

@@ -87,9 +87,15 @@ class CoverageMeasurement(models.Model):
         unique_together = ['date_from', 'date_to', 'scope']
 
     def __str__(self):
-        return '{dfrom}-{dto} :: {scope} :: {value} ({perc}%)'.format(
+        return '{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)'.format(
             dfrom=self.date_from,
             dto=self.date_to,
-            scope=self.scope.name,
-            area=self.area,
-            perc_area=self.perc_area)
+            scope=self.scope and self.scope.name,
+            area=self.area_km2(),
+            perc_area=self.perc_area_100())
+
+    def area_km2(self):
+        return round(self.area / 1000000, 2)
+
+    def perc_area_100(self):
+        return round(self.perc_area * 100, 2)
