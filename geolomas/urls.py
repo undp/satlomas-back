@@ -23,7 +23,7 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from scopes.views import AvailableDates, ScopeTypes, TimeSeries
+from scopes.views import AvailableDates, ScopeTypes, TimeSeries, ScopeViewSet
 from alerts.views import (AlertViewSet, ParameterRuleViewSet, 
                           ScopeRuleViewSet, ScopeTypeRuleViewSet)
 from stations.views import StationViewSet
@@ -60,6 +60,7 @@ router.register(r'scopes-rules', ScopeRuleViewSet)
 router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
 router.register(r'alerts', AlertViewSet)
 router.register(r'stations', StationViewSet)
+router.register(r'scopes', ScopeViewSet)
 
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),

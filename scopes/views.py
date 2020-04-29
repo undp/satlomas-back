@@ -8,8 +8,10 @@ from django.shortcuts import render
 from rest_framework import authentication, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import viewsets
 
 from scopes.models import Scope
+from scopes.serializers import ScopeSerializer
 from vi_lomas_changes.models import Mask
 
 
@@ -85,3 +87,8 @@ class ScopeTypes(APIView):
             if len(s['scopes']) > 0:
                 response.append(s)
         return Response(response)
+    
+
+class ScopeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Scope.objects.all().order_by('-name')
+    serializer_class = ScopeSerializer
