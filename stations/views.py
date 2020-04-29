@@ -1,4 +1,4 @@
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
@@ -10,16 +10,19 @@ from .serializers import (MeasurementSummarySerializer, PlaceSerializer,
 
 
 class PlaceViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
     queryset = Place.objects.all().order_by('-name')
     serializer_class = PlaceSerializer
 
 
 class StationViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
     queryset = Station.objects.all().order_by('-name')
     serializer_class = StationSerializer
 
 
 class MeasurementSummaryView(APIView):
+    permission_classes = [permissions.AllowAny]
     renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES + [r.CSVRenderer]
 
     def get(self, request):
