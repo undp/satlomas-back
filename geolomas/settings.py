@@ -62,17 +62,16 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'rest_auth',
-    'rest_auth.registration',
     'drf_yasg',
     'corsheaders',
     'jsoneditor',
     'django_rq',
     'leaflet',
-    'stations',
-    'lomas_changes',
-    'vi_lomas_changes',
-    'scopes',
-    'alerts',
+    'stations.apps.StationsConfig',
+    'lomas_changes.apps.LomasChangesConfig',
+    'vi_lomas_changes.apps.VILomasChangesConfig',
+    'scopes.apps.ScopesConfig',
+    'alerts.apps.AlertsConfig',
 ]
 
 MIDDLEWARE = [
@@ -174,6 +173,14 @@ RQ_QUEUES = {
     }
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer', ),
+    'DEFAULT_AUTHENTICATION_CLASSES':
+    ('geolomas.authentication.TokenAuthentication', ),
+    'DEFAULT_PERMISSION_CLASSES':
+    ('rest_framework.permissions.IsAuthenticated', )
+}
+
 RQ_SHOW_ADMIN_LINK = True
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
@@ -193,7 +200,9 @@ SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
 # Sen2mosaic
 S2M_CLI_PATH = os.getenv('S2M_CLI_PATH')
-S2M_NUM_JOBS = int(os.getenv("S2M_NUM_JOBS", 1))
+
+# Number of cores to use for multi processing S1 images
+S1_PROC_NUM_JOBS = int(os.getenv("S1_PROC_NUM_JOBS", 3))
 
 # OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
@@ -204,7 +213,4 @@ MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
 
 # shellplus notebook config
-NOTEBOOK_ARGUMENTS = [
-    '--ip', '0.0.0.0',
-    '--port', '8888'
-]
+NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']

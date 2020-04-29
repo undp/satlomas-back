@@ -1,6 +1,12 @@
 from django.contrib import admin
+from leaflet.admin import LeafletGeoAdmin
 
-from .models import CoverageMeasurement
+from .models import CoverageMeasurement, Mask, Period, Raster
+
+
+class MaskAdmin(LeafletGeoAdmin):
+    list_display = ['period', 'mask_type', 'created_at', 'updated_at']
+    date_hierarchy = 'created_at'
 
 
 class CoverageMeasurementAdmin(admin.ModelAdmin):
@@ -8,9 +14,13 @@ class CoverageMeasurementAdmin(admin.ModelAdmin):
         'date_from',
         'date_to',
         'scope',
-        'change_area',
-        'perc_change_area',
+        'area_km2',
+        'perc_area_100',
     ]
+    date_hierarchy = 'created_at'
 
 
+admin.site.register(Raster)
+admin.site.register(Period)
+admin.site.register(Mask, MaskAdmin)
 admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)

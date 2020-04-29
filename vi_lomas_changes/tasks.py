@@ -6,17 +6,25 @@ import shutil
 import subprocess
 import sys
 import time
+from glob import glob
 
 import django_rq
 import geopandas as gpd
 import numpy as np
+import pyproj
 import rasterio
 import requests
+import shapely.wkt
 from django.conf import settings
-from django_rq import job
+from django.contrib.gis.gdal import DataSource
+from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from shapely.ops import unary_union
 
-from vi_lomas_changes.models import VegetationMask
+import vi_lomas_changes
+from scopes.models import Scope
+from vi_lomas_changes.models import CoverageMeasurement, Mask, Raster
 
 try:
     import urllib.request as urllib2
@@ -25,29 +33,341 @@ except ImportError:
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-LOG = logging.getLogger(__name__)
-OUT_HDLR = logging.StreamHandler(sys.stdout)
-OUT_HDLR.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-OUT_HDLR.setLevel(logging.INFO)
-LOG.addHandler(OUT_HDLR)
-LOG.setLevel(logging.INFO)
+# Configure logger
+logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
 
 HEADERS = {'User-Agent': 'get_modis Python 3'}
 CHUNKS = 65536
 
 MODIS_PLATFORM = 'MOLA'
 MODIS_PRODUCT = 'MYD13Q1.006'
-MODIS_ROOT = os.path.join(settings.BASE_DIR, 'modis')
-MODIS_OUT_DIR = os.path.join(MODIS_ROOT, 'out')
-MODIS_TIF_DIR = os.path.join(MODIS_ROOT, 'tif')
-MODIS_CLIP_DIR = os.path.join(MODIS_ROOT, 'clip')
-VEGETATION_MASK_DIR = os.path.join('data', 'vegetation')
 H_PERU = '10'
 V_PERU = '10'
 
+LOMAS_MIN = 200
+LOMAS_MAX = 1800
+FACTOR_ESCALA = 0.0001
+UMBRAL_NDVI = 0.2
+THRESHOLD = UMBRAL_NDVI / FACTOR_ESCALA
 
-def run_subprocess(cmd):
-    print(cmd)
+APPDIR = os.path.dirname(vi_lomas_changes.__file__)
+EXTENT_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
+SRTM_DEM_PATH = os.path.join(APPDIR, 'data', 'srtm_dem.tif')
+
+VI_ROOT = os.path.join(settings.BASE_DIR, 'data', 'vi')
+VI_RAW_DIR = os.path.join(VI_ROOT, 'raw')
+VI_TIF_DIR = os.path.join(VI_ROOT, 'tif')
+VI_CLIP_DIR = os.path.join(VI_ROOT, 'clip')
+VI_MASK_DIR = os.path.join(VI_ROOT, 'masks')
+VI_RGB_DIR = os.path.join(VI_ROOT, 'rgb')
+
+
+def process_all(period):
+    date_from, date_to = period.date_from, period.date_to
+
+    year = date_to.year
+    doy_begin = date_from.timetuple().tm_yday
+    doy_end = date_to.timetuple().tm_yday
+
+    os.makedirs(VI_RAW_DIR, exist_ok=True)
+    os.makedirs(VI_TIF_DIR, exist_ok=True)
+
+    logger.info("Download MODIS hdf files")
+    tile = 'h{}v{}'.format(H_PERU, V_PERU)
+    get_modisfiles(settings.MODIS_USER,
+                   settings.MODIS_PASS,
+                   MODIS_PLATFORM,
+                   MODIS_PRODUCT,
+                   year,
+                   tile,
+                   proxy=None,
+                   doy_start=doy_begin,
+                   doy_end=doy_end,
+                   out_dir=VI_RAW_DIR,
+                   verbose=True,
+                   ruff=False,
+                   get_xml=False)
+
+    extract_subdatasets_as_gtiffs(VI_RAW_DIR, VI_TIF_DIR)
+
+    logger.info("Clip SRTM to extent")
+    srtm_clipped_path = os.path.join(VI_ROOT, 'srtm_dem_clipped.tif')
+    if not os.path.exists(srtm_clipped_path):
+        run_command(
+            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                    aoi=EXTENT_PATH,
+                    src=SRTM_DEM_PATH,
+                    dst=srtm_clipped_path))
+
+    logger.info("Calculate SRTM mask")
+    with rasterio.open(srtm_clipped_path) as srtm_src:
+        srtm = srtm_src.read(1)
+        lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
+
+    logger.info("Clip NDVI to extent")
+    os.makedirs(VI_CLIP_DIR, exist_ok=True)
+    ndvi_path = glob(os.path.join(VI_TIF_DIR, '*h10v10*.hdf_ndvi.tif'))[0]
+    ndvi_clipped_path = os.path.join(VI_CLIP_DIR, os.path.basename(ndvi_path))
+    if os.path.exists(ndvi_clipped_path):
+        os.unlink(ndvi_clipped_path)
+    run_command(
+        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {extent} -crop_to_cutline {src} {dst}'
+        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                extent=EXTENT_PATH,
+                src=ndvi_path,
+                dst=ndvi_clipped_path))
+
+    logger.info("Superimpose clipped SRTM and NDVI rasters to align them")
+    run_command(
+        '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
+        format(otb_bin_path=settings.OTB_BIN_PATH,
+               inr=srtm_clipped_path,
+               inm=ndvi_clipped_path,
+               out=ndvi_clipped_path))
+
+    with rasterio.open(ndvi_clipped_path) as src:
+        modis_ndvi = src.read(1)
+        modis_meta = src.profile.copy()
+
+    modis_meta['nodata'] = 0
+    modis_meta['dtype'] = np.uint8
+
+    logger.info("Build final vegetation mask")
+    vegetacion_mask = (modis_ndvi > THRESHOLD)
+    verde_mask = (vegetacion_mask & lomas_mask)
+    verde = np.copy(modis_ndvi)
+    verde[~verde_mask] = 0
+
+    logger.info("Build scaled NDVI mask")
+    verde_rango = np.copy(verde)
+    verde_rango[(verde >= (0.2 / FACTOR_ESCALA))
+                & (verde < (0.4 / FACTOR_ESCALA))] = 1
+    verde_rango[(verde >= (0.4 / FACTOR_ESCALA))
+                & (verde < (0.6 / FACTOR_ESCALA))] = 2
+    verde_rango[(verde >= (0.6 / FACTOR_ESCALA))
+                & (verde < (0.8 / FACTOR_ESCALA))] = 3
+    verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
+    verde_rango[verde < 0] = 0
+    verde_rango = verde_rango.astype(dtype=np.uint8)
+
+    verde[verde_mask] = 1
+    verde = verde.astype(dtype=np.uint8)
+
+    period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
+
+    logger.info("Write vegetation mask")
+    os.makedirs(VI_MASK_DIR, exist_ok=True)
+    dst_name = os.path.join(VI_MASK_DIR,
+                            '{}_vegetation_mask.tif'.format(period_s))
+    with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+        dst.write(verde, 1)
+
+    # Cloud mask
+    logger.info("Clip pixel reliability raster to extent")
+    pixelrel_path = glob(os.path.join(VI_TIF_DIR,
+                                      '*h10v10*.hdf_pixelrel.tif'))[0]
+    pixelrel_clipped_path = os.path.join(VI_CLIP_DIR,
+                                         os.path.basename(pixelrel_path))
+    if os.path.exists(pixelrel_clipped_path):
+        os.unlink(pixelrel_clipped_path)
+    run_command(
+        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {extent} -crop_to_cutline {src} {dst}'
+        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                extent=EXTENT_PATH,
+                src=pixelrel_path,
+                dst=pixelrel_clipped_path))
+
+    logger.info("Superimpose pixel rel raster to SRTM raster")
+    run_command(
+        '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
+        format(otb_bin_path=settings.OTB_BIN_PATH,
+               inr=srtm_clipped_path,
+               inm=pixelrel_clipped_path,
+               out=pixelrel_clipped_path))
+
+    logger.info("Build cloud mask from pixel reliability raster")
+    with rasterio.open(pixelrel_clipped_path) as cloud_src:
+        clouds = cloud_src.read(1)
+
+    # In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
+    cloud_mask = np.copy(clouds)
+    cloud_mask[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 1
+    cloud_mask[(clouds != 2) & (clouds != 3)] = 0
+    cloud_mask = cloud_mask.astype(np.uint8)
+
+    dst_name = os.path.join(VI_MASK_DIR, '{}_cloud_mask.tif'.format(period_s))
+    with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+        dst.write(cloud_mask, 1)
+
+    dst_name = os.path.join(VI_MASK_DIR,
+                            '{}_vegetation_range.tif'.format(period_s))
+    with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+        dst.write(verde_rango, 1)
+
+    # FIXME Write this mask as a temporary file
+    logger.info("Create a mask with data from vegetation and clouds")
+    verde[cloud_mask == 1] = 2
+    dst_name = os.path.join(VI_MASK_DIR,
+                            '{}_vegetation_cloud_mask.tif'.format(period_s))
+    with rasterio.open(dst_name, 'w', **modis_meta) as dst:
+        dst.write(verde, 1)
+
+    clean_temp_files()
+
+    create_rgb_rasters(period)
+    create_masks(period)
+    generate_measurements(period)
+
+
+def create_rgb_rasters(period):
+    period_s = '{dfrom}-{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+                                      dto=period.date_to.strftime("%Y%m"))
+
+    src_path = os.path.join(VI_MASK_DIR, f'{period_s}_vegetation_range.tif')
+    dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_vegetation_range.tif')
+    write_vegetation_range_rgb_raster(src_path=src_path, dst_path=dst_path)
+    Raster.objects.get_or_create(period=period,
+                                 slug="ndvi",
+                                 defaults=dict(name="NDVI", file=dst_path))
+
+    src_path = os.path.join(VI_MASK_DIR, f'{period_s}_cloud_mask.tif')
+    dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_cloud_mask.tif')
+    write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
+    Raster.objects.get_or_create(period=period,
+                                 slug="cloud",
+                                 defaults=dict(name="Cloud mask",
+                                               file=dst_path))
+
+
+def write_rgb_raster(func):
+    def wrapper(*, src_path, dst_path):
+        with rasterio.open(src_path) as src:
+            img = src.read(1)
+            profile = src.profile.copy()
+        new_img = func(img)
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        profile.update(count=3, dtype=np.uint8)
+        with rasterio.open(dst_path, 'w', **profile) as dst:
+            for i in range(new_img.shape[2]):
+                dst.write(new_img[:, :, i], i + 1)
+
+    return wrapper
+
+
+def hex_to_dec_string(value):
+    return np.array([int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]],
+                    np.uint8)
+
+
+@write_rgb_raster
+def write_vegetation_range_rgb_raster(img):
+    logger.info("Build RGB vegetation raster")
+    colormap = ['440154', '31688e', '35b779', 'fde725']
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+    return new_img
+
+
+@write_rgb_raster
+def write_cloud_mask_rgb_raster(img):
+    logger.info("Build RGB cloud mask raster")
+    colormap = ['30a7ff']
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+    return new_img
+
+
+def create_masks(period):
+    period_s = '{dfrom}-{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+                                      dto=period.date_to.strftime("%Y%m"))
+
+    logger.info("Polygonize mask")
+    src_path = os.path.join(VI_MASK_DIR,
+                            '{}_vegetation_cloud_mask.tif'.format(period_s))
+    dst_path = os.path.join(
+        VI_MASK_DIR, '{}_vegetation_cloud_mask.geojson'.format(period_s))
+    run_command(
+        '{gdal_bin_path}/gdal_polygonize.py {src} {dst} -b 1 -f "GeoJSON" DN'.
+        format(gdal_bin_path=settings.GDAL_BIN_PATH,
+               src=src_path,
+               dst=dst_path))
+
+    logging.info("Reproject to epsg:4326")
+    data = gpd.read_file(dst_path)
+    data_proj = data.copy()
+    data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=4326)
+    data_proj.to_file(dst_path)
+
+    logger.info("Load vegetation mask to DB")
+    create_vegetation_masks(dst_path, period)
+
+
+def create_vegetation_masks(geojson_path, period):
+    ds = DataSource(geojson_path)
+    vegetation_polys = []
+    clouds_polys = []
+    for x in range(0, len(ds[0]) - 1):
+        geom = shapely.wkt.loads(ds[0][x].geom.wkt)
+        if str(ds[0][x]['DN']) == '1':
+            vegetation_polys.append(geom)
+        elif str(ds[0][x]['DN']) == '2':
+            clouds_polys.append(geom)
+        else:
+            pass
+    vegetation_mp = unary_union(vegetation_polys)
+    clouds_mp = unary_union(clouds_polys)
+
+    Mask.objects.get_or_create(
+        period=period,
+        mask_type='ndvi',
+        defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt)))
+    Mask.objects.get_or_create(period=period,
+                               mask_type='cloud',
+                               defaults=dict(geom=GEOSGeometry(clouds_mp.wkt)))
+
+
+def generate_measurements(period):
+    logger.info("Generate measurements for each scope")
+
+    for scope in Scope.objects.all():
+        mask = Mask.objects.filter(period=period, mask_type='ndvi').first()
+
+        # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
+        query = """
+            SELECT ST_Area(a.int) AS area,
+                   ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
+            FROM (
+                SELECT ST_Intersection(
+                    ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                    ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+            """.format(wkt_scope=scope.geom.wkt,
+                       wkt_mask=mask.geom.wkt,
+                       srid=32718)
+
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            res = cursor.fetchall()
+            area, scope_area = res[0]
+
+        measurement, created = CoverageMeasurement.objects.get_or_create(
+            date_from=period.date_from,
+            date_to=period.date_to,
+            scope=scope,
+            defaults=dict(area=area, perc_area=area / scope_area))
+        if created:
+            logger.info(f"New measurement: {measurement}")
+
+
+def run_command(cmd):
+    logger.info(cmd)
     subprocess.run(cmd, shell=True, check=True)
 
 
@@ -55,7 +375,7 @@ def return_url(url):
     the_day_today = time.asctime().split()[0]
     the_hour_now = int(time.asctime().split()[3].split(":")[0])
     if the_day_today == "Wed" and 14 <= the_hour_now <= 17:
-        LOG.info("Sleeping for %d hours... Yawn!" % (18 - the_hour_now))
+        logger.info("Sleeping for %d hours... Yawn!" % (18 - the_hour_now))
         time.sleep(60 * 60 * (18 - the_hour_now))
 
     req = urllib2.Request("%s" % (url), None, HEADERS)
@@ -198,7 +518,7 @@ def get_modisfiles(username,
 
     if not os.path.exists(out_dir):
         if verbose:
-            LOG.info("Creating outupt dir %s" % out_dir)
+            logger.info("Creating output dir %s" % out_dir)
         os.makedirs(out_dir)
     if doy_end == -1:
         if calendar.isleap(year):
@@ -212,6 +532,10 @@ def get_modisfiles(username,
     ]
     url = "%s/%s/%s/" % (base_url, platform, product)
     dates = parse_modis_dates(url, dates, product, out_dir, ruff=ruff)
+
+    # Only use the latests date from range
+    dates = [dates[-1]]
+
     them_urls = []
     for date in dates:
         r = requests.get("%s%s" % (url, date), verify=False)
@@ -226,13 +550,9 @@ def get_modisfiles(username,
                             them_urls.append("%s/%s/%s" % (url, date, fname))
                         else:
                             if verbose:
-                                LOG.info("File %s already present. Skipping" %
-                                         fname)
-
-    # si el vector tiene al menos una url (longitud > 0)
-    if len(them_urls) > 0:
-        them_urls = [them_urls[-1]]  # me quedo con el ultimo producto
-    # si el vector esta vacio lo que sigue no hace nada
+                                logger.info(
+                                    "File %s already present. Skipping" %
+                                    fname)
 
     with requests.Session() as s:
         s.auth = (username, password)
@@ -244,8 +564,8 @@ def get_modisfiles(username,
                 raise IOError("Can't start download... [%s]" % the_url)
             file_size = int(r.headers['content-length'])
             fname = the_url.split("/")[-1]
-            LOG.info("Starting download on %s(%d bytes) ..." %
-                     (os.path.join(out_dir, fname), file_size))
+            logger.info("Starting download on %s(%d bytes) ..." %
+                        (os.path.join(out_dir, fname), file_size))
             with open(os.path.join(out_dir, fname), 'wb') as fp:
                 for chunk in r.iter_content(chunk_size=CHUNKS):
                     if chunk:
@@ -253,189 +573,30 @@ def get_modisfiles(username,
                 fp.flush()
                 os.fsync(fp)
                 if verbose:
-                    LOG.info("\tDone!")
+                    logger.info("\tDone!")
+
     if verbose:
-        LOG.info("Completely finished downlading all there was")
+        logger.info("Completely finished downlading all there was")
 
 
-def gdal_translate(out_dir, tif_dir):
+def extract_subdatasets_as_gtiffs(out_dir, tif_dir):
+    logger.info("Extract subdatasets as GeoTIFFs")
     for f in os.listdir(out_dir):
         if f.endswith('.hdf'):
-            cmd = 'gdal_translate HDF4_EOS:EOS_GRID:{}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI" {}_ndvi.tif'.format(
-                os.path.join(out_dir, f), os.path.join(tif_dir, f))
-            print('Ejecutando {}'.format(cmd))
-            rv = os.system(cmd)
-            cmd = 'gdal_translate HDF4_EOS:EOS_GRID:{}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days pixel reliability" {}_pixelrel.tif'.format(
-                os.path.join(out_dir, f), os.path.join(tif_dir, f))
-            print('Ejecutando {}'.format(cmd))
-            rv = os.system(cmd)
+            src = os.path.join(out_dir, f)
+            dst = os.path.join(tif_dir, f)
+            if not os.path.exists(f'{dst}_ndvi.tif'):
+                run_command(
+                    f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI" {dst}_ndvi.tif'
+                )
+            if not os.path.exists(f'{dst}_pixelrel.tif'):
+                run_command(
+                    f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days pixel reliability" {dst}_pixelrel.tif'
+                )
 
 
-@job("default", timeout=3600)
-def get_modis_peru(date_from, date_to):
-    year = date_to.year
-    doy_begin = date_from.timetuple().tm_yday
-    doy_end = date_to.timetuple().tm_yday
-
-    os.makedirs(MODIS_OUT_DIR, exist_ok=True)
-    os.makedirs(MODIS_TIF_DIR, exist_ok=True)
-
-    tile = 'h{}v{}'.format(H_PERU, V_PERU)
-
-    get_modisfiles(settings.MODIS_USER,
-                   settings.MODIS_PASS,
-                   MODIS_PLATFORM,
-                   MODIS_PRODUCT,
-                   year,
-                   tile,
-                   proxy=None,
-                   doy_start=doy_begin,
-                   doy_end=doy_end,
-                   out_dir=MODIS_OUT_DIR,
-                   verbose=True,
-                   ruff=False,
-                   get_xml=False)
-
-    gdal_translate(MODIS_OUT_DIR, MODIS_TIF_DIR)
-
-    django_rq.enqueue('vegetation.tasks.vegetation_mask', date_from, date_to)
-
-
-@job("default", timeout=3600)
-def vegetation_mask(date_from, date_to):
-    area_monitoreo = os.path.join(settings.BASE_DIR, 'data',
-                                  'area_monitoreo.geojson')
-    srtm_dem = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
-    srtm_monitoreo = os.path.join(settings.BASE_DIR, 'data',
-                                  'srtm_dem_monitoreo.tif')
-    if not os.path.exists(srtm_monitoreo):
-        run_subprocess(
-            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=area_monitoreo,
-                    src=srtm_dem,
-                    dst=srtm_monitoreo))
-
-    os.makedirs(MODIS_CLIP_DIR, exist_ok=True)
-
-    with rasterio.open(srtm_monitoreo) as srtm_src:
-        srtm = srtm_src.read(1)
-
-        LOMAS_MIN = 200
-        LOMAS_MAX = 1800
-        lomas_mask = ((srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX))
-
-    FACTOR_ESCALA = 0.0001
-    UMBRAL_NDVI = 0.2
-    tope = UMBRAL_NDVI / FACTOR_ESCALA
-
-    f = '*h10v10*.hdf_ndvi.tif'
-    ndvi = os.path.join(MODIS_TIF_DIR, f)
-    ndvi_monitoreo = os.path.join(MODIS_CLIP_DIR, f)
-    run_subprocess(
-        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
-        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=area_monitoreo,
-                src=ndvi,
-                dst=ndvi_monitoreo))
-
-    run_subprocess(
-        '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
-        format(otb_bin_path=settings.OTB_BIN_PATH,
-               inr=srtm_monitoreo,
-               inm=ndvi_monitoreo,
-               out=ndvi_monitoreo))
-
-    with rasterio.open(ndvi_monitoreo) as modis_ndvi_src:
-        modis_ndvi = modis_ndvi_src.read(1)
-
-        vegetacion_mask = (modis_ndvi > tope)
-
-        verde_mask = (vegetacion_mask & lomas_mask)
-        verde = np.copy(modis_ndvi)
-        verde[~verde_mask] = 0
-
-        verde_rango = np.copy(verde)
-        verde_rango[(verde >= (0.2 / FACTOR_ESCALA))
-                    & (verde < (0.4 / FACTOR_ESCALA))] = 1
-        verde_rango[(verde >= (0.4 / FACTOR_ESCALA))
-                    & (verde < (0.6 / FACTOR_ESCALA))] = 2
-        verde_rango[(verde >= (0.6 / FACTOR_ESCALA))
-                    & (verde < (0.8 / FACTOR_ESCALA))] = 3
-        verde_rango[verde >= (0.8 / FACTOR_ESCALA)] = 4
-
-        verde[verde_mask] = 1
-
-        modis_meta = modis_ndvi_src.profile
-
-        period = "{}{}-{}{}".format(
-            ("0" + str(date_from.month))[-2:], date_from.year,
-            ("0" + str(date_to.month))[-2:], date_to.year)
-
-        os.makedirs(VEGETATION_MASK_DIR, exist_ok=True)
-
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde, 1)
-
-        #Cloud mask
-        f = '*h10v10*.hdf_pixelrel.tif'
-        pixelrel = os.path.join(MODIS_TIF_DIR, f)
-        pixelrel_monitoreo = os.path.join(MODIS_CLIP_DIR, f)
-        run_subprocess(
-            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline $(ls {src}) {dst}'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=area_monitoreo,
-                    src=pixelrel,
-                    dst=pixelrel_monitoreo))
-        run_subprocess(
-            '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'
-            .format(otb_bin_path=settings.OTB_BIN_PATH,
-                    inr=srtm_monitoreo,
-                    inm=pixelrel_monitoreo,
-                    out=pixelrel_monitoreo))
-        with rasterio.open(pixelrel_monitoreo) as cloud_src:
-            clouds = cloud_src.read(1)
-        #In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
-        cloud_mask = np.copy(clouds)
-        cloud_mask[(clouds == 2) | (clouds == 3) | (clouds == -1)] = 1
-        cloud_mask[(clouds != 2) & (clouds != 3)] = 0
-
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-cloud_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(cloud_mask, 1)
-
-        modis_meta['dtype'] = "float32"
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_range.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde_rango, 1)
-
-        #Create a mask with data from vegetation and clouds
-        verde[cloud_mask == 1] = 2
-        dst_name = os.path.join(VEGETATION_MASK_DIR,
-                                '{}-vegetation_cloud_mask.tif'.format(period))
-        with rasterio.open(dst_name, 'w', **modis_meta) as dst:
-            dst.write(verde, 1)
-        #Create poligons from the mask
-        output_name = os.path.join(
-            VEGETATION_MASK_DIR,
-            '{}-vegetation_cloud_geom.geojson'.format(period))
-        run_subprocess(
-            '{gdal_bin_path}/gdal_polygonize.py {tif_src} {geojson_output} -b 1 -f "GeoJSON" DN'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    tif_src=dst_name,
-                    geojson_output=output_name))
-
-        data = gpd.read_file(output_name)
-        data_proj = data.copy()
-        data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=32718)
-        data_proj.to_file(output_name)
-
-        VegetationMask.save_from_geojson(output_name, date_from)
-
-    shutil.rmtree(MODIS_CLIP_DIR)
-    shutil.rmtree(MODIS_OUT_DIR)
-    shutil.rmtree(MODIS_TIF_DIR)
+def clean_temp_files():
+    logger.info("Clean temporary files")
+    shutil.rmtree(VI_CLIP_DIR)
+    #shutil.rmtree(VI_RAW_DIR)
+    shutil.rmtree(VI_TIF_DIR)

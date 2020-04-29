@@ -1,6 +1,7 @@
 import os
 import shutil
 from datetime import date
+import multiprocessing as mp
 from glob import glob
 
 import dateutil.relativedelta
@@ -18,6 +19,8 @@ APPDIR = os.path.dirname(lomas_changes.__file__)
 S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
 S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
                            'results')
+GEOID_PATH = os.path.join(settings.BASE_DIR, 'data', 'egm96.grd')
+DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'dem')
 
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 
@@ -27,12 +30,9 @@ def download_scenes(period):
     date_to = period.date_to
 
     # Check if result has already been done
-    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results',
-                             'src')
-    scene_filename = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
-                                               period.date_from.month,
-                                               period.date_to.year,
-                                               period.date_to.month)
+    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
+    scene_filename = 's1_{dfrom}_{dto}.tif'.format(dfrom=period.date_from.strftime('%Y%m'),
+                                                   dto=period.date_to.strftime('%Y%m'))
     scene_path = os.path.join(scene_dir, scene_filename)
     if os.path.exists(scene_path):
         print(
@@ -71,12 +71,8 @@ def download_scenes(period):
     products = list(products.values())
 
     # Process the images of each product
-    for p in products:
-        unzip_product(p)
-        calibrate(p)
-        despeckle(p)
-        clip(p)
-        concatenate(p)
+    with mp.Pool(settings.S1_PROC_NUM_JOBS) as pool:
+        pool.map(process_product, products)
 
     # Create a median composite from all images of each band, generate extra
     # bands and concatenate results into a single multiband imafge.
@@ -86,11 +82,11 @@ def download_scenes(period):
     concatenate_results(period)
     clip_result(period)
 
-    clean_temp_files()
+    clean_temp_files(period)
 
 
 def unzip_product(product):
-    print("### Unzip", product['title'])
+    print("# Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S1_RAW_PATH, filename)
     outdir = os.path.join(S1_RAW_PATH, '{}.SAFE'.format(product['title']))
@@ -120,6 +116,28 @@ def calibrate(product):
             format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
 
+def orthorectify(product):
+    print("# Orthorectify", product['title'])
+    name = '{}.SAFE'.format(product['title'])
+
+    dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho')
+    os.makedirs(dst_folder, exist_ok=True)
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    dst = os.path.join(dst_folder, 'vv.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
+            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    dst = os.path.join(dst_folder, 'vh.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
+            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+
+
 def despeckle(product):
     print("# Despeckle", product['title'])
     name = '{}.SAFE'.format(product['title'])
@@ -127,14 +145,14 @@ def despeckle(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'despeck')
     os.makedirs(dst_folder, exist_ok=True)
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vv.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
         run_subprocess(
             '{otb_bin_path}/otbcli_Despeckle -in {src} -out {dst}'.format(
                 otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
         run_subprocess(
@@ -285,13 +303,10 @@ def concatenate_results(period):
 def clip_result(period):
     print("# Clip result", period)
     src = os.path.join(S1_RES_PATH, str(period.pk), 'concatenate.tiff')
-    results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images',
-                                   'results', 'src')
+    results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
     os.makedirs(results_src_dir, exist_ok=True)
-    dst_name = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
-                                         period.date_from.month,
-                                         period.date_to.year,
-                                         period.date_to.month)
+    dst_name = 's1_{dfrom}_{dto}.tif'.format(dfrom=period.date_from.strftime('%Y%m'),
+                                             dto=period.date_to.strftime('%Y%m'))
     dst = os.path.join(results_src_dir, dst_name)
     if not os.path.exists(dst):
         run_subprocess(
@@ -302,7 +317,18 @@ def clip_result(period):
                     dst=dst))
 
 
-def clean_temp_files():
+def clean_temp_files(period):
     shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc'))
     for dirname in glob(os.path.join(S1_RAW_PATH, '*.SAFE')):
         shutil.rmtree(dirname)
+    shutil.rmtree(os.path.join(S1_RES_PATH, str(period.pk)))
+
+
+def process_product(p):
+    unzip_product(p)
+    calibrate(p)
+    orthorectify(p)
+    despeckle(p)
+    clip(p)
+    concatenate(p)
+
