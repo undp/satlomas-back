@@ -67,11 +67,11 @@ INSTALLED_APPS = [
     'jsoneditor',
     'django_rq',
     'leaflet',
-    'stations',
-    'lomas_changes',
-    'vi_lomas_changes',
-    'scopes',
-    'alerts',
+    'stations.apps.StationsConfig',
+    'lomas_changes.apps.LomasChangesConfig',
+    'vi_lomas_changes.apps.VILomasChangesConfig',
+    'scopes.apps.ScopesConfig',
+    'alerts.apps.AlertsConfig',
 ]
 
 MIDDLEWARE = [
@@ -213,7 +213,4 @@ MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
 
 # shellplus notebook config
-NOTEBOOK_ARGUMENTS = [
-    '--ip', '0.0.0.0',
-    '--port', '8888'
-]
+NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
