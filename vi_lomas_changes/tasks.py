@@ -18,6 +18,7 @@ import shapely.wkt
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.files import File
 from django.db import connection
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely.ops import unary_union
@@ -235,17 +236,19 @@ def create_rgb_rasters(period):
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_vegetation_range.tif')
     dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_vegetation_range.tif')
     write_vegetation_range_rgb_raster(src_path=src_path, dst_path=dst_path)
-    Raster.objects.get_or_create(period=period,
-                                 slug="ndvi",
-                                 defaults=dict(name="NDVI", file=dst_path))
+    raster, _ = Raster.objects.update_or_create(period=period,
+                                                slug="ndvi",
+                                                defaults=dict(name="NDVI"))
+    with open(dst_path, 'rb') as f:
+        raster.file.save(f'ndvi.tif', File(f, name='ndvi.tif'))
 
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_cloud_mask.tif')
     dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_cloud_mask.tif')
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
-    Raster.objects.get_or_create(period=period,
-                                 slug="cloud",
-                                 defaults=dict(name="Cloud mask",
-                                               file=dst_path))
+    raster, _ = Raster.objects.update_or_create(
+        period=period, slug="cloud", defaults=dict(name="Cloud mask"))
+    with open(dst_path, 'rb') as f:
+        raster.file.save(f'cloud.tif', File(f))
 
 
 def write_rgb_raster(func):
@@ -328,13 +331,14 @@ def create_vegetation_masks(geojson_path, period):
     vegetation_mp = unary_union(vegetation_polys)
     clouds_mp = unary_union(clouds_polys)
 
-    Mask.objects.get_or_create(
+    Mask.objects.update_or_create(
         period=period,
         mask_type='ndvi',
         defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt)))
-    Mask.objects.get_or_create(period=period,
-                               mask_type='cloud',
-                               defaults=dict(geom=GEOSGeometry(clouds_mp.wkt)))
+    Mask.objects.update_or_create(
+        period=period,
+        mask_type='cloud',
+        defaults=dict(geom=GEOSGeometry(clouds_mp.wkt)))
 
 
 def generate_measurements(period):
@@ -360,7 +364,7 @@ def generate_measurements(period):
             res = cursor.fetchall()
             area, scope_area = res[0]
 
-        measurement, created = CoverageMeasurement.objects.get_or_create(
+        measurement, created = CoverageMeasurement.objects.update_or_create(
             date_from=period.date_from,
             date_to=period.date_to,
             scope=scope,
