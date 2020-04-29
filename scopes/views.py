@@ -10,22 +10,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from scopes.models import Scope
-from vi_lomas_changes.models import VegetationMask
+from vi_lomas_changes.models import Mask
 
 
-# Create your views here.
-def intersection_area(geom, date):
-    mask = VegetationMask.objects.filter(period=date).first()
-    vegetation_geom = shapely.wkt.loads(mask.vegetation.wkt)
-    return geom.intersection(vegetation_geom).area
-
-
-def intersection_area_sql(geom, date):
-    mask = VegetationMask.objects.filter(period=date).first()
-    query = """SELECT ST_Area(a.intersection) FROM
-                (SELECT ST_Intersection(ST_GeomFromText('{wkt_geom}'),
-                ST_GeomFromText('{wkt_mask}')) AS intersection) a;""".format(
-        wkt_geom=geom.wkt, wkt_mask=mask.vegetation.wkt)
+def intersection_area_sql(scope_geom, date):
+    mask = Mask.objects.filter(period=date, mask_type='ndvi').first()
+    query = """SELECT ST_Area(a.int) AS area
+               FROM (
+                   SELECT ST_Intersection(
+                       ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                       ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+            """.format(wkt_scope=scope_geom.wkt, wkt_mask=mask.geom.wkt)
     with connection.cursor() as cursor:
         cursor.execute(query)
         return cursor.fetchall()[0][0]
@@ -53,12 +48,8 @@ class TimeSeries(APIView):
                 edate,
                 freq='M',
         ).strftime("%Y-%m"):
-            response['intersection_area'].append({
-                'date':
-                date,
-                'area':
-                intersection_area_sql(geom, datetime.strptime(date, '%Y-%m'))
-            })
+            response['intersection_area'].append(dict(date=date,
+                area=intersection_area_sql(geom, datetime.strptime(date, '%Y-%m'))))
         return Response(response)
 
 

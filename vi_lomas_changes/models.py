@@ -61,16 +61,6 @@ class Mask(models.Model):
         return f'{self.period} {self.mask_type}'
 
 
-# Deprecated. Use Mask
-class VegetationMask(models.Model):
-    period = models.DateField()
-    vegetation = models.MultiPolygonField()
-    clouds = models.MultiPolygonField()
-
-    class Meta:
-        app_label = 'vi_lomas_changes'
-
-
 class CoverageMeasurement(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
