@@ -214,3 +214,9 @@ MODIS_PASS = os.getenv('MODIS_PASS')
 
 # shellplus notebook config
 NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
+
+# For images and other uploaded files
+# In production, add this to your .env:
+#   DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+DEFAULT_FILE_STORAGE = os.getenv(
+    'DEFAULT_FILE_STORAGE', 'django.core.files.storage.FileSystemStorage')
