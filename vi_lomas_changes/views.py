@@ -64,9 +64,10 @@ class AvailablePeriods(APIView):
         masks = Mask.objects.all().order_by('period__date_from')
         if masks.count() > 0:
             response = dict(first_date=masks.first().period.date_from,
-                            last_date=order_masks.last().period.date_to,
+                            last_date=masks.last().period.date_to,
                             availables=[(m.period.date_from, m.period.date_to)
                                         for m in masks])
             return Response(response)
         else:
-            return Response(dict(first_date=None, last_date=None, availables=[])
+            return Response(
+                dict(first_date=None, last_date=None, availables=[]))

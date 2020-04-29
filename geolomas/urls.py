@@ -23,8 +23,6 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from scopes.views import AvailableDates, ScopeTypes, TimeSeries
-
 schema_view = get_schema_view(
     openapi.Info(
         title='GeoLomas API',
