@@ -68,6 +68,13 @@ VI_RGB_DIR = os.path.join(VI_ROOT, 'rgb')
 
 
 def process_all(period):
+    download_and_process(period)
+    create_rgb_rasters(period)
+    create_masks(period)
+    generate_measurements(period)
+
+
+def download_and_process(period):
     date_from, date_to = period.date_from, period.date_to
 
     year = date_to.year
@@ -219,10 +226,6 @@ def process_all(period):
         dst.write(verde, 1)
 
     clean_temp_files()
-
-    create_rgb_rasters(period)
-    create_masks(period)
-    generate_measurements(period)
 
 
 def create_rgb_rasters(period):
