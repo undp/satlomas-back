@@ -59,11 +59,6 @@ urlpatterns = [
 
     # Administration
     url(r'^admin/', admin.site.urls),
-
-    # Scopes
-    url(r'^scopes/coverage/?', TimeSeries.as_view()),
-    url(r'^scopes/available-dates/?', AvailableDates.as_view()),
-    url(r'^scopes/types/?', ScopeTypes.as_view()),
 ]
 
 # API documentation only if DEBUG=1
@@ -71,6 +66,7 @@ if settings.DEBUG:
     urlpatterns += swagger_urls
 
 urlpatterns += [path('stations/', include('stations.urls'))]
+urlpatterns += [path('scopes/', include('scopes.urls'))]
 
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

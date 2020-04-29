@@ -5,11 +5,13 @@ import shapely.wkt
 from django.contrib.auth.models import User
 from django.db import connection
 from django.shortcuts import render
-from rest_framework import authentication, permissions
+from rest_framework import authentication, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from scopes.models import Scope
+from .serializers import ScopeSerializer
+from .models import Scope
+
 from vi_lomas_changes.models import Mask
 
 
@@ -27,6 +29,8 @@ def intersection_area_sql(scope_geom, date):
 
 
 class TimeSeries(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         data = request.data
         scope_id = data['scope_id'] if 'scope_id' in data else None
@@ -48,12 +52,16 @@ class TimeSeries(APIView):
                 edate,
                 freq='M',
         ).strftime("%Y-%m"):
-            response['intersection_area'].append(dict(date=date,
-                area=intersection_area_sql(geom, datetime.strptime(date, '%Y-%m'))))
+            response['intersection_area'].append(
+                dict(date=date,
+                     area=intersection_area_sql(
+                         geom, datetime.strptime(date, '%Y-%m'))))
         return Response(response)
 
 
 class AvailableDates(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
         order_masks = VegetationMask.objects.all().order_by('period')
         if order_masks.count() > 0:
@@ -75,13 +83,28 @@ class AvailableDates(APIView):
 
 
 class ScopeTypes(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
         response = []
-        types = Scope._meta.get_field('scope_type').choices
-        for t in Scope._meta.get_field('scope_type').choices:
-            s = {'type': t[0], 'name': t[1], 'scopes': []}
-            for scope in Scope.objects.filter(scope_type=t[0]):
-                s['scopes'].append({'name': scope.name, 'pk': scope.id})
+        types = Scope.SCOPE_TYPE
+        for key, name in types:
+            s = dict(type=key, name=name, scopes=[])
+            for scope in Scope.objects.filter(scope_type=key):
+                s['scopes'].append(dict(name=scope.name, pk=scope.id))
             if len(s['scopes']) > 0:
                 response.append(s)
         return Response(response)
+
+
+class ScopeViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Scope.objects.all()
+    serializer_class = ScopeSerializer
+
+    def get_queryset(self):
+        queryset = Scope.objects.all()
+        scope_type = self.request.query_params.get('type', None)
+        if scope_type is not None:
+            queryset = queryset.filter(scope_type=scope_type)
+        return queryset
