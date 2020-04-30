@@ -183,8 +183,8 @@ REST_FRAMEWORK = {
 
 RQ_SHOW_ADMIN_LINK = True
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
-MEDIA_URL = '/uploads/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = '/media/'
 
 JSON_EDITOR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.js'
 JSON_EDITOR_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.css'
@@ -214,3 +214,9 @@ MODIS_PASS = os.getenv('MODIS_PASS')
 
 # shellplus notebook config
 NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
+
+# For images and other uploaded files
+# In production, add this to your .env:
+#   DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+DEFAULT_FILE_STORAGE = os.getenv(
+    'DEFAULT_FILE_STORAGE', 'django.core.files.storage.FileSystemStorage')

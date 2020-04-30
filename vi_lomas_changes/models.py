@@ -14,7 +14,8 @@ class Period(models.Model):
 
 
 def raster_path(instance, filename):
-    return '{path}/{filename}'.format(path=instance.path, filename=filename)
+    return 'rasters/{path}/{filename}'.format(path=instance.path(),
+                                              filename=filename)
 
 
 class Raster(models.Model):

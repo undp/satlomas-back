@@ -23,10 +23,8 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from scopes.views import AvailableDates, ScopeTypes, TimeSeries, ScopeViewSet
-from alerts.views import (AlertViewSet, ParameterRuleViewSet, 
-                          ScopeRuleViewSet, ScopeTypeRuleViewSet)
-from stations.views import StationViewSet
+from alerts.views import (AlertViewSet, ParameterRuleViewSet, ScopeRuleViewSet,
+                          ScopeTypeRuleViewSet)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -59,8 +57,6 @@ router.register(r'parameter-rules', ParameterRuleViewSet)
 router.register(r'scopes-rules', ScopeRuleViewSet)
 router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
 router.register(r'alerts', AlertViewSet)
-router.register(r'stations', StationViewSet)
-router.register(r'scopes', ScopeViewSet)
 
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),
@@ -70,18 +66,16 @@ urlpatterns = [
 
     # Administration
     url(r'^admin/', admin.site.urls),
-
-    # Scopes
-    url(r'^scopes/coverage/?', TimeSeries.as_view()),
-    url(r'^scopes/available-dates/?', AvailableDates.as_view()),
-    url(r'^scopes/types/?', ScopeTypes.as_view()),
 ]
 
 # API documentation only if DEBUG=1
 if settings.DEBUG:
     urlpatterns += swagger_urls
 
+urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
 urlpatterns += [path('stations/', include('stations.urls'))]
+urlpatterns += [path('scopes/', include('scopes.urls'))]
 urlpatterns += router.urls
+
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
