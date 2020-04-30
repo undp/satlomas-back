@@ -23,9 +23,6 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from alerts.views import (AlertViewSet, ParameterRuleViewSet, ScopeRuleViewSet,
-                          ScopeTypeRuleViewSet)
-
 schema_view = get_schema_view(
     openapi.Info(
         title='GeoLomas API',
@@ -52,12 +49,6 @@ swagger_urls = [
         name='schema-redoc'),
 ]
 
-router = SimpleRouter()
-router.register(r'parameter-rules', ParameterRuleViewSet)
-router.register(r'scopes-rules', ScopeRuleViewSet)
-router.register(r'scopes-type-rule', ScopeTypeRuleViewSet)
-router.register(r'alerts', AlertViewSet)
-
 urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls')),
 
@@ -75,7 +66,7 @@ if settings.DEBUG:
 urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
 urlpatterns += [path('stations/', include('stations.urls'))]
 urlpatterns += [path('scopes/', include('scopes.urls'))]
-urlpatterns += router.urls
+urlpatterns += [path('alerts/', include('alerts.urls'))]
 
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
