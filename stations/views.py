@@ -20,6 +20,13 @@ class StationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Station.objects.all().order_by('-name')
     serializer_class = StationSerializer
 
+    def get_queryset(self):
+        queryset = Station.objects.all()
+        name = self.request.query_params.get('name', None)
+        if name is not None:
+            queryset = queryset.filter(name__icontains=name)
+        return queryset
+
 
 class MeasurementSummaryView(APIView):
     permission_classes = [permissions.AllowAny]
