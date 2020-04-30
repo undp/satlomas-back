@@ -66,6 +66,7 @@ if settings.DEBUG:
 urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
 urlpatterns += [path('stations/', include('stations.urls'))]
 urlpatterns += [path('scopes/', include('scopes.urls'))]
+urlpatterns += [path('alerts/', include('alerts.urls'))]
 
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
