@@ -186,15 +186,27 @@ class Command(BaseCommand):
 
         self.log_success("Got datapoint {}".format(datapoint))
 
-        # TODO : not sire if it is working
         if not model_package_name:
             model_package_name = glob.glob('{}/*_model_hyperopt_package_*.model'.format(output_models_path))[-1]
         
         self.log_success('Using {} packaged model to test'.format(model_package_name))
-       
+        
+        # IS IT OK to scale here? predict_with_model does not scale so we should here
+        with open(model_package_name, 'rb') as file_pi:
+            model_package = pickle.load(file_pi)
+    
+        scaler = model_package['scaler']
 
+        # ensure all data is float
+        datapoint = datapoint.astype('float32')
+        self.log_success("Got datapoint as float32 {}".format(datapoint))
+
+        datapoint_scaled = scaler.transform(datapoint)
+        self.log_success("Got datapoint_scaled {}".format(datapoint_scaled))
+        
         tic = time.time() 
-        pred,mae = predict_with_model(datapoint,model_package_name,future_steps = future_steps)
+        #pred,mae = predict_with_model(datapoint,model_package_name,future_steps = future_steps)
+        pred,mae = predict_with_model(datapoint_scaled,model_package_name,future_steps = future_steps)
         prediction_time = time.time()-tic
         self.log_success('#{},{},prediction_time,{}'.format(model_package_name,future_steps,prediction_time))
 
