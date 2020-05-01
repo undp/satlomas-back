@@ -2,6 +2,7 @@ from auditlog.registry import auditlog
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 from scopes.models import Scope
@@ -111,6 +112,7 @@ class Alert(models.Model):
                                           limit_choices_to=RULE_MODELS)
     rule_id = models.PositiveIntegerField()
     rule = GenericForeignKey('rule_content_type', 'rule_id')
+    rule_attributes = JSONField(default=dict)
 
     measurement_content_type = models.ForeignKey(
         ContentType,
