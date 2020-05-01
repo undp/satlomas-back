@@ -1,3 +1,5 @@
+import json
+
 from auditlog.registry import auditlog
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -49,6 +51,15 @@ class ScopeTypeRule(models.Model):
     def get_valid_range_display(self):
         return f'{self.valid_min} - {self.valid_max}'
 
+    def serialize(self):
+        return json.dumps(
+            dict(scope_type=self.scope_type,
+                 measurement_content_type_str=str(
+                     self.measurement_content_type),
+                 change_type=self.change_type,
+                 valid_min=self.valid_min,
+                 valid_max=self.valid_max))
+
 
 class ScopeRule(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -72,6 +83,16 @@ class ScopeRule(models.Model):
 
     def get_valid_range_display(self):
         return f'{self.valid_min} - {self.valid_max}'
+
+    def serialize(self):
+        return json.dumps(
+            dict(scope_id=self.scope and self.scope.pk,
+                 scope_name=self.scope and self.scope.name,
+                 measurement_content_type_str=str(
+                     self.measurement_content_type),
+                 change_type=self.change_type,
+                 valid_min=self.valid_min,
+                 valid_max=self.valid_max))
 
 
 class ParameterRule(models.Model):
@@ -98,6 +119,15 @@ class ParameterRule(models.Model):
 
     def get_valid_range_display(self):
         return f'{self.valid_min} - {self.valid_max}'
+
+    def serialize(self):
+        return json.dumps(
+            dict(station_id=self.station and self.station.id,
+                 station_name=self.station and self.station.name,
+                 parameter=self.parameter,
+                 is_absolute=self.is_absolute,
+                 valid_min=self.valid_min,
+                 valid_max=self.valid_max))
 
 
 class AlertCheck(models.Model):
