@@ -69,6 +69,8 @@ class AlertAdmin(FilterUserAdmin):
         'measurement',
     ]
     exclude = ('user', )
+    fields = list_display
+    readonly_fields = list_display
 
 
 class AlertCheckAdmin(admin.ModelAdmin):
