@@ -12,14 +12,19 @@ class ParameterRuleViewSet(viewsets.ModelViewSet):
     serializer_class = ParameterRuleSerializer
 
     def get_queryset(self):
-        return ParameterRule.objects.filter(user=self.request.user).order_by('-created_at')
+        return ParameterRule.objects.filter(
+            user=self.request.user).order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print(serializer.errors)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=self.request.user)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers)
 
 
 class ScopeRuleViewSet(viewsets.ModelViewSet):
@@ -27,14 +32,17 @@ class ScopeRuleViewSet(viewsets.ModelViewSet):
     serializer_class = ScopeRuleSerializer
 
     def get_queryset(self):
-        return ScopeRule.objects.filter(user=self.request.user).order_by('-created_at')
-    
+        return ScopeRule.objects.filter(
+            user=self.request.user).order_by('-created_at')
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=self.request.user)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers)
 
 
 class ScopeTypeRuleViewSet(viewsets.ModelViewSet):
@@ -42,18 +50,23 @@ class ScopeTypeRuleViewSet(viewsets.ModelViewSet):
     serializer_class = ScopeTypeRuleSerializer
 
     def get_queryset(self):
-        return ScopeTypeRule.objects.filter(user=self.request.user).order_by('-created_at')
+        return ScopeTypeRule.objects.filter(
+            user=self.request.user).order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=self.request.user)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers)
+
 
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all().order_by('created_at')
     serializer_class = AlertSerializer
 
     def get_queryset(self):
-        return Alert.objects.filter(user=self.request.user).order_by('-created_at')
+        return Alert.objects.filter(
+            user=self.request.user).order_by('-created_at')
