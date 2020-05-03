@@ -31,8 +31,9 @@ def download_scenes(period):
 
     # Check if result has already been done
     scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
-    scene_filename = 's1_{dfrom}_{dto}.tif'.format(dfrom=period.date_from.strftime('%Y%m'),
-                                                   dto=period.date_to.strftime('%Y%m'))
+    scene_filename = 's1_{dfrom}_{dto}.tif'.format(
+        dfrom=period.date_from.strftime('%Y%m'),
+        dto=period.date_to.strftime('%Y%m'))
     scene_path = os.path.join(scene_dir, scene_filename)
     if os.path.exists(scene_path):
         print(
@@ -127,15 +128,23 @@ def orthorectify(product):
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
         run_subprocess(
-            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
-            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
+            .format(otb_bin_path=settings.OTB_BIN_PATH,
+                    src=src,
+                    dst=dst,
+                    geoid_path=GEOID_PATH,
+                    dem_path=DEM_PATH))
 
     src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
         run_subprocess(
-            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'.
-            format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst, geoid_path=GEOID_PATH, dem_path=DEM_PATH))
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
+            .format(otb_bin_path=settings.OTB_BIN_PATH,
+                    src=src,
+                    dst=dst,
+                    geoid_path=GEOID_PATH,
+                    dem_path=DEM_PATH))
 
 
 def despeckle(product):
@@ -303,10 +312,12 @@ def concatenate_results(period):
 def clip_result(period):
     print("# Clip result", period)
     src = os.path.join(S1_RES_PATH, str(period.pk), 'concatenate.tiff')
-    results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
+    results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images',
+                                   'results')
     os.makedirs(results_src_dir, exist_ok=True)
-    dst_name = 's1_{dfrom}_{dto}.tif'.format(dfrom=period.date_from.strftime('%Y%m'),
-                                             dto=period.date_to.strftime('%Y%m'))
+    dst_name = 's1_{dfrom}_{dto}.tif'.format(
+        dfrom=period.date_from.strftime('%Y%m'),
+        dto=period.date_to.strftime('%Y%m'))
     dst = os.path.join(results_src_dir, dst_name)
     if not os.path.exists(dst):
         run_subprocess(
@@ -331,4 +342,3 @@ def process_product(p):
     despeckle(p)
     clip(p)
     concatenate(p)
-
