@@ -39,8 +39,8 @@ def write_rgb_raster(bands=[], *, src_path, dst_path, in_range):
         profile = src.profile.copy()
         profile.update(count=3,
                        dtype=np.uint8,
-                       compress='jpeg',
-                       photometric='ycbcr',
+                       compress='deflate',
+                       tiled=True,
                        nodata=0)
         height, width = src.shape[0], src.shape[1]
         if not bands:
