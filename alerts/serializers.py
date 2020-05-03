@@ -1,9 +1,9 @@
+from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 from rest_framework.fields import Field
 
 from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
 from stations.serializers import StationSerializer
-from django.contrib.contenttypes.models import ContentType
 
 from .models import COVERAGE_MEASUREMENT_MODELS, RULE_MODELS
 
