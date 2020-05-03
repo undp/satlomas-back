@@ -22,8 +22,6 @@ class GenericRelatedField(Field):
 
 
 class ParameterRuleSerializer(serializers.ModelSerializer):
-    station = StationSerializer(read_only=True)
-
     class Meta:
         model = ParameterRule
         exclude = ('user', )
