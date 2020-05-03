@@ -51,7 +51,7 @@ def download_scenes(period):
     products = api.query(footprint,
                          date=(date_from, date_to),
                          platformname='Sentinel-2',
-                         cloudcoverpercentage=(0, 100))
+                         cloudcoverpercentage=(0, 20))
 
     # Skip L2A products
     l2 = []
