@@ -1,0 +1,39 @@
+##
+# Mandatory settings
+#
+ALLOWED_HOSTS=
+SECRET_KEY=
+
+DB_NAME=geolomas
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=db
+DB_PORT=
+
+RQ_REDIS_URL=redis://redis:6379/0
+RQ_TIMEOUT=360
+
+##
+# Optional settings
+#
+DEBUG=1
+LANGUAGE_CODE=en-us
+TIME_ZONE=UTC
+
+SCIHUB_USER=
+SCIHUB_PASS=
+SCIHUB_URL=https://scihub.copernicus.eu/dhus
+
+# Path to otb bin directory
+OTB_BIN_PATH=$HOME/OTB-7.0.0-Linux64/bin
+
+# Path to sen2mosaic CLI directory
+S2M_CLI_PATH=$HOME/sen2mosaic/cli
+S2M_NUM_JOBS=2
+
+# Path to gdal bin directory
+GDAL_BIN_PATH=$HOME/OTB-7.0.0-Linux64/bin
+
+# MODIS
+MODIS_USER =
+MODIS_PASS =

@@ -1,11 +1,12 @@
 from datetime import datetime
+from auditlog.registry import auditlog
 
 from django.contrib.gis.db import models
 from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import JSONField
 from django.utils.translation import gettext as _
 
-from .managers import MeasurementManager
+from .managers import MeasurementManager, PredictionManager
 
 
 class Place(models.Model):
@@ -69,3 +70,24 @@ class Measurement(models.Model):
             datetime=str(self.datetime),
             station=self.station,
             attributes=self.attributes)
+
+
+class Prediction(models.Model):
+    datetime = models.DateTimeField()
+    station = models.ForeignKey(Station, on_delete=models.PROTECT)
+    attributes = JSONField(blank=True)
+
+    objects = PredictionManager()
+
+    class Meta:
+        managed = False
+
+    def __str__(self):
+        return '{datetime} {station} :: {attributes}'.format(
+            datetime=str(self.datetime),
+            station=self.station,
+            attributes=self.attributes)
+
+
+auditlog.register(Place)
+auditlog.register(Station)

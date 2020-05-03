@@ -2,8 +2,16 @@ import json
 
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.db import connection, models
-from django.db.models import Avg, Count, Func, Max, Min, Sum
-from django.db.models.functions import Cast
+from django.db.models import Avg, Count, Func, Max, Min, Sum, Window, F
+from django.db.models.functions import Cast, Lag
+
+
+def get_param_annotation(param, aggregation_func):
+    return {
+        param:
+        aggregation_func(
+            Cast(KeyTextTransform(param, 'attributes'), models.FloatField())),
+    }
 
 
 class Year(Func):
@@ -43,6 +51,12 @@ class MeasurementManager(models.Manager):
                               month=Month,
                               year=Year)
     aggregation_funcs = dict(avg=Avg, count=Count, max=Max, min=Min, sum=Sum)
+
+    def with_prev_attributes(self):
+        prev_attributes = Window(expression=Lag('attributes'),
+                                 partition_by=F('station'),
+                                 order_by=F('datetime').asc())
+        return self.annotate(prev_attributes=prev_attributes)
 
     def create(self, datetime, station_id, attributes):
         with connection.cursor() as cursor:
@@ -84,8 +98,41 @@ class MeasurementManager(models.Manager):
         qs = self.filter(station=station)
         qs = qs.filter(datetime__range=(start, end))
         qs = qs.annotate(t=grouping_interval('datetime')).values('t')
-        qs = qs.annotate(v=aggregation_func(
-            Cast(KeyTextTransform(parameter, 'attributes'),
-                 models.FloatField())))
+        if len(parameter.split(",")) == 1:
+            qs = qs.annotate(v=aggregation_func(
+                Cast(KeyTextTransform(parameter, 'attributes'),
+                     models.FloatField())))
+        else:
+            for param in parameter.split(","):
+                qs = qs.annotate(
+                    **get_param_annotation(param, aggregation_func))
         qs = qs.order_by('t')
         return qs
+
+
+class PredictionManager(models.Manager):
+    def create(self, datetime, station_id, attributes):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO stations_prediction(datetime, station_id, attributes)
+                VALUES ('{datetime}', '{station_id}', '{attributes}');
+            """.format(datetime=str(datetime),
+                       station_id=station_id,
+                       attributes=json.dumps(attributes)))
+            return self.model(datetime=datetime,
+                              station_id=station_id,
+                              attributes=attributes)
+
+    def bulk_create(self, objs):
+        with connection.cursor() as cursor:
+            values = ', '.join([
+                "('{datetime}', '{station_id}', '{attributes}')".format(
+                    datetime=str(o.datetime),
+                    station_id=o.station_id,
+                    attributes=json.dumps(o.attributes)) for o in objs
+            ])
+            cursor.execute("""
+                INSERT INTO stations_prediction(datetime, station_id, attributes)
+                VALUES {values}
+                ON CONFLICT DO NOTHING;
+            """.format(values=values))

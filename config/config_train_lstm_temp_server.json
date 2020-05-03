@@ -10,13 +10,13 @@
     "sensor_var":"inme",
     "target_sensor":"A620",
     "early_stop_patience":10,
-    "epochs":100,
+    "epochs":150,
     "base_config":{
     	"first_layer":{"mult":2,"dropout_rate":0.2,"dropout_range":[0,1]},
     	"last_layer":{"mult":2,"dropout_rate":0.2,"dropout_range":[0,1]}
     },
     "mid_layers_config":{"n_layers":2,"mult":2,"dropout_rate":0.2,"dropout_range":[0,1]},
-    "hyperopt_pars":{"mid_layers":[2,3],"mults":[2,3],"dropout_rate_range":[0.1,0.8],"max_evals":3},
+    "hyperopt_pars":{"mid_layers":[2],"mults":[2],"dropout_rate_range":[0.1,0.3],"max_evals":1},
     "model_loss":"mean_squared_error",
 	"optimizer":"adam"
 }

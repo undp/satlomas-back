@@ -74,16 +74,17 @@ class Command(BaseCommand):
                 station_dataset = dataset.loc[dataset.inme == station_code]
                 for chunk in chunker(station_dataset, self.CHUNK_SIZE):
                     objs = [
-                        self.new_measurement(station, chunk.iloc[i])
+                        m
                         for i in range(len(chunk))
+                        for m in self.new_measurements(station, chunk.iloc[i])
                     ]
                     Measurement.objects.bulk_create(objs)
                     self.log_success("{} measurements loaded.".format(
                         len(chunk)))
 
-    def new_measurement(self, station, measurement):
+    def new_measurements(self, station, measurement):
         direction = 1
-
+        res = []
         for minute in [0, 15, 30, 45]:
             year, month, day, hour = measurement.yr, measurement.mo, measurement.da, measurement.hr
             ts = datetime(year, month, day, hour, minute, 0, 0)
@@ -98,9 +99,10 @@ class Command(BaseCommand):
                               pressure=measurement.stp + delta_min,
                               precipitation=measurement.prcp + delta_min,
                               pm25=measurement.prcp * 2 + delta_min)
-            return Measurement(datetime=ts,
-                               station=station,
-                               attributes=attributes)
+            res.append(Measurement(datetime=ts,
+                                   station=station,
+                                   attributes=attributes))
+        return res
 
     def log_success(self, msg):
         self.stdout.write(self.style.SUCCESS(msg))
