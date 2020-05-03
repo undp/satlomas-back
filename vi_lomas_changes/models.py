@@ -5,17 +5,17 @@ from django.contrib.gis.db import models
 from django.contrib.postgres.fields import JSONField
 
 
+def raster_path(instance, filename):
+    return 'rasters/{path}/{filename}'.format(path=instance.path(),
+                                              filename=filename)
+
+
 class Period(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
 
     def __str__(self):
         return '{} - {}'.format(self.date_from, self.date_to)
-
-
-def raster_path(instance, filename):
-    return 'rasters/{path}/{filename}'.format(path=instance.path(),
-                                              filename=filename)
 
 
 class Raster(models.Model):

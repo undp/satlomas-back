@@ -4,6 +4,11 @@ from django.contrib.gis.db import models
 from django.contrib.postgres.fields import JSONField
 
 
+def raster_path(instance, filename):
+    return 'rasters/{path}/{filename}'.format(path=instance.path(),
+                                              filename=filename)
+
+
 class Period(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
@@ -15,9 +20,10 @@ class Period(models.Model):
 class Raster(models.Model):
     slug = models.SlugField()
     period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    file = models.FileField(upload_to=raster_path, blank=True, null=True)
     name = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
-    area_geom = models.PolygonField()
+    extent_geom = models.PolygonField(blank=True, null=True)
     extra_fields = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -29,7 +35,12 @@ class Raster(models.Model):
         return f'{self.period} {self.name}'
 
     def tiles_url(self):
-        return f'{settings.TILE_SERVER_URL}/{self.slug}' + '/{z}/{x}/{y}.png'
+        return f'{settings.TILE_SERVER_URL}/{self.path}/' + '/{z}/{x}/{y}.png'
+
+    def path(self):
+        date_from = self.period.date_from.strftime('%Y%m%d')
+        date_to = self.period.date_to.strftime('%Y%m%d')
+        return f'{self.slug}/{date_from}-{date_to}/'
 
     def extent(self):
         """ Get area extent """

@@ -1,23 +1,46 @@
 import json
+import logging
 import os
 import shutil
 import subprocess
+import sys
+from glob import glob
 from pathlib import Path
 from zipfile import ZipFile
-from glob import glob
 
 from django.conf import settings
+from django.core.files import File
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
-from lomas_changes.utils import run_subprocess, unzip
+from lomas_changes.models import Raster
+from lomas_changes.utils import (get_raster_extent, run_subprocess, unzip,
+                                 write_rgb_raster)
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
-S2_L1C_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l1c')
-S2_L2A_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's2', 'l2a')
+RESULTS_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
+RGB_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'rgb')
+
+S2_BASE_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 's2')
+S2_L1C_PATH = os.path.join(S2_BASE_DIR, 'l1c')
+S2_L2A_PATH = os.path.join(S2_BASE_DIR, 'l2a')
+
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
 AOI_UTM_PATH = os.path.join(APPDIR, 'data', 'extent_utm.geojson')
+
+# Configure logger
+logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
+
+
+def process_all(period):
+    download_scenes(period)
+    create_rgb_rasters(period)
 
 
 def download_scenes(period):
@@ -28,13 +51,12 @@ def download_scenes(period):
                                       dto=period.date_to.strftime("%Y%m"))
 
     # Check if result has already been done
-    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
     scene_filename = f's2_{period_s}*.tif'
-    scene_path = os.path.join(scene_dir, scene_filename)
+    scene_path = os.path.join(RESULTS_PATH, scene_filename)
     if len(glob(scene_path)) == 2:
         print(
-            "Scene for period {}-{} already done:".format(date_from, date_to),
-            scene_path)
+            "Sentinel-2 mosaic for period {}-{} already done:".format(
+                date_from, date_to), scene_path)
         return
 
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
@@ -69,8 +91,8 @@ def download_scenes(period):
     os.makedirs(l1c_path, exist_ok=True)
     products_to_download = {
         k: v
-        for k, v in products.items() if not os.path.exists(
-            os.path.join(l1c_path, '{}.zip'.format(v['title'])))
+        for k, v in products.items() if
+        not os.path.exists(os.path.join(l1c_path, '{}.zip'.format(v['title'])))
     }
 
     # Download products
@@ -100,19 +122,17 @@ def download_scenes(period):
     mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
     os.makedirs(mosaic_path, exist_ok=True)
 
-    xmin, ymin, xmax, ymax = [260572.3994411753083114,
-                              8620358.0515629947185516,
-                              324439.4877797830849886,
-                              8720597.2414500378072262]
-    mosaic_name = 's2_{}{}_{}{}_mosaic'.format(date_from.year,
-                                               date_from.month,
-                                               date_to.year,
-                                               date_to.month)
+    xmin, ymin, xmax, ymax = [
+        260572.3994411753083114, 8620358.0515629947185516,
+        324439.4877797830849886, 8720597.2414500378072262
+    ]
+    mosaic_name = 's2_{}{}_{}{}_mosaic'.format(date_from.year, date_from.month,
+                                               date_to.year, date_to.month)
 
     for res in [10, 20]:
         cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res {} -n {} -v -o {} {}".format(
-            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax,
-            res, mosaic_name, mosaic_path, l2a_path)
+            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, res, mosaic_name,
+            mosaic_path, l2a_path)
         rv = os.system(cmd)
         if rv != 0:
             raise ValueError('s2m mosaic failed')
@@ -127,7 +147,8 @@ def download_scenes(period):
 def unzip_product(product, period_s):
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S2_L1C_PATH, period_s, filename)
-    outdir = os.path.join(S2_L1C_PATH, period_s, '{}.SAFE'.format(product['title']))
+    outdir = os.path.join(S2_L1C_PATH, period_s,
+                          '{}.SAFE'.format(product['title']))
     if not os.path.exists(outdir):
         print("# Unzip", product['title'])
         unzip(zip_path, delete_zip=False)
@@ -192,10 +213,13 @@ def concatenate_results(mosaic_name, period_s):
     R10m_B03 = os.path.join(mosaic_path, '{}_R10m_B03.tif'.format(mosaic_name))
     R10m_B04 = os.path.join(mosaic_path, '{}_R10m_B04.tif'.format(mosaic_name))
     R10m_B08 = os.path.join(mosaic_path, '{}_R10m_B08.tif'.format(mosaic_name))
-    R10m_NDVI = os.path.join(mosaic_path, '{}_R10m_NDVI.tif'.format(mosaic_name))
-    R10m_NDVI = os.path.join(mosaic_path, '{}_R10m_NDWI.tif'.format(mosaic_name))
+    R10m_NDVI = os.path.join(mosaic_path,
+                             '{}_R10m_NDVI.tif'.format(mosaic_name))
+    R10m_NDVI = os.path.join(mosaic_path,
+                             '{}_R10m_NDWI.tif'.format(mosaic_name))
     R10m_EVI = os.path.join(mosaic_path, '{}_R10m_EVI.tif'.format(mosaic_name))
-    R10m_SAVI = os.path.join(mosaic_path, '{}_R10m_SAVI.tif'.format(mosaic_name))
+    R10m_SAVI = os.path.join(mosaic_path,
+                             '{}_R10m_SAVI.tif'.format(mosaic_name))
     src = ' '.join([
         R10m_B02, R10m_B03, R10m_B04, R10m_B08, R10m_NDVI, R10m_NDVI, R10m_EVI,
         R10m_SAVI
@@ -223,7 +247,6 @@ def concatenate_results(mosaic_name, period_s):
 
 def clip_results(period_s):
     mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
-    results_src = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
     tif_10m = f's2_{period_s}_10m.tif'
     tif_20m = f's2_{period_s}_20m.tif'
 
@@ -235,7 +258,7 @@ def clip_results(period_s):
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
                     aoi=AOI_UTM_PATH,
                     src=os.path.join(mosaic_path, src),
-                    dst=os.path.join(results_src, src)))
+                    dst=os.path.join(RESULTS_PATH, src)))
 
 
 def get_canonical_names(prods):
@@ -247,9 +270,32 @@ def get_canonical_names(prods):
 
 def sen2_preprocess(product_path, period_s):
     cmd = "python3 {}/preprocess.py -v -o {} -res 10 {}".format(
-        settings.S2M_CLI_PATH, os.path.join(S2_L2A_PATH, period_s), product_path)
+        settings.S2M_CLI_PATH, os.path.join(S2_L2A_PATH, period_s),
+        product_path)
     print(cmd)
     os.system(cmd)
+
+
+def create_rgb_rasters(period):
+    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+                                      dto=period.date_to.strftime("%Y%m"))
+
+    src_path = os.path.join(RESULTS_PATH, f's2_{period_s}_10m.tif')
+    dst_path = os.path.join(RGB_PATH, os.path.basename(src_path))
+
+    if not os.path.exists(dst_path):
+        logger.info("Build RGB Sentinel-2 raster")
+        write_rgb_raster(src_path=src_path,
+                         dst_path=dst_path,
+                         bands=(3, 2, 1),
+                         in_range=((0, 3000), (0, 3000), (0, 3000)))
+    extent = get_raster_extent(dst_path)
+    raster, _ = Raster.objects.update_or_create(
+        period=period,
+        slug="s2",
+        defaults=dict(name="Sentinel-2 (RGB, 10m)", extent_geom=extent))
+    with open(dst_path, 'rb') as f:
+        raster.file.save(f's2.tif', File(f, name='s2.tif'))
 
 
 def clean_temp_files(period_s):
