@@ -1,10 +1,11 @@
-from django.shortcuts import render
 from django.contrib.auth.models import User
+from django.shortcuts import render
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
 from rest_framework.response import Response
+
 from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
-from alerts.serializers import AlertSerializer, ParameterRuleSerializer, ScopeRuleSerializer, ScopeTypeRuleSerializer
+from alerts.serializers import (AlertSerializer, ParameterRuleSerializer,
+                                ScopeRuleSerializer, ScopeTypeRuleSerializer)
 
 
 class ParameterRuleViewSet(viewsets.ModelViewSet):
