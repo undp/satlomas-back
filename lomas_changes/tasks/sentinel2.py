@@ -74,7 +74,8 @@ def download_scenes(period):
     }
 
     # Download products
-    results = api.download_all(products, directory_path=l1c_path)
+    api.download_all(products_to_download, directory_path=l1c_path)
+
     products = list(products.values())
 
     # Unzip
