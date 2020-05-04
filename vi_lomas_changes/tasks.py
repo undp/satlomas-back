@@ -56,9 +56,11 @@ FACTOR_ESCALA = 0.0001
 UMBRAL_NDVI = 0.2
 THRESHOLD = UMBRAL_NDVI / FACTOR_ESCALA
 
-APPDIR = os.path.dirname(vi_lomas_changes.__file__)
-EXTENT_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
-SRTM_DEM_PATH = os.path.join(APPDIR, 'data', 'srtm_dem.tif')
+APP_DIR = os.path.dirname(vi_lomas_changes.__file__)
+APP_DATA_DIR = os.path.join(APP_DIR, 'data')
+EXTENT_PATH = os.path.join(APP_DATA_DIR, 'extent.geojson')
+AOI_PATH = os.path.join(APP_DATA_DIR, 'aoi.geojson')
+SRTM_DEM_PATH = os.path.join(APP_DATA_DIR, 'srtm_dem.tif')
 
 VI_ROOT = os.path.join(settings.BASE_DIR, 'data', 'vi')
 VI_RAW_DIR = os.path.join(VI_ROOT, 'raw')
@@ -138,6 +140,14 @@ def download_and_process(period):
                inr=srtm_clipped_path,
                inm=ndvi_clipped_path,
                out=ndvi_clipped_path))
+
+    logger.info("Clip resulting raster to AOI")
+    run_command(
+        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=AOI_PATH,
+                src=ndvi_clipped_path,
+                dst=ndvi_clipped_path))
 
     with rasterio.open(ndvi_clipped_path) as src:
         modis_ndvi = src.read(1)
