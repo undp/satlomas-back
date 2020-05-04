@@ -220,3 +220,5 @@ NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
 #   DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
 DEFAULT_FILE_STORAGE = os.getenv(
     'DEFAULT_FILE_STORAGE', 'django.core.files.storage.FileSystemStorage')
+
+TILE_SERVER_URL = os.getenv('TILE_SERVER_URL', 'http://localhost:8000/media/')
