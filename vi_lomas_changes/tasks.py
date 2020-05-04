@@ -235,6 +235,7 @@ def create_rgb_rasters(period):
 
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_vegetation_range.tif')
     dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_vegetation_range.tif')
+    logger.info("Build RGB vegetation raster")
     write_vegetation_range_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(period=period,
                                                 slug="ndvi",
@@ -242,8 +243,20 @@ def create_rgb_rasters(period):
     with open(dst_path, 'rb') as f:
         raster.file.save(f'ndvi.tif', File(f, name='ndvi.tif'))
 
+    src_path = os.path.join(VI_MASK_DIR, f'{period_s}_vegetation_mask.tif')
+    dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_vegetation_mask.tif')
+    logger.info("Build RGB vegetation mask raster")
+    write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
+    raster, _ = Raster.objects.update_or_create(
+        period=period,
+        slug="vegetation",
+        defaults=dict(name="Vegetation mask"))
+    with open(dst_path, 'rb') as f:
+        raster.file.save(f'vegetation.tif', File(f))
+
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_cloud_mask.tif')
     dst_path = os.path.join(VI_RGB_DIR, f'{period_s}_cloud_mask.tif')
+    logger.info("Build RGB cloud mask raster")
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         period=period, slug="cloud", defaults=dict(name="Cloud mask"))
@@ -273,7 +286,6 @@ def hex_to_dec_string(value):
 
 @write_rgb_raster
 def write_vegetation_range_rgb_raster(img):
-    logger.info("Build RGB vegetation raster")
     colormap = ['440154', '31688e', '35b779', 'fde725']
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
@@ -283,8 +295,16 @@ def write_vegetation_range_rgb_raster(img):
 
 @write_rgb_raster
 def write_cloud_mask_rgb_raster(img):
-    logger.info("Build RGB cloud mask raster")
     colormap = ['30a7ff']
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+    return new_img
+
+
+@write_rgb_raster
+def write_vegetation_mask_rgb_raster(img):
+    colormap = ['149c00']
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
