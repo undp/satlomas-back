@@ -12,7 +12,8 @@ from rest_framework.views import APIView
 
 from scopes.models import Scope
 
-from .models import Mask, Period
+from .models import Mask, Period, Raster
+from .serializers import RasterSerializer
 
 
 def intersection_area_sql(scope_geom, period):
@@ -100,11 +101,33 @@ class AvailablePeriods(APIView):
     def get(self, request):
         masks = Mask.objects.all().order_by('period__date_from')
         if masks.count() > 0:
+            periods = [m.period for m in masks]
+            periods = sorted(
+                list(set([(p.id, p.date_from, p.date_to) for p in periods])))
+            periods = [
+                dict(id=id, date_from=date_from, date_to=date_to)
+                for id, date_from, date_to in periods
+            ]
             response = dict(first_date=masks.first().period.date_from,
                             last_date=masks.last().period.date_to,
-                            availables=[(m.period.date_from, m.period.date_to)
-                                        for m in masks])
+                            availables=periods)
             return Response(response)
         else:
             return Response(
                 dict(first_date=None, last_date=None, availables=[]))
+
+
+class RasterViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Raster.objects.all().order_by('-created_at')
+    serializer_class = RasterSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        date_from = self.request.query_params.get('from', None)
+        date_to = self.request.query_params.get('to', None)
+        if date_from is not None and date_to is not None:
+            queryset = queryset.filter(
+                Q(period__date_from=date_from)
+                | Q(period__date_to=date_to))
+        return queryset

@@ -36,7 +36,7 @@ class Raster(models.Model):
         return f'{self.period} {self.name}'
 
     def tiles_url(self):
-        return f'{settings.TILE_SERVER_URL}/{self.path}/' + '/{z}/{x}/{y}.png'
+        return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
 
     def path(self):
         date_from = self.period.date_from.strftime('%Y%m%d')
