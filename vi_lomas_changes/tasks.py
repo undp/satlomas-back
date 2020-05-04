@@ -122,7 +122,11 @@ def download_and_process(period):
 
     logger.info("Clip NDVI to extent")
     os.makedirs(VI_CLIP_DIR, exist_ok=True)
-    ndvi_path = glob(os.path.join(VI_TIF_DIR, '*h10v10*.hdf_ndvi.tif'))[0]
+    ndvi_files = glob(os.path.join(VI_TIF_DIR, '*h10v10*.hdf_ndvi.tif'))
+    if not ndvi_files:
+        logger.error("No MODIS files for this period!")
+        return
+    ndvi_path = ndvi_files[0]
     ndvi_clipped_path = os.path.join(VI_CLIP_DIR, os.path.basename(ndvi_path))
     if os.path.exists(ndvi_clipped_path):
         os.unlink(ndvi_clipped_path)
@@ -575,7 +579,8 @@ def get_modisfiles(username,
     dates = parse_modis_dates(url, dates, product, out_dir, ruff=ruff)
 
     # Only use the latests date from range
-    dates = [dates[-1]]
+    if len(dates) > 1:
+        dates = [dates[-1]]
 
     them_urls = []
     for date in dates:
