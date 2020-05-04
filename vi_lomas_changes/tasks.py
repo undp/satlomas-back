@@ -19,7 +19,7 @@ from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files import File
-from django.db import connection
+from django.db import connection, DatabaseError
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely.ops import unary_union
 
@@ -379,18 +379,22 @@ def generate_measurements(period):
                        wkt_mask=mask.geom.wkt,
                        srid=32718)
 
-        with connection.cursor() as cursor:
-            cursor.execute(query)
-            res = cursor.fetchall()
-            area, scope_area = res[0]
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                res = cursor.fetchall()
+                area, scope_area = res[0]
 
-        measurement, created = CoverageMeasurement.objects.update_or_create(
-            date_from=period.date_from,
-            date_to=period.date_to,
-            scope=scope,
-            defaults=dict(area=area, perc_area=area / scope_area))
-        if created:
-            logger.info(f"New measurement: {measurement}")
+            measurement, created = CoverageMeasurement.objects.update_or_create(
+                date_from=period.date_from,
+                date_to=period.date_to,
+                scope=scope,
+                defaults=dict(area=area, perc_area=area / scope_area))
+            if created:
+                logger.info(f"New measurement: {measurement}")
+        except DatabaseError as err:
+            logger.error(err);
+            logger.info(f"An error occurred! Skipping measurement for scope {scope.id}...")
 
 
 def run_command(cmd):
@@ -625,5 +629,5 @@ def extract_subdatasets_as_gtiffs(out_dir, tif_dir):
 def clean_temp_files():
     logger.info("Clean temporary files")
     shutil.rmtree(VI_CLIP_DIR)
-    #shutil.rmtree(VI_RAW_DIR)
+    shutil.rmtree(VI_RAW_DIR)
     shutil.rmtree(VI_TIF_DIR)

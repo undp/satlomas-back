@@ -27,7 +27,6 @@ class Command(BaseCommand):
             default=self.date_to,
             help="End date to download the rasters. Format yyyy-mm-dd")
 
-    @transaction.atomic
     def handle(self, *args, **options):
         period, _ = Period.objects.get_or_create(
             date_from=options['date_from'], date_to=options['date_to'])
