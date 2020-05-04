@@ -59,13 +59,14 @@ THRESHOLD = UMBRAL_NDVI / FACTOR_ESCALA
 APP_DIR = os.path.dirname(vi_lomas_changes.__file__)
 APP_DATA_DIR = os.path.join(APP_DIR, 'data')
 EXTENT_PATH = os.path.join(APP_DATA_DIR, 'extent.geojson')
-AOI_PATH = os.path.join(APP_DATA_DIR, 'aoi.geojson')
+#AOI_PATH = os.path.join(APP_DATA_DIR, 'aoi.geojson')
 SRTM_DEM_PATH = os.path.join(APP_DATA_DIR, 'srtm_dem.tif')
 
 VI_ROOT = os.path.join(settings.BASE_DIR, 'data', 'vi')
 VI_RAW_DIR = os.path.join(VI_ROOT, 'raw')
 VI_TIF_DIR = os.path.join(VI_ROOT, 'tif')
 VI_CLIP_DIR = os.path.join(VI_ROOT, 'clip')
+VI_AOI_CLIP_DIR = os.path.join(VI_ROOT, 'aoi_clip')
 VI_MASK_DIR = os.path.join(VI_ROOT, 'masks')
 VI_RGB_DIR = os.path.join(VI_ROOT, 'rgb')
 
@@ -89,7 +90,7 @@ def download_and_process(period):
 
     logger.info("Download MODIS hdf files")
     tile = 'h{}v{}'.format(H_PERU, V_PERU)
-    get_modisfiles(settings.MODIS_USER,
+    modis_filenames = get_modisfiles(settings.MODIS_USER,
                    settings.MODIS_PASS,
                    MODIS_PLATFORM,
                    MODIS_PRODUCT,
@@ -103,7 +104,11 @@ def download_and_process(period):
                    ruff=False,
                    get_xml=False)
 
-    extract_subdatasets_as_gtiffs(VI_RAW_DIR, VI_TIF_DIR)
+    if not modis_filenames:
+        logger.error("No MODIS files for this period!")
+        return
+
+    extract_subdatasets_as_gtiffs(modis_filenames, VI_TIF_DIR)
 
     logger.info("Clip SRTM to extent")
     srtm_clipped_path = os.path.join(VI_ROOT, 'srtm_dem_clipped.tif')
@@ -122,11 +127,8 @@ def download_and_process(period):
 
     logger.info("Clip NDVI to extent")
     os.makedirs(VI_CLIP_DIR, exist_ok=True)
-    ndvi_files = glob(os.path.join(VI_TIF_DIR, '*h10v10*.hdf_ndvi.tif'))
-    if not ndvi_files:
-        logger.error("No MODIS files for this period!")
-        return
-    ndvi_path = ndvi_files[0]
+    name, _ = os.path.splitext(os.path.basename(modis_filenames[0]))
+    ndvi_path = glob(os.path.join(VI_TIF_DIR, f'{name}_ndvi.tif'))[0]
     ndvi_clipped_path = os.path.join(VI_CLIP_DIR, os.path.basename(ndvi_path))
     if os.path.exists(ndvi_clipped_path):
         os.unlink(ndvi_clipped_path)
@@ -145,13 +147,16 @@ def download_and_process(period):
                inm=ndvi_clipped_path,
                out=ndvi_clipped_path))
 
-    logger.info("Clip resulting raster to AOI")
-    run_command(
-        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
-        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=AOI_PATH,
-                src=ndvi_clipped_path,
-                dst=ndvi_clipped_path))
+    #logger.info("Clip resulting raster to AOI")
+    #os.makedirs(VI_AOI_CLIP_DIR, exist_ok=True)
+    #ndvi_aoi_clipped_path = os.path.join(VI_AOI_CLIP_DIR, os.path.basename(ndvi_path))
+    #if not os.path.exists(ndvi_aoi_clipped_path):
+    #    run_command(
+    #        '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+    #        .format(gdal_bin_path=settings.GDAL_BIN_PATH,
+    #                aoi=AOI_PATH,
+    #                src=ndvi_clipped_path,
+    #                dst=ndvi_aoi_clipped_path))
 
     with rasterio.open(ndvi_clipped_path) as src:
         modis_ndvi = src.read(1)
@@ -192,8 +197,8 @@ def download_and_process(period):
 
     # Cloud mask
     logger.info("Clip pixel reliability raster to extent")
-    pixelrel_path = glob(os.path.join(VI_TIF_DIR,
-                                      '*h10v10*.hdf_pixelrel.tif'))[0]
+    name, _ = os.path.splitext(os.path.basename(modis_filenames[0]))
+    pixelrel_path = glob(os.path.join(VI_TIF_DIR, f'{name}_pixelrel.tif'))[0]
     pixelrel_clipped_path = os.path.join(VI_CLIP_DIR,
                                          os.path.basename(pixelrel_path))
     if os.path.exists(pixelrel_clipped_path):
@@ -255,6 +260,8 @@ def create_rgb_rasters(period):
                                                 slug="ndvi",
                                                 defaults=dict(name="NDVI"))
     with open(dst_path, 'rb') as f:
+        if raster.file:
+            raster.file.delete()
         raster.file.save(f'ndvi.tif', File(f, name='ndvi.tif'))
 
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_vegetation_mask.tif')
@@ -266,6 +273,8 @@ def create_rgb_rasters(period):
         slug="vegetation",
         defaults=dict(name="Vegetation mask"))
     with open(dst_path, 'rb') as f:
+        if raster.file:
+            raster.file.delete()
         raster.file.save(f'vegetation.tif', File(f))
 
     src_path = os.path.join(VI_MASK_DIR, f'{period_s}_cloud_mask.tif')
@@ -275,6 +284,8 @@ def create_rgb_rasters(period):
     raster, _ = Raster.objects.update_or_create(
         period=period, slug="cloud", defaults=dict(name="Cloud mask"))
     with open(dst_path, 'rb') as f:
+        if raster.file:
+            raster.file.delete()
         raster.file.save(f'cloud.tif', File(f))
 
 
@@ -583,6 +594,7 @@ def get_modisfiles(username,
         dates = [dates[-1]]
 
     them_urls = []
+    res = []
     for date in dates:
         r = requests.get("%s%s" % (url, date), verify=False)
         for line in r.text.split("\n"):
@@ -592,7 +604,9 @@ def get_modisfiles(username,
                     if fname.endswith(".hdf.xml") and not get_xml:
                         pass
                     else:
-                        if not os.path.exists(os.path.join(out_dir, fname)):
+                        fpath = os.path.join(out_dir, fname)
+                        res.append(fpath)
+                        if not os.path.exists(fpath):
                             them_urls.append("%s/%s/%s" % (url, date, fname))
                         else:
                             if verbose:
@@ -610,9 +624,10 @@ def get_modisfiles(username,
                 raise IOError("Can't start download... [%s]" % the_url)
             file_size = int(r.headers['content-length'])
             fname = the_url.split("/")[-1]
+            fpath = os.path.join(out_dir, fname)
             logger.info("Starting download on %s(%d bytes) ..." %
-                        (os.path.join(out_dir, fname), file_size))
-            with open(os.path.join(out_dir, fname), 'wb') as fp:
+                        (fpath, file_size))
+            with open(fpath, 'wb') as fp:
                 for chunk in r.iter_content(chunk_size=CHUNKS):
                     if chunk:
                         fp.write(chunk)
@@ -624,25 +639,26 @@ def get_modisfiles(username,
     if verbose:
         logger.info("Completely finished downlading all there was")
 
+    return res
 
-def extract_subdatasets_as_gtiffs(out_dir, tif_dir):
+
+def extract_subdatasets_as_gtiffs(files, tif_dir):
     logger.info("Extract subdatasets as GeoTIFFs")
-    for f in os.listdir(out_dir):
-        if f.endswith('.hdf'):
-            src = os.path.join(out_dir, f)
-            dst = os.path.join(tif_dir, f)
-            if not os.path.exists(f'{dst}_ndvi.tif'):
-                run_command(
-                    f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI" {dst}_ndvi.tif'
-                )
-            if not os.path.exists(f'{dst}_pixelrel.tif'):
-                run_command(
-                    f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days pixel reliability" {dst}_pixelrel.tif'
-                )
+    for src in files:
+        name, _ = os.path.splitext(os.path.basename(src))
+        dst = os.path.join(tif_dir, name)
+        if not os.path.exists(f'{dst}_ndvi.tif'):
+            run_command(
+                f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI" {dst}_ndvi.tif'
+            )
+        if not os.path.exists(f'{dst}_pixelrel.tif'):
+            run_command(
+                f'gdal_translate HDF4_EOS:EOS_GRID:{src}:MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days pixel reliability" {dst}_pixelrel.tif'
+            )
 
 
 def clean_temp_files():
     logger.info("Clean temporary files")
     shutil.rmtree(VI_CLIP_DIR)
-    shutil.rmtree(VI_RAW_DIR)
+    #shutil.rmtree(VI_RAW_DIR)
     shutil.rmtree(VI_TIF_DIR)
