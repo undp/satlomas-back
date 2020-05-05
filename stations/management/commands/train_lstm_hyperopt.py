@@ -17,12 +17,12 @@ from geolomasexp.model import (build_lstm_nnet, eval_regression_performance,
 from geolomasexp.model_hyperopt import get_lstm_nnet_opt
 from hyperopt import fmin, hp, tpe
 from keras.models import load_model
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score , max_error
 from stations.models import Measurement, Place, Station
 
 
 # run this by: 
-# nohup python manage.py train_lstm_hyperopt config_train_lstm_temp_server_hyperopt.json 2014-01-01 >> train_lstm_temp_A620.log 2>&1 &
+# nohup python manage.py train_lstm_hyperopt config_train_lstm_temp_server_A620_temprature.json 2011-01-01 0 >> train_lstm_temp_A620.log 2>&1 &
 class Command(BaseCommand):
     """
     Read a time series from database
@@ -37,7 +37,9 @@ class Command(BaseCommand):
             min_col='minute',
             numeric_var='temperature',
             sensor_var='inme',  # TODO : change this for station_code in all the script
-            date_since=None):
+            date_since=None,
+            which_minutes = [0,15,30,45]
+            ):
         # get the station (sensor)
         #station = Station.objects.get(code=sensor)
         # get all the measurements from this station
@@ -67,12 +69,12 @@ class Command(BaseCommand):
         dataset.sort_values([date_col, hr_col], inplace=True, ascending=True)
         dataset.reset_index(inplace=True)
 
-        return dataset
+        return dataset.loc[dataset.minute.isin(which_minutes)]
 
     def log_success(self, msg):
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def train_lstm(self, script_config, since_date):
+    def train_lstm(self, script_config, since_date,which_minutes):
         """
         Function to train an LSTM neural network looking at the past
         """
@@ -108,7 +110,9 @@ class Command(BaseCommand):
         raw_dataset = self.read_time_series_from_db(target_sensor, date_col,
                                                     hr_col, 'minute',
                                                     numeric_var, sensor_var,
-                                                    date_since)
+                                                    date_since,
+                                                    which_minutes
+                                                   )
         self.log_success("Dataset of shape {} read".format(raw_dataset.shape))
 
         # Obtener la variable de interes del dataset
@@ -288,6 +292,22 @@ class Command(BaseCommand):
                                               scaler,
                                               measure=r2_score)
         self.log_success("Test R2 {}".format(test_r2))
+        
+
+        train_max_e = eval_regression_performance(trainset,
+                                                lstm_nnet,
+                                                scaler,
+                                                measure=max_error)
+
+        self.log_success("Train MAXE {} ".format(train_max_e))
+
+        test_max_e = eval_regression_performance(dataset_splits['testset'],
+                                               lstm_nnet,
+                                               scaler,
+                                               measure=max_error)
+
+        self.log_success("Test MAXE {}".format(test_max_e))
+
 
         # Saving the training result
         results = pd.DataFrame({
@@ -303,6 +323,8 @@ class Command(BaseCommand):
             'test_mae': [test_mae],
             'train_r2': [train_r2],
             'test_r2': [test_r2],
+            'train_max_e': [train_max_e],
+            'test_max_e': [test_max_e],
             'train_time': [train_time],
             'train_eval_time': [train_eval_time],
             'test_eval_time': [test_eval_time],
@@ -343,6 +365,12 @@ class Command(BaseCommand):
             type=str,
             help=
             'YYYY-MM-DD date since when we are fetching measurements to train')
+        
+        parser.add_argument(
+            'which_minute',
+            type=int,
+            help=
+            'Which minute of the hour to consider, pass 0 or negative to get all the hour')
 
     def handle(self, *args, **options):
         
@@ -351,7 +379,15 @@ class Command(BaseCommand):
 
         since_date = options['since_date'].split('-')
         self.log_success('Since date argument {}'.format(since_date))
+        
+        which_minute = int(options['which_minute'])
+        self.log_success('which_minute argument {}'.format(which_minute))
+        
+        if which_minute <= 0 :
+            which_minutes = range(60)
+        else:
+            which_minutes = [which_minute]
 
         script_config = LSTMHyperoptTrainingScriptConfig(self.config_file)
         self.log_success('Script-config: {}'.format(script_config))
-        self.train_lstm(script_config, since_date)
+        self.train_lstm(script_config, since_date,which_minutes)
