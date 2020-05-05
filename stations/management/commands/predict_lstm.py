@@ -201,7 +201,7 @@ class Command(BaseCommand):
         datapoint = datapoint.astype('float32')
         self.log_success("Got datapoint as float32 {}".format(datapoint))
 
-        datapoint_scaled = scaler.transform(datapoint)
+        datapoint_scaled = scaler.transform(datapoint.reshape(-1, 1))
         self.log_success("Got datapoint_scaled {}".format(datapoint_scaled))
         
         tic = time.time() 
