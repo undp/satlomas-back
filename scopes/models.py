@@ -1,6 +1,5 @@
+from auditlog.registry import auditlog
 from django.contrib.gis.db import models
-from django.contrib.gis.gdal import DataSource
-from django.contrib.gis.geos import GEOSGeometry
 
 
 class Scope(models.Model):
@@ -9,6 +8,7 @@ class Scope(models.Model):
     DISTRITOS = 'DI'
     ECOSISTEMAS = 'EF'
     ARQUEOLOGICOS = 'SA'
+
     SCOPE_TYPE = [
         (CORREDORES, 'Corredores Ecologicos'),
         (ACR, 'ACR'),
@@ -23,6 +23,11 @@ class Scope(models.Model):
     )
     geom = models.MultiPolygonField()
     name = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return "{} - {}".format(self.scope_type, self.name)
+
+
+auditlog.register(Scope)

@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'django_extensions',
+    'auditlog',
     'rest_framework',
     'rest_framework_gis',
     'rest_framework.authtoken',
@@ -60,17 +62,16 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'rest_auth',
-    'rest_auth.registration',
     'drf_yasg',
     'corsheaders',
     'jsoneditor',
     'django_rq',
     'leaflet',
-    'stations',
-    'lomas_changes',
-    'vi_lomas_changes',
-    'scopes',
-    'django_extensions',
+    'stations.apps.StationsConfig',
+    'lomas_changes.apps.LomasChangesConfig',
+    'vi_lomas_changes.apps.VILomasChangesConfig',
+    'scopes.apps.ScopesConfig',
+    'alerts.apps.AlertsConfig',
 ]
 
 MIDDLEWARE = [
@@ -172,10 +173,18 @@ RQ_QUEUES = {
     }
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer', ),
+    'DEFAULT_AUTHENTICATION_CLASSES':
+    ('geolomas.authentication.TokenAuthentication', ),
+    'DEFAULT_PERMISSION_CLASSES':
+    ('rest_framework.permissions.IsAuthenticated', )
+}
+
 RQ_SHOW_ADMIN_LINK = True
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads/')
-MEDIA_URL = '/uploads/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = '/media/'
 
 JSON_EDITOR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.js'
 JSON_EDITOR_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.css'
@@ -191,7 +200,9 @@ SCIHUB_PASS = os.getenv('SCIHUB_PASS')
 
 # Sen2mosaic
 S2M_CLI_PATH = os.getenv('S2M_CLI_PATH')
-S2M_NUM_JOBS = int(os.getenv("S2M_NUM_JOBS", 1))
+
+# Number of cores to use for multi processing S1 images
+S1_PROC_NUM_JOBS = int(os.getenv("S1_PROC_NUM_JOBS", 3))
 
 # OTB
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
@@ -201,8 +212,21 @@ GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
 MODIS_USER = os.getenv('MODIS_USER')
 MODIS_PASS = os.getenv('MODIS_PASS')
 
-# NOTEBOOK configs
-NOTEBOOK_ARGUMENTS = [
-    '--ip', '0.0.0.0',
-    '--port', '8888',
-]
+# shellplus notebook config
+NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
+
+# For images and other uploaded files
+# In production, add this to your .env:
+#   DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+DEFAULT_FILE_STORAGE = os.getenv(
+    'DEFAULT_FILE_STORAGE', 'django.core.files.storage.FileSystemStorage')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'redis_cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_CACHE_URL', 'redis://localhost:6379/1'),
+    }
+}
+
+TILE_SERVER_URL = os.getenv('TILE_SERVER_URL',
+                            'http://localhost:8000/media/tiles/')

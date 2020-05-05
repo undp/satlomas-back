@@ -1,4 +1,12 @@
-from django.db import models
+import uuid
+
+from django.contrib.gis.db import models
+from django.contrib.postgres.fields import JSONField
+
+
+def raster_path(instance, filename):
+    return 'rasters/{path}/{filename}'.format(path=instance.path(),
+                                              filename=filename)
 
 
 class Period(models.Model):
@@ -9,10 +17,83 @@ class Period(models.Model):
         return '{} - {}'.format(self.date_from, self.date_to)
 
 
-class CoverageMeasurement(models.Model):
+class Raster(models.Model):
+    slug = models.SlugField()
     period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    file = models.FileField(upload_to=raster_path, blank=True, null=True)
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    extent_geom = models.PolygonField(blank=True, null=True)
+    extra_fields = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('slug', 'period'), )
+
+    def __str__(self):
+        return f'{self.period} {self.name}'
+
+    def tiles_url(self):
+        return f'{settings.TILE_SERVER_URL}/{self.path}/' + '/{z}/{x}/{y}.png'
+
+    def path(self):
+        date_from = self.period.date_from.strftime('%Y%m%d')
+        date_to = self.period.date_to.strftime('%Y%m%d')
+        return f'{self.slug}/{date_from}-{date_to}/'
+
+    def extent(self):
+        """ Get area extent """
+        return self.area_geom and self.area_geom.extent
+
+
+class Mask(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    mask_type = models.CharField(max_length=32, blank=True, null=True)
+    geom = models.MultiPolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('period', 'mask_type'), )
+
+    def __str__(self):
+        return f'{self.period} {self.mask_type}'
+
+
+class ChangesMask(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    mask = models.OneToOneField(Mask, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (('period', 'mask'), )
+
+    def __str__(self):
+        return f'ChangeMask: {self.mask}'
+
+
+class CoverageMeasurement(models.Model):
+    date_from = models.DateField()
+    date_to = models.DateField()
     scope = models.ForeignKey('scopes.Scope',
+                              related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
                               null=True)
+    changes_mask = models.ForeignKey(ChangesMask,
+                                     on_delete=models.SET_NULL,
+                                     null=True)
     change_area = models.FloatField()
     perc_change_area = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['date_from', 'date_to', 'scope']
+
+    def __str__(self):
+        return '{dfrom}-{dto} :: {scope} :: {value} ({perc}%)'.format(
+            dfrom=self.date_from,
+            dto=self.date_to,
+            scope=self.scope.name,
+            value=self.change_area,
+            perc=self.perc_change_area)

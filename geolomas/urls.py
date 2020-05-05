@@ -23,13 +23,6 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
-from scopes.views import AvailableDates, ScopeTypes, TimeSeries
-from stations.views import MeasurementSummaryView, PlaceViewSet, StationViewSet
-
-router = SimpleRouter()
-router.register(r'places', PlaceViewSet)
-router.register(r'stations', StationViewSet)
-
 schema_view = get_schema_view(
     openapi.Info(
         title='GeoLomas API',
@@ -61,26 +54,19 @@ urlpatterns = [
 
     # Authentication
     url(r'^auth/', include('rest_auth.urls')),
-    url(r'^auth/registration/', include('rest_auth.registration.urls')),
 
     # Administration
     url(r'^admin/', admin.site.urls),
-
-    # Stations
-    url(r'^measurements/summary/?', MeasurementSummaryView.as_view()),
-
-    # Scopes
-    url(r'^scopes/coverage/?', TimeSeries.as_view()),
-    url(r'^scopes/available-dates/?', AvailableDates.as_view()),
-    url(r'^scopes/types/?', ScopeTypes.as_view()),
-
-    # ...
-    url(r'^', include(router.urls)),
 ]
 
 # API documentation only if DEBUG=1
 if settings.DEBUG:
     urlpatterns += swagger_urls
+
+urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
+urlpatterns += [path('stations/', include('stations.urls'))]
+urlpatterns += [path('scopes/', include('scopes.urls'))]
+urlpatterns += [path('alerts/', include('alerts.urls'))]
 
 urlpatterns += [path('admin/django-rq/', include('django_rq.urls'))]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

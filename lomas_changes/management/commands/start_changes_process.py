@@ -27,6 +27,6 @@ class Command(BaseCommand):
         date_to = options['date_to'].date()
         period, _ = Period.objects.get_or_create(date_from=date_from,
                                                  date_to=date_to)
-        sentinel1.download_scenes(period)
-        sentinel2.download_scenes(period)
+        sentinel1.process_all(period)
+        sentinel2.process_all(period)
         predict_rf.predict_rf(period)

@@ -1,36 +1,92 @@
+import uuid
+
+from django.conf import settings
 from django.contrib.gis.db import models
+from django.contrib.postgres.fields import JSONField
 
 
-# Create your models here.
-class VegetationMask(models.Model):
-    period = models.DateField()
-    vegetation = models.MultiPolygonField()
-    clouds = models.MultiPolygonField()
+def raster_path(instance, filename):
+    return 'rasters/{path}/{filename}'.format(path=instance.path(),
+                                              filename=filename)
+
+
+class Period(models.Model):
+    date_from = models.DateField()
+    date_to = models.DateField()
+
+    def __str__(self):
+        return '{} - {}'.format(self.date_from, self.date_to)
+
+
+class Raster(models.Model):
+    slug = models.SlugField()
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    file = models.FileField(upload_to=raster_path, blank=True, null=True)
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    extent_geom = models.PolygonField(blank=True, null=True)
+    extra_fields = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        app_label = 'vi_lomas_changes'
+        unique_together = (('slug', 'period'), )
 
-    def save_from_geojson(geojson_path, period):
-        from django.contrib.gis.gdal import DataSource
-        from django.contrib.gis.geos import GEOSGeometry
-        import shapely.wkt
-        from shapely.ops import unary_union
+    def __str__(self):
+        return f'{self.period} {self.name}'
 
-        ds = DataSource(geojson_path)
-        vegetation_polys = []
-        clouds_polys = []
-        for x in range(0, len(ds[0]) - 1):
-            geom = shapely.wkt.loads(ds[0][x].geom.wkt)
-            if str(ds[0][x]['DN']) == '1':
-                vegetation_polys.append(geom)
-            elif str(ds[0][x]['DN']) == '2':
-                clouds_polys.append(geom)
-            else:
-                pass
-        vegetation_mp = unary_union(vegetation_polys)
-        clouds_mp = unary_union(clouds_polys)
+    def tiles_url(self):
+        return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
 
-        return VegetationMask.objects.create(
-            period=period,
-            vegetation=GEOSGeometry(vegetation_mp.wkt),
-            clouds=GEOSGeometry(clouds_mp.wkt))
+    def path(self):
+        date_from = self.period.date_from.strftime('%Y%m%d')
+        date_to = self.period.date_to.strftime('%Y%m%d')
+        return f'{self.slug}/{date_from}-{date_to}/'
+
+    def extent(self):
+        """ Get area extent """
+        return self.area_geom and self.area_geom.extent
+
+
+class Mask(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    mask_type = models.CharField(max_length=32, blank=True, null=True)
+    geom = models.MultiPolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('period', 'mask_type'), )
+
+    def __str__(self):
+        return f'{self.period} {self.mask_type}'
+
+
+class CoverageMeasurement(models.Model):
+    date_from = models.DateField()
+    date_to = models.DateField()
+    scope = models.ForeignKey('scopes.Scope',
+                              related_name="%(app_label)s_%(class)s_related",
+                              on_delete=models.SET_NULL,
+                              null=True)
+    area = models.FloatField()
+    perc_area = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['date_from', 'date_to', 'scope']
+
+    def __str__(self):
+        return '{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)'.format(
+            dfrom=self.date_from,
+            dto=self.date_to,
+            scope=self.scope and self.scope.name,
+            area=self.area_km2(),
+            perc_area=self.perc_area_100())
+
+    def area_km2(self):
+        return round(self.area / 1000000, 2)
+
+    def perc_area_100(self):
+        return round(self.perc_area * 100, 2)

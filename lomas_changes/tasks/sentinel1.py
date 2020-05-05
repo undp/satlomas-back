@@ -1,5 +1,8 @@
+import logging
+import multiprocessing as mp
 import os
 import shutil
+import sys
 from datetime import date
 from glob import glob
 
@@ -8,18 +11,40 @@ import django_rq
 import numpy as np
 import rasterio
 from django.conf import settings
+from django.core.files import File
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
-from lomas_changes.utils import run_subprocess, sliding_windows, unzip
+from lomas_changes.models import Raster
+from lomas_changes.utils import (get_raster_extent, run_subprocess,
+                                 sliding_windows, unzip, write_rgb_raster)
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
-S1_RAW_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1', 'raw')
-S1_RES_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 's1',
-                           'results')
+RESULTS_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
+RGB_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'rgb')
+
+S1_BASE_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 's1')
+S1_RAW_PATH = os.path.join(S1_BASE_DIR, 'raw')
+S1_RES_PATH = os.path.join(S1_BASE_DIR, 'results')
+
+GEOID_PATH = os.path.join(settings.BASE_DIR, 'data', 'egm96.grd')
+DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'dem')
 
 AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
+
+# Configure logger
+logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
+
+
+def process_all(period):
+    download_scenes(period)
+    create_rgb_rasters(period)
 
 
 def download_scenes(period):
@@ -27,17 +52,14 @@ def download_scenes(period):
     date_to = period.date_to
 
     # Check if result has already been done
-    scene_dir = os.path.join(settings.BASE_DIR, 'data', 'images', 'results',
-                             'src')
-    scene_filename = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
-                                               period.date_from.month,
-                                               period.date_to.year,
-                                               period.date_to.month)
-    scene_path = os.path.join(scene_dir, scene_filename)
+    scene_filename = 's1_{dfrom}_{dto}.tif'.format(
+        dfrom=period.date_from.strftime('%Y%m'),
+        dto=period.date_to.strftime('%Y%m'))
+    scene_path = os.path.join(RESULTS_PATH, scene_filename)
     if os.path.exists(scene_path):
         print(
-            "Scene for period {}-{} already done:".format(date_from, date_to),
-            scene_path)
+            "Sentinel-1 mosaic for period {}-{} already done:".format(
+                date_from, date_to), scene_path)
         return
 
     # Prepare API client for download
@@ -71,12 +93,8 @@ def download_scenes(period):
     products = list(products.values())
 
     # Process the images of each product
-    for p in products:
-        unzip_product(p)
-        calibrate(p)
-        despeckle(p)
-        clip(p)
-        concatenate(p)
+    with mp.Pool(settings.S1_PROC_NUM_JOBS) as pool:
+        pool.map(process_product, products)
 
     # Create a median composite from all images of each band, generate extra
     # bands and concatenate results into a single multiband imafge.
@@ -86,11 +104,11 @@ def download_scenes(period):
     concatenate_results(period)
     clip_result(period)
 
-    clean_temp_files()
+    clean_temp_files(period)
 
 
 def unzip_product(product):
-    print("### Unzip", product['title'])
+    print("# Unzip", product['title'])
     filename = '{}.zip'.format(product['title'])
     zip_path = os.path.join(S1_RAW_PATH, filename)
     outdir = os.path.join(S1_RAW_PATH, '{}.SAFE'.format(product['title']))
@@ -120,6 +138,36 @@ def calibrate(product):
             format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
 
+def orthorectify(product):
+    print("# Orthorectify", product['title'])
+    name = '{}.SAFE'.format(product['title'])
+
+    dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho')
+    os.makedirs(dst_folder, exist_ok=True)
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    dst = os.path.join(dst_folder, 'vv.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
+            .format(otb_bin_path=settings.OTB_BIN_PATH,
+                    src=src,
+                    dst=dst,
+                    geoid_path=GEOID_PATH,
+                    dem_path=DEM_PATH))
+
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    dst = os.path.join(dst_folder, 'vh.tiff')
+    if not os.path.exists(dst):
+        run_subprocess(
+            '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
+            .format(otb_bin_path=settings.OTB_BIN_PATH,
+                    src=src,
+                    dst=dst,
+                    geoid_path=GEOID_PATH,
+                    dem_path=DEM_PATH))
+
+
 def despeckle(product):
     print("# Despeckle", product['title'])
     name = '{}.SAFE'.format(product['title'])
@@ -127,14 +175,14 @@ def despeckle(product):
     dst_folder = os.path.join(S1_RAW_PATH, 'proc', name, 'despeck')
     os.makedirs(dst_folder, exist_ok=True)
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vv.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
         run_subprocess(
             '{otb_bin_path}/otbcli_Despeckle -in {src} -out {dst}'.format(
                 otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
-    src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
+    src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
         run_subprocess(
@@ -285,14 +333,11 @@ def concatenate_results(period):
 def clip_result(period):
     print("# Clip result", period)
     src = os.path.join(S1_RES_PATH, str(period.pk), 'concatenate.tiff')
-    results_src_dir = os.path.join(settings.BASE_DIR, 'data', 'images',
-                                   'results', 'src')
-    os.makedirs(results_src_dir, exist_ok=True)
-    dst_name = 's1_{}{}_{}{}.tif'.format(period.date_from.year,
-                                         period.date_from.month,
-                                         period.date_to.year,
-                                         period.date_to.month)
-    dst = os.path.join(results_src_dir, dst_name)
+    os.makedirs(RESULTS_PATH, exist_ok=True)
+    dst_name = 's1_{dfrom}_{dto}.tif'.format(
+        dfrom=period.date_from.strftime('%Y%m'),
+        dto=period.date_to.strftime('%Y%m'))
+    dst = os.path.join(RESULTS_PATH, dst_name)
     if not os.path.exists(dst):
         run_subprocess(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
@@ -302,7 +347,40 @@ def clip_result(period):
                     dst=dst))
 
 
-def clean_temp_files():
+def create_rgb_rasters(period):
+    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+                                      dto=period.date_to.strftime("%Y%m"))
+
+    src_path = os.path.join(RESULTS_PATH, f's1_{period_s}.tif')
+    dst_path = os.path.join(RGB_PATH, os.path.basename(src_path))
+
+    if not os.path.exists(dst_path):
+        logger.info("Build RGB Sentinel-1 raster")
+        write_rgb_raster(src_path=src_path,
+                         dst_path=dst_path,
+                         bands=(1, 2, 3),
+                         in_range=((-0.0235941, 0.49517),
+                                   (-0.00107017, 0.062705), (0.0, 0.0)))
+    extent = get_raster_extent(dst_path)
+    raster, _ = Raster.objects.update_or_create(
+        period=period,
+        slug="s1",
+        defaults=dict(name="Sentinel-1 (VV, VH, VV/VH)", extent_geom=extent))
+    with open(dst_path, 'rb') as f:
+        raster.file.save(f's1.tif', File(f, name='s1.tif'))
+
+
+def clean_temp_files(period):
     shutil.rmtree(os.path.join(S1_RAW_PATH, 'proc'))
     for dirname in glob(os.path.join(S1_RAW_PATH, '*.SAFE')):
         shutil.rmtree(dirname)
+    shutil.rmtree(os.path.join(S1_RES_PATH, str(period.pk)))
+
+
+def process_product(p):
+    unzip_product(p)
+    calibrate(p)
+    orthorectify(p)
+    despeckle(p)
+    clip(p)
+    concatenate(p)
