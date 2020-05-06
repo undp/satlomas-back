@@ -12,6 +12,9 @@ class Period(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
 
+    class Meta:
+        unique_together = (('date_from', 'date_to'), )
+
     def __str__(self):
         return '{} - {}'.format(self.date_from, self.date_to)
 
