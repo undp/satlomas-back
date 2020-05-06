@@ -25,7 +25,6 @@ DATA_DIR = os.path.join(settings.BASE_DIR, 'data', 'lomas_changes')
 MASK_DIR = os.path.join(DATA_DIR, 'mask')
 
 
-@transaction.atomic
 def load_data(period):
     #post_process(period)
     create_masks(period)
@@ -33,18 +32,19 @@ def load_data(period):
 
 
 def create_masks(period):
-    period_s = '{dfrom}-{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
                                       dto=period.date_to.strftime("%Y%m"))
 
     logging.info("Reproject to epsg:4326")
-    src_path = os.path.join(MASK_DIR, period_s, 'cover.tif')
+    src_path = os.path.join(MASK_DIR, period_s, 'cover.geojson')
+    dst_path = os.path.join(MASK_DIR, period_s, 'cover_4326.geojson')
     data = gpd.read_file(src_path)
     data_proj = data.copy()
     data_proj['geometry'] = data_proj['geometry'].to_crs(epsg=4326)
-    data_proj.to_file(src_path)
+    data_proj.to_file(dst_path)
 
     logger.info("Load mask to DB")
-    ds = DataSource(src_path)
+    ds = DataSource(dst_path)
     polys = []
     for x in range(0, len(ds[0]) - 1):
         geom = shapely.wkt.loads(ds[0][x].geom.wkt)
