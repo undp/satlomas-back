@@ -78,11 +78,12 @@ class AlertViewSet(viewsets.ModelViewSet):
 class LatestAlerts(APIView):
 
     def get(self, request):
-        response = {'alerts':[]}
+        response = {}
         alerts = Alert.objects.all().order_by('-created_at')
         if alerts.count() > 5:
             alerts = alerts[-5:0]
-        [response['alerts'].append(alert.as_dict()) for alert in alerts]
+        serializer = AlertSerializer(alerts, many=True)
+        response['alerts'] = serializer.data
         response['news'] = Alert.objects.filter(last_seen_at__isnull=True).count()
         return Response(response)
 
