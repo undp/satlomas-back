@@ -110,11 +110,12 @@ class AvailablePeriods(APIView):
     @method_decorator(cache_page(60 * 60 * 2))  # 2 hours
     @method_decorator(vary_on_cookie)
     def get(self, request):
-        masks = Mask.objects.all().order_by('period__date_from')
+        masks = Mask.objects.all().order_by('period__date_to')
         if masks.count() > 0:
             periods = [m.period for m in masks]
-            periods = sorted(
-                list(set([(p.id, p.date_from, p.date_to) for p in periods])))
+            periods = sorted(list(
+                set([(p.id, p.date_from, p.date_to) for p in periods])),
+                             key=lambda x: x[2])
             periods = [
                 dict(id=id, date_from=date_from, date_to=date_to)
                 for id, date_from, date_to in periods
