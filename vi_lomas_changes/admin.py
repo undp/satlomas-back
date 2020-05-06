@@ -10,11 +10,13 @@ class PeriodAdmin(admin.ModelAdmin):
         'date_to',
     )
     date_hierarchy = 'date_from'
+    ordering = ('-date_from', '-date_to')
 
 
 class MaskAdmin(LeafletGeoAdmin):
     list_display = ['period', 'mask_type', 'created_at', 'updated_at']
     date_hierarchy = 'created_at'
+    ordering = ('-created_at', )
 
 
 class CoverageMeasurementAdmin(admin.ModelAdmin):
@@ -26,6 +28,7 @@ class CoverageMeasurementAdmin(admin.ModelAdmin):
         'perc_area_100',
     ]
     date_hierarchy = 'created_at'
+    ordering = ('-created_at', )
 
 
 admin.site.register(Raster)
