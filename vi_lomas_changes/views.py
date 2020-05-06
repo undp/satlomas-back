@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from scopes.models import Scope
 
 from .models import Mask, Period, Raster
-from .renderers import BinaryFileRenderer
+from geolomas.renderers import BinaryFileRenderer
 from .serializers import RasterSerializer
 
 
