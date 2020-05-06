@@ -11,5 +11,7 @@ router.register(r'scope-type-rules', views.ScopeTypeRuleViewSet)
 router.register(r'', views.AlertViewSet)
 
 urlpatterns = [
+    url(r'^latest', views.LatestAlerts.as_view()),
+    url(r'^seen', views.SeenAlerts.as_view()),
     url(r'^', include(router.urls)),
 ]
