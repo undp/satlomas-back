@@ -3,14 +3,17 @@ import os
 import sys
 
 import geopandas as gpd
+import numpy as np
+import rasterio
 import shapely.wkt
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.files import File
 from django.db import DatabaseError, connection, transaction
 from shapely.ops import unary_union
 
-from lomas_changes.models import CoverageMeasurement, Mask
+from lomas_changes.models import CoverageMeasurement, Mask, Raster
 from scopes.models import Scope
 
 # Configure logger
@@ -23,12 +26,49 @@ logger.setLevel(logging.INFO)
 
 DATA_DIR = os.path.join(settings.BASE_DIR, 'data', 'lomas_changes')
 MASK_DIR = os.path.join(DATA_DIR, 'mask')
+RGB_DIR = os.path.join(DATA_DIR, 'rgb')
 
 
 def load_data(period):
     #post_process(period)
+    create_mask_rgb_raster(period)
     create_masks(period)
     generate_measurements(period)
+
+
+def create_mask_rgb_raster(period):
+    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+                                      dto=period.date_to.strftime("%Y%m"))
+
+    logger.info("Build RGB loss mask raster")
+    src_path = os.path.join(MASK_DIR, period_s, 'cover.tif')
+    dst_path = os.path.join(RGB_DIR, period_s, 'loss.tif')
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    write_loss_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
+
+    raster, _ = Raster.objects.update_or_create(
+        period=period, slug="loss", defaults=dict(name="Loss mask"))
+    with open(dst_path, 'rb') as f:
+        if raster.file:
+            raster.file.delete()
+        raster.file.save(f'loss.tif', File(f))
+
+
+def write_loss_mask_rgb_raster(src_path, dst_path):
+    with rasterio.open(src_path) as src:
+        img = src.read(1)
+        profile = src.profile.copy()
+
+    colormap = ['149c00']
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    profile.update(count=3, dtype=np.uint8)
+    with rasterio.open(dst_path, 'w', **profile) as dst:
+        for i in range(new_img.shape[2]):
+            dst.write(new_img[:, :, i], i + 1)
 
 
 def create_masks(period):
@@ -92,3 +132,8 @@ def generate_measurements(period):
             logger.info(
                 f"An error occurred! Skipping measurement for scope {scope.id}..."
             )
+
+
+def hex_to_dec_string(value):
+    return np.array([int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]],
+                    np.uint8)
