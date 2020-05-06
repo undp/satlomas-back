@@ -162,6 +162,19 @@ class Alert(models.Model):
         return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'
 
 
+    def as_dict(self):
+        return dict(
+            id=self.id,
+            user_id=self.user_id,
+            rule_content_type_id=self.rule_content_type_id,
+            rule_id=self.rule_id,
+            rule_attributes=self.rule_attributes,
+            measurement_content_type_id=self.measurement_content_type_id,
+            measurement_id=self.measurement_id,
+            last_seen_at=self.last_seen_at,
+            created_at=self.created_at
+        )
+
 auditlog.register(ScopeTypeRule)
 auditlog.register(ScopeRule)
 auditlog.register(ParameterRule)

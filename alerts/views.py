@@ -75,21 +75,16 @@ class AlertViewSet(viewsets.ModelViewSet):
             user=self.request.user).order_by('-created_at')
 
 
+class LatestAlerts(APIView):
 
-class LatestAlerts(mixins.ListModelMixin, viewsets.GenericViewSet):
-    queryset = Alert.objects.all().order_by('-created_at')
-    serializer_class = AlertSerializer
-
-    def get_queryset(self):
-        qs = Alert.objects.all().order_by('-created_at')
-        if qs.count() > 5:
-            qs = qs[-5:0]
-        return qs
-
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, args, kwargs)
-        response.data['news'] = Alert.objects.filter(last_seen_at__isnull=True).count()
-        return response
+    def get(self, request):
+        response = {'alerts':[]}
+        alerts = Alert.objects.all().order_by('-created_at')
+        if alerts.count() > 5:
+            alerts = alerts[-5:0]
+        [response['alerts'].append(alert.as_dict()) for alert in alerts]
+        response['news'] = Alert.objects.filter(last_seen_at__isnull=True).count()
+        return Response(response)
 
 
 class SeenAlerts(APIView):

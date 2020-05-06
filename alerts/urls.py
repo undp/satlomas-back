@@ -9,9 +9,9 @@ router.register(r'parameter-rules', views.ParameterRuleViewSet)
 router.register(r'scope-rules', views.ScopeRuleViewSet)
 router.register(r'scope-type-rules', views.ScopeTypeRuleViewSet)
 router.register(r'', views.AlertViewSet)
-router.register(r'latest', views.LatestAlerts)
 
 urlpatterns = [
+    url(r'^latest', views.LatestAlerts.as_view()),
     url(r'^seen', views.SeenAlerts.as_view()),
     url(r'^', include(router.urls)),
 ]
