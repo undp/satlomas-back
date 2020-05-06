@@ -10,3 +10,4 @@ class RasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Raster
         exclude = ('id', )
+        ref_name = 'LomasChangesRaster'
