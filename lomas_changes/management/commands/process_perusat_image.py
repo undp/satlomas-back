@@ -17,6 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         date = options['date'].date()
+        product_id = options['product_id']
 
         period, _ = Period.objects.get_or_create(date_from=date, date_to=date)
-        load_data(period)
+        load_data(period, product_id)
