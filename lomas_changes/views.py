@@ -118,9 +118,9 @@ class AvailablePeriods(APIView):
     def get(self, request):
         masks = Mask.objects.all().order_by('period__date_to')
 
-        types = request.query_params.get('type', '').split(',')
+        types = request.query_params.get('type', None)
         if types:
-            masks = masks.filter(mask_type__in=types)
+            masks = masks.filter(mask_type__in=types.split(','))
 
         if masks.count() > 0:
             periods = [m.period for m in masks]
