@@ -13,5 +13,6 @@ router.register(r'', views.AlertViewSet)
 urlpatterns = [
     url(r'^latest', views.LatestAlerts.as_view()),
     url(r'^seen', views.SeenAlerts.as_view()),
+    url(r'^profile/(?P<username>[^/]+)$', views.UserProfileView.as_view()),
     url(r'^', include(router.urls)),
 ]

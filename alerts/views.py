@@ -1,13 +1,27 @@
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.shortcuts import render
-from rest_framework import generics, mixins, status, viewsets
+from rest_framework import generics, mixins, status, viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from alerts.permissions import UserProfilePermission
 
-from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
+from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 from alerts.serializers import (AlertSerializer, ParameterRuleSerializer,
-                                ScopeRuleSerializer, ScopeTypeRuleSerializer)
+                                ScopeRuleSerializer, ScopeTypeRuleSerializer, UserProfileSerializer)
+
+
+
+class UserProfileViewSet(mixins.UpdateModelMixin, mixins.RetrieveModelMixin,
+                         viewsets.GenericViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileSerializer
+    permission_classes = (
+        permissions.IsAuthenticated,
+        UserProfilePermission,
+    )
+    lookup_field = 'user__username'
+
 
 
 class ParameterRuleViewSet(viewsets.ModelViewSet):
@@ -97,3 +111,22 @@ class SeenAlerts(APIView):
             alert.save()
         return Response({}, status=status.HTTP_204_NO_CONTENT)
 
+
+class UserProfileView(APIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def get(self, request, username):
+        profile = UserProfile.objects.filter(user__username=username).first()
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+
+    def put(self, request, username):
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(str(e))
+            return Response({}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

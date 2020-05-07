@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 
-from .models import Alert, AlertCheck, ParameterRule, ScopeRule, ScopeTypeRule
+from .models import Alert, AlertCheck, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 
 
 class FilterUserAdmin(admin.ModelAdmin):
@@ -77,8 +77,13 @@ class AlertCheckAdmin(admin.ModelAdmin):
     list_display = ('created_at', )
 
 
+class UserProfileAdmin(admin.ModelAdmin):
+    fields = ('user', 'email_alerts')
+    exclude = ('created_at', 'updated_at')
+
 admin.site.register(ParameterRule, ParameterRuleAdmin)
 admin.site.register(ScopeRule, ScopeRuleAdmin)
 admin.site.register(ScopeTypeRule, ScopeTypeRuleAdmin)
 admin.site.register(Alert, AlertAdmin)
 admin.site.register(AlertCheck, AlertCheckAdmin)
+admin.site.register(UserProfile, UserProfileAdmin)

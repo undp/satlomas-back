@@ -162,7 +162,17 @@ class Alert(models.Model):
         return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'
 
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    email_alerts = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 auditlog.register(ScopeTypeRule)
 auditlog.register(ScopeRule)
 auditlog.register(ParameterRule)
 auditlog.register(Alert, include_fields=['last_seen'])
+auditlog.register(UserProfile)

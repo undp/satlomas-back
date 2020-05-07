@@ -90,7 +90,9 @@ ROOT_URLCONF = 'geolomas.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -99,8 +101,11 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            'libraries': {
+                'global_settings': 'geolomas.templatetags.global_settings',
+            }
         },
-    },
+    },  
 ]
 
 WSGI_APPLICATION = 'geolomas.wsgi.application'
@@ -230,3 +235,13 @@ CACHES = {
 
 TILE_SERVER_URL = os.getenv('TILE_SERVER_URL',
                             'http://localhost:8000/media/tiles/')
+
+REST_AUTH_SERIALIZERS = {
+    'PASSWORD_RESET_SERIALIZER': 'geolomas.serializers.PasswordResetSerializer'
+}
+
+CONTACT_EMAIL = 'contact@dymaxionlabs.com'
+COMPANY_NAME = 'Dymaxion Labs'
+LIST_ADDRESS_HTML = 'Maipú 812 10E, Ciudad de Buenos Aires, Argentina (C1006ACL)'
+
+WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
