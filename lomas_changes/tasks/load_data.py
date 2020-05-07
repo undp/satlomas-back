@@ -59,13 +59,13 @@ def write_loss_mask_rgb_raster(src_path, dst_path):
         img = src.read(1)
         profile = src.profile.copy()
 
-    colormap = ['149c00']
+    colormap = ['ff0000']
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    profile.update(count=3, dtype=np.uint8)
+    profile.update(count=3, dtype=np.uint8, nodata=0)
     with rasterio.open(dst_path, 'w', **profile) as dst:
         for i in range(new_img.shape[2]):
             dst.write(new_img[:, :, i], i + 1)
