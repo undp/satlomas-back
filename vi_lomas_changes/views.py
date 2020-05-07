@@ -9,6 +9,9 @@ from django.db import connection
 from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
@@ -73,18 +76,24 @@ def select_mask_areas_by_geom(**params):
 class TimeSeries(APIView):
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-        data = request.data
+    @method_decorator(cache_page(60 * 60 * 24))  # 1 day
+    @method_decorator(vary_on_cookie)
+    def get(self, request):
+        params = request.query_params
+        data = {
+            k: params.get(k)
+            for k in ('scope', 'geom', 'date_from', 'date_to') if k in params
+        }
 
-        scope_id = int(data['scope_id']) if 'scope_id' in data else None
+        scope_id = int(data['scope']) if 'scope' in data else None
         custom_geom = data['geom'] if 'geom' in data else None
 
         if scope_id is None and custom_geom is None:
             raise APIException(
-                "Either 'scope_id' or 'geom' parameters are missing")
+                "Either 'scope' or 'geom' parameters are missing")
 
-        date_from = datetime.strptime(data['from_date'], "%Y-%m-%d")
-        date_to = datetime.strptime(data['end_date'], "%Y-%m-%d")
+        date_from = datetime.strptime(data['date_from'], "%Y-%m-%d")
+        date_to = datetime.strptime(data['date_to'], "%Y-%m-%d")
 
         values = []
         if custom_geom:
@@ -103,12 +112,15 @@ class TimeSeries(APIView):
 class AvailablePeriods(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @method_decorator(cache_page(60 * 60 * 2))  # 2 hours
+    @method_decorator(vary_on_cookie)
     def get(self, request):
-        masks = Mask.objects.all().order_by('period__date_from')
+        masks = Mask.objects.all().order_by('period__date_to')
         if masks.count() > 0:
             periods = [m.period for m in masks]
-            periods = sorted(
-                list(set([(p.id, p.date_from, p.date_to) for p in periods])))
+            periods = sorted(list(
+                set([(p.id, p.date_from, p.date_to) for p in periods])),
+                             key=lambda x: x[2])
             periods = [
                 dict(id=id, date_from=date_from, date_to=date_to)
                 for id, date_from, date_to in periods

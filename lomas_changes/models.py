@@ -1,5 +1,4 @@
-import uuid
-
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -13,6 +12,9 @@ def raster_path(instance, filename):
 class Period(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
+
+    class Meta:
+        unique_together = (('date_from', 'date_to'), )
 
     def __str__(self):
         return '{} - {}'.format(self.date_from, self.date_to)
@@ -36,7 +38,7 @@ class Raster(models.Model):
         return f'{self.period} {self.name}'
 
     def tiles_url(self):
-        return f'{settings.TILE_SERVER_URL}/{self.path}/' + '/{z}/{x}/{y}.png'
+        return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
 
     def path(self):
         date_from = self.period.date_from.strftime('%Y%m%d')
@@ -62,17 +64,6 @@ class Mask(models.Model):
         return f'{self.period} {self.mask_type}'
 
 
-class ChangesMask(models.Model):
-    period = models.ForeignKey(Period, on_delete=models.PROTECT)
-    mask = models.OneToOneField(Mask, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (('period', 'mask'), )
-
-    def __str__(self):
-        return f'ChangeMask: {self.mask}'
-
-
 class CoverageMeasurement(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
@@ -80,11 +71,8 @@ class CoverageMeasurement(models.Model):
                               related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
                               null=True)
-    changes_mask = models.ForeignKey(ChangesMask,
-                                     on_delete=models.SET_NULL,
-                                     null=True)
-    change_area = models.FloatField()
-    perc_change_area = models.FloatField()
+    area = models.FloatField()
+    perc_area = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -92,9 +80,15 @@ class CoverageMeasurement(models.Model):
         unique_together = ['date_from', 'date_to', 'scope']
 
     def __str__(self):
-        return '{dfrom}-{dto} :: {scope} :: {value} ({perc}%)'.format(
+        return '{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)'.format(
             dfrom=self.date_from,
             dto=self.date_to,
-            scope=self.scope.name,
-            value=self.change_area,
-            perc=self.perc_change_area)
+            scope=self.scope and self.scope.name,
+            area=self.area_km2(),
+            perc_area=self.perc_area_100())
+
+    def area_km2(self):
+        return round(self.area / 1000000, 2)
+
+    def perc_area_100(self):
+        return round(self.perc_area * 100, 2)

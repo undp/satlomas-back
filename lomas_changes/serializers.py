@@ -11,8 +11,11 @@ class PeriodSerializer(serializers.ModelSerializer):
 class RasterSerializer(serializers.ModelSerializer):
     tiles_url = serializers.ReadOnlyField()
     extent_geom = serializers.ReadOnlyField()
+
     period = PeriodSerializer()
 
     class Meta:
         model = Raster
         fields = '__all__'
+        ref_name = 'LomasChangesRaster'
+

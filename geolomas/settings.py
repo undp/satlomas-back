@@ -221,4 +221,12 @@ NOTEBOOK_ARGUMENTS = ['--ip', '0.0.0.0', '--port', '8888']
 DEFAULT_FILE_STORAGE = os.getenv(
     'DEFAULT_FILE_STORAGE', 'django.core.files.storage.FileSystemStorage')
 
-TILE_SERVER_URL = os.getenv('TILE_SERVER_URL', 'http://localhost:8000/media/')
+CACHES = {
+    'default': {
+        'BACKEND': 'redis_cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_CACHE_URL', 'redis://localhost:6379/1'),
+    }
+}
+
+TILE_SERVER_URL = os.getenv('TILE_SERVER_URL',
+                            'http://localhost:8000/media/tiles/')

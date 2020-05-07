@@ -17,3 +17,4 @@ class RasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Raster
         fields = '__all__'
+        ref_name = 'VILomasChangesRaster'

@@ -1,16 +1,12 @@
 from django.contrib import admin
+from leaflet.admin import LeafletGeoAdmin
 
-from .models import CoverageMeasurement, Period, Raster
+from .models import CoverageMeasurement, Mask, Period, Raster
 
 
-class CoverageMeasurementAdmin(admin.ModelAdmin):
-    list_display = [
-        'date_from',
-        'date_to',
-        'scope',
-        'change_area',
-        'perc_change_area',
-    ]
+class RasterAdmin(admin.ModelAdmin):
+    date_hierarchy = 'period__date_to'
+    ordering = ('-period__date_from', '-period__date_to')
 
 
 class PeriodAdmin(admin.ModelAdmin):
@@ -18,10 +14,30 @@ class PeriodAdmin(admin.ModelAdmin):
         'date_from',
         'date_to',
     )
-    date_hierarchy = 'date_from'
+    date_hierarchy = 'date_to'
+    ordering = ('-date_from', '-date_to')
 
 
-admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)
-admin.site.register(Raster)
+class MaskAdmin(LeafletGeoAdmin):
+    list_display = ['period', 'mask_type', 'created_at', 'updated_at']
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at', )
+
+
+class CoverageMeasurementAdmin(admin.ModelAdmin):
+    list_display = [
+        'date_from',
+        'date_to',
+        'scope',
+        'area_km2',
+        'perc_area_100',
+    ]
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at', )
+
+
+admin.site.register(Raster, RasterAdmin)
 admin.site.register(Period, PeriodAdmin)
+admin.site.register(Mask, MaskAdmin)
+admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)
 

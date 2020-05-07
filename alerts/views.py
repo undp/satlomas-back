@@ -1,7 +1,9 @@
+from datetime import datetime
 from django.contrib.auth.models import User
 from django.shortcuts import render
-from rest_framework import status, viewsets
+from rest_framework import generics, mixins, status, viewsets
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
 from alerts.serializers import (AlertSerializer, ParameterRuleSerializer,
@@ -71,3 +73,27 @@ class AlertViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Alert.objects.filter(
             user=self.request.user).order_by('-created_at')
+
+
+class LatestAlerts(APIView):
+
+    def get(self, request):
+        response = {}
+        alerts = Alert.objects.all().order_by('-created_at')
+        if alerts.count() > 5:
+            alerts = alerts[-5:0]
+        serializer = AlertSerializer(alerts, many=True)
+        response['alerts'] = serializer.data
+        response['news'] = Alert.objects.filter(last_seen_at__isnull=True).count()
+        return Response(response)
+
+
+class SeenAlerts(APIView):
+
+    def post(self, request):
+        alerts = Alert.objects.filter(last_seen_at__isnull=True)
+        for alert in alerts:
+            alert.last_seen_at = datetime.now()
+            alert.save()
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
+

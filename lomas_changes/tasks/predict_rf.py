@@ -13,7 +13,7 @@ MODEL_PATH = os.path.join(settings.BASE_DIR, 'data', 'rf_model.yaml')
 SRTM_DEM_PATH = os.path.join(settings.BASE_DIR, 'data', 'srtm_dem.tif')
 
 
-def predict_rf(period):
+def predict(period):
     date_from = period.date_from
     date_to = period.date_to
     period = "{}{}_{}{}".format(date_from.year, date_from.month, date_to.year,
@@ -98,4 +98,3 @@ def classify_image():
                 input=os.path.join(RESULTS_DIR, 'features.tif'),
                 model=MODEL_PATH,
                 out=os.path.join(RESULTS_DIR, 'cover.tif')))
-
