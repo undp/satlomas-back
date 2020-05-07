@@ -34,7 +34,7 @@ def load_data(period, product_id):
 def load_raster(period, product_id):
     logger.info(f"Load {product_id} raster")
     Raster.objects.update_or_create(period=period,
-                                    slug=product_id,
+                                    slug='ps1',
                                     defaults=dict(name=product_id))
 
 
