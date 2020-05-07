@@ -103,7 +103,7 @@ class LatestAlerts(APIView):
         response = {}
         alerts = Alert.objects.filter(user=self.request.user).order_by('-created_at')
         if alerts.count() > 5:
-            alerts = alerts[-5:0]
+            alerts = alerts[:5]
         serializer = AlertSerializer(alerts, many=True)
         response['alerts'] = serializer.data
         response['news'] = Alert.objects.filter(user=self.request.user, 
