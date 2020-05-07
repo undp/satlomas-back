@@ -71,9 +71,6 @@ class Object(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together = (('period', 'object_type'), )
-
     def __str__(self):
         return f'{self.period} {self.object_type}'
 
