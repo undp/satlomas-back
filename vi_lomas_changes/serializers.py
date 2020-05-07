@@ -7,6 +7,7 @@ class PeriodSerializer(serializers.ModelSerializer):
     class Meta:
         model = Period
         exclude = ('id', )
+        ref_name = 'VILomasChangesPeriod'
 
 
 class RasterSerializer(serializers.ModelSerializer):
