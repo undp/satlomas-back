@@ -40,3 +40,4 @@ admin.site.register(Raster, RasterAdmin)
 admin.site.register(Period, PeriodAdmin)
 admin.site.register(Mask, MaskAdmin)
 admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)
+
