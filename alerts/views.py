@@ -4,11 +4,12 @@ from django.shortcuts import render
 from rest_framework import generics, mixins, status, viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from alerts.permissions import UserProfilePermission
+from alerts.permissions import UserProfilePermission, UserPermission
 
 from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 from alerts.serializers import (AlertSerializer, ParameterRuleSerializer,
-                                ScopeRuleSerializer, ScopeTypeRuleSerializer, UserProfileSerializer)
+                                ScopeRuleSerializer, ScopeTypeRuleSerializer, 
+                                UserSerializer, UserProfileSerializer)
 
 
 
@@ -22,7 +23,14 @@ class UserProfileViewSet(mixins.UpdateModelMixin, mixins.RetrieveModelMixin,
     )
     lookup_field = 'user__username'
 
-
+class UserViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (
+        permissions.IsAuthenticated,
+        UserPermission,
+    )
+    lookup_field = 'username'
 
 class ParameterRuleViewSet(viewsets.ModelViewSet):
     queryset = ParameterRule.objects.all().order_by('-created_at')
@@ -110,23 +118,3 @@ class SeenAlerts(APIView):
             alert.last_seen_at = datetime.now()
             alert.save()
         return Response({}, status=status.HTTP_204_NO_CONTENT)
-
-
-class UserProfileView(APIView):
-    serializer_class = UserProfileSerializer
-    permission_classes = (permissions.IsAuthenticated, )
-
-    def get(self, request, username):
-        profile = UserProfile.objects.filter(user__username=username).first()
-        serializer = UserProfileSerializer(profile)
-        return Response(serializer.data)
-
-    def put(self, request, username):
-        try:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response({}, status=status.HTTP_200_OK)
-        except Exception as e:
-            print(str(e))
-            return Response({}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
