@@ -64,6 +64,20 @@ class Mask(models.Model):
         return f'{self.period} {self.mask_type}'
 
 
+class Object(models.Model):
+    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    object_type = models.CharField(max_length=8, blank=True, null=True)
+    geom = models.PolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (('period', 'object_type'), )
+
+    def __str__(self):
+        return f'{self.period} {self.object_type}'
+
+
 class CoverageMeasurement(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
