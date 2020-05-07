@@ -1,10 +1,11 @@
 import mimetypes
 import os
-import pandas as pd
-import shapely.wkt
 import shutil
 import tempfile
 from datetime import datetime, timedelta
+
+import pandas as pd
+import shapely.wkt
 from django.db import connection
 from django.db.models import Q
 from django.http import FileResponse
@@ -12,14 +13,16 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
-from geolomas.renderers import BinaryFileRenderer
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Mask, Period, Raster
-from .serializers import RasterSerializer
+
+from geolomas.renderers import BinaryFileRenderer
 from scopes.models import Scope
+
+from .models import Mask, Period, Raster
+from .serializers import MaskSerializer, RasterSerializer
 
 
 def intersection_area_sql(scope_geom, period):
@@ -114,6 +117,11 @@ class AvailablePeriods(APIView):
     @method_decorator(vary_on_cookie)
     def get(self, request):
         masks = Mask.objects.all().order_by('period__date_to')
+
+        types = request.query_params.get('type', '').split(',')
+        if types:
+            masks = masks.filter(mask_type__in=types)
+
         if masks.count() > 0:
             periods = [m.period for m in masks]
             periods = sorted(list(
@@ -145,6 +153,28 @@ class RasterViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(
                 Q(period__date_from=date_from)
                 | Q(period__date_to=date_to))
+        slug = self.request.query_params.get('slug', None)
+        if slug:
+            queryset = queryset.filter(slug=slug)
+        return queryset
+
+
+class MaskViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Mask.objects.all().order_by('-created_at')
+    serializer_class = MaskSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        date_from = self.request.query_params.get('from', None)
+        date_to = self.request.query_params.get('to', None)
+        if date_from is not None and date_to is not None:
+            queryset = queryset.filter(
+                Q(period__date_from=date_from)
+                | Q(period__date_to=date_to))
+        typeid = self.request.query_params.get('type', None)
+        if typeid:
+            queryset = queryset.filter(mask_type=typeid)
         return queryset
 
 
@@ -172,9 +202,11 @@ class RasterDownloadView(APIView):
             # Monkey patch .close method so that file is removed after closing it
             # i.e. when response finishes
             original_close = stream_file.close
+
             def new_close():
                 original_close()
                 os.remove(tmp.name)
+
             stream_file.close = new_close
 
             return FileResponse(stream_file,
@@ -184,4 +216,3 @@ class RasterDownloadView(APIView):
             # Make sure to remove temp file
             os.remove(tmp.name)
             raise APIException(err)
-
