@@ -113,8 +113,6 @@ class TimeSeries(APIView):
 class AvailablePeriods(APIView):
     permission_classes = [permissions.AllowAny]
 
-    @method_decorator(cache_page(60 * 60 * 2))  # 2 hours
-    @method_decorator(vary_on_cookie)
     def get(self, request):
         masks = Mask.objects.all().order_by('period__date_to')
 
