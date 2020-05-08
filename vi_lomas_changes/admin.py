@@ -5,6 +5,7 @@ from .models import CoverageMeasurement, Mask, Period, Raster
 
 
 class RasterAdmin(admin.ModelAdmin):
+    list_display = ('slug', 'period', 'name', 'tiles_url')
     date_hierarchy = 'period__date_to'
     ordering = ('-period__date_from', '-period__date_to')
 
