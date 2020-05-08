@@ -244,3 +244,7 @@ sudo apt-get install certbot python-certbot-nginx
 ```sh
 sudo certbot --nginx
 ```
+
+## License
+
+See [LICENSE.txt](LICENSE.txt)
