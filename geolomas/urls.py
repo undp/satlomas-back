@@ -25,7 +25,7 @@ from rest_framework.routers import SimpleRouter
 
 schema_view = get_schema_view(
     openapi.Info(
-        title='GeoLomas API',
+        title='SatLomas API',
         default_version='v1',
         description='This is the description of the API',
         terms_of_service='[add link to tos]',

@@ -1,6 +1,6 @@
-# GeoLomas backend
+# SatLomas backend
 
-This is the repository for GeoLomas platform backend, which contains the REST
+This is the repository for SatLomas platform backend, which contains the REST
 API and background jobs.
 
 
