@@ -113,6 +113,17 @@ WSGI_APPLICATION = 'geolomas.wsgi.application'
 # Allow all domains
 CORS_ORIGIN_ALLOW_ALL = True
 
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'User token': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    }
+}
+
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
