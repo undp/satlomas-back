@@ -25,3 +25,4 @@ COPY docker/back/wait-for-postgres.sh \
   /usr/local/bin/
 
 EXPOSE 8000
+EXPOSE 25

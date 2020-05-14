@@ -2,7 +2,8 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 from rest_framework.fields import Field
 
-from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule
+from django.contrib.auth.models import User
+from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 from stations.serializers import StationSerializer
 
 from .models import COVERAGE_MEASUREMENT_MODELS, RULE_MODELS
@@ -19,6 +20,22 @@ class GenericRelatedField(Field):
 
     def to_representation(self, obj):
         return getattr(obj, self.related_field)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name')
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.SlugRelatedField(read_only=True,
+                                            source='user',
+                                            slug_field='username')
+
+    class Meta:
+        model = UserProfile
+        fields = ('email_alerts', 'username')
 
 
 class ParameterRuleSerializer(serializers.ModelSerializer):

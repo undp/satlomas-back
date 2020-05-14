@@ -8,6 +8,8 @@ router = SimpleRouter()
 router.register(r'parameter-rules', views.ParameterRuleViewSet)
 router.register(r'scope-rules', views.ScopeRuleViewSet)
 router.register(r'scope-type-rules', views.ScopeTypeRuleViewSet)
+router.register(r'user-profiles', views.UserProfileViewSet)
+router.register(r'users', views.UserViewSet)
 router.register(r'', views.AlertViewSet)
 
 urlpatterns = [
