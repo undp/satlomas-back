@@ -22,6 +22,22 @@ class GenericRelatedField(Field):
         return getattr(obj, self.related_field)
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name')
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.SlugRelatedField(read_only=True,
+                                            source='user',
+                                            slug_field='username')
+
+    class Meta:
+        model = UserProfile
+        fields = ('email_alerts', 'username')
+
+
 class ParameterRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParameterRule
@@ -58,18 +74,3 @@ class AlertSerializer(serializers.ModelSerializer):
             'user',
             'measurement_id',
         )
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name')
-
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    username = serializers.SlugRelatedField(read_only=True,
-                                            source='user',
-                                            slug_field='username')
-
-    class Meta:
-        model = UserProfile
-        fields = ('email_alerts', 'username')
