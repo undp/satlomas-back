@@ -78,8 +78,10 @@ class AlertCheckAdmin(admin.ModelAdmin):
 
 
 class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'email_alerts')
     fields = ('user', 'email_alerts')
     exclude = ('created_at', 'updated_at')
+
 
 admin.site.register(ParameterRule, ParameterRuleAdmin)
 admin.site.register(ScopeRule, ScopeRuleAdmin)
