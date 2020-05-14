@@ -98,22 +98,23 @@ class AlertViewSet(viewsets.ModelViewSet):
             user=self.request.user).order_by('-created_at')
 
 
-class LatestAlerts(APIView):
+class LatestView(APIView):
     def get(self, request):
         response = {}
-        alerts = Alert.objects.filter(user=self.request.user).order_by('-created_at')
+        alerts = Alert.objects.filter(
+            user=self.request.user).order_by('-created_at')
         if alerts.count() > 5:
             alerts = alerts[:5]
         serializer = AlertSerializer(alerts, many=True)
         response['alerts'] = serializer.data
-        response['news'] = Alert.objects.filter(user=self.request.user, 
-                                                last_seen_at__isnull=True).count()
+        response['news'] = Alert.objects.filter(
+            user=self.request.user, last_seen_at__isnull=True).count()
         return Response(response)
 
 
-class SeenAlerts(APIView):
-    def post(self, request):
-        alerts = Alert.objects.filter(user=self.request.user, 
+class MarkAsSeenView(APIView):
+    def put(self, request):
+        alerts = Alert.objects.filter(user=self.request.user,
                                       last_seen_at__isnull=True)
         for alert in alerts:
             alert.last_seen_at = datetime.now()
