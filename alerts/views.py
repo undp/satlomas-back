@@ -8,9 +8,8 @@ from alerts.permissions import UserProfilePermission, UserPermission
 
 from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 from alerts.serializers import (AlertSerializer, ParameterRuleSerializer,
-                                ScopeRuleSerializer, ScopeTypeRuleSerializer, 
+                                ScopeRuleSerializer, ScopeTypeRuleSerializer,
                                 UserSerializer, UserProfileSerializer)
-
 
 
 class UserProfileViewSet(mixins.UpdateModelMixin, mixins.RetrieveModelMixin,
@@ -23,6 +22,7 @@ class UserProfileViewSet(mixins.UpdateModelMixin, mixins.RetrieveModelMixin,
     )
     lookup_field = 'user__username'
 
+
 class UserViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -31,6 +31,7 @@ class UserViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
         UserPermission,
     )
     lookup_field = 'username'
+
 
 class ParameterRuleViewSet(viewsets.ModelViewSet):
     queryset = ParameterRule.objects.all().order_by('-created_at')
@@ -98,7 +99,6 @@ class AlertViewSet(viewsets.ModelViewSet):
 
 
 class LatestAlerts(APIView):
-
     def get(self, request):
         response = {}
         alerts = Alert.objects.all().order_by('-created_at')
@@ -106,12 +106,12 @@ class LatestAlerts(APIView):
             alerts = alerts[-5:0]
         serializer = AlertSerializer(alerts, many=True)
         response['alerts'] = serializer.data
-        response['news'] = Alert.objects.filter(last_seen_at__isnull=True).count()
+        response['news'] = Alert.objects.filter(
+            last_seen_at__isnull=True).count()
         return Response(response)
 
 
 class SeenAlerts(APIView):
-
     def post(self, request):
         alerts = Alert.objects.filter(last_seen_at__isnull=True)
         for alert in alerts:

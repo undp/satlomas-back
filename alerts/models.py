@@ -28,6 +28,13 @@ CHANGE_TYPES = [
 ]
 
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    email_alerts = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class ScopeTypeRule(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     scope_type = models.CharField(max_length=2, choices=Scope.SCOPE_TYPE)
@@ -160,15 +167,6 @@ class Alert(models.Model):
         r_type = self.rule_content_type
         m_type = self.measurement_content_type
         return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'
-
-
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-
-    email_alerts = models.BooleanField(default=False)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
 
 auditlog.register(ScopeTypeRule)
