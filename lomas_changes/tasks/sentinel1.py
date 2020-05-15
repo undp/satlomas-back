@@ -16,8 +16,7 @@ from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
 from lomas_changes.models import Raster
-from lomas_changes.utils import (get_raster_extent, run_subprocess,
-                                 sliding_windows, unzip, write_rgb_raster)
+from lomas_changes.utils import (run_subprocess, sliding_windows, unzip, write_rgb_raster)
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
@@ -361,11 +360,10 @@ def create_rgb_rasters(period):
                          bands=(1, 2, 3),
                          in_range=((-0.0235941, 0.49517),
                                    (-0.00107017, 0.062705), (0.0, 0.0)))
-    extent = get_raster_extent(dst_path)
     raster, _ = Raster.objects.update_or_create(
         period=period,
         slug="s1",
-        defaults=dict(name="Sentinel-1 (VV, VH, VV/VH)", extent_geom=extent))
+        defaults=dict(name="Sentinel-1 (VV, VH, VV/VH)"))
     with open(dst_path, 'rb') as f:
         raster.file.save(f's1.tif', File(f, name='s1.tif'))
 

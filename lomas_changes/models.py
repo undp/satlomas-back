@@ -26,7 +26,6 @@ class Raster(models.Model):
     file = models.FileField(upload_to=raster_path, blank=True, null=True)
     name = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
-    extent_geom = models.PolygonField(blank=True, null=True)
     extra_fields = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -44,10 +43,6 @@ class Raster(models.Model):
         date_from = self.period.date_from.strftime('%Y%m%d')
         date_to = self.period.date_to.strftime('%Y%m%d')
         return f'{self.slug}/{date_from}-{date_to}/'
-
-    def extent(self):
-        """ Get area extent """
-        return self.area_geom and self.area_geom.extent
 
 
 class Mask(models.Model):

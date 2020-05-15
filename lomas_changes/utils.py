@@ -59,7 +59,3 @@ def write_rgb_raster(bands=[], *, src_path, dst_path, in_range):
                 for i in range(3):
                     dst.write(new_img[:, :, i], i + 1, window=window)
 
-
-def get_raster_extent(path):
-    with rasterio.open(path) as src:
-        return GEOSGeometry(box(*src.bounds).wkt)
