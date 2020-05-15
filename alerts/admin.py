@@ -62,11 +62,8 @@ class ScopeTypeRuleAdmin(FilterUserAdmin):
 
 class AlertAdmin(FilterUserAdmin):
     list_display = [
-        'created_at',
-        'rule_content_type',
-        'rule',
-        'measurement_content_type',
-        'measurement',
+        'created_at', 'rule_content_type', 'rule', 'measurement_content_type',
+        'measurement', 'last_seen_at'
     ]
     exclude = ('user', )
     fields = list_display
