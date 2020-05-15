@@ -13,7 +13,7 @@ router.register(r'users', views.UserViewSet)
 router.register(r'', views.AlertViewSet)
 
 urlpatterns = [
-    url(r'^latest', views.LatestAlerts.as_view()),
-    url(r'^seen', views.SeenAlerts.as_view()),
+    url(r'^latest/?', views.LatestView.as_view()),
+    url(r'^mark-as-seen/?', views.MarkAsSeenView.as_view()),
     url(r'^', include(router.urls)),
 ]
