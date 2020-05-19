@@ -1,0 +1,64 @@
+{
+    "input_csv":"data/A620_temp.csv",
+    "output_log_file":"train_lstm_temp.log",
+    /* Aqui se guardaran los modelos resultantes */
+    "output_models_path":"models/",
+    /* Aqui se guardaran datos del entrenamiento */
+    "output_results_path":"results/",
+    /* Este valor indica cuantas muestras hacia atrás de la variable se usan para entrenar la red */
+    "n_past_steps":12,
+    "date_col":"date",
+    "hr_col":"hr",
+    /* 
+    Esto indica cual variable meteorológica queremos predecir. 
+    Algunos valores posibles son :
+        - temperature
+        - humidity
+        - wind_speed
+        - wind_direction
+        - pressure
+        - precipitation
+        - pm25
+     */
+    "numeric_var":"temperature",
+
+    "sensor_var":"inme",
+    /* Este es el nombre de la Station */
+    "target_sensor":"A620",
+    /* Cantidad de epochs sin mejoras en performance de validación a la cual no iteraremos más sobre el trainset */
+    "early_stop_patience":100,
+    /* Cuantas pasadas completas sobre el dataset haremos */
+    "epochs":1000,
+    "base_config":{
+    	"first_layer":{
+            "mult":2,
+            "dropout_rate":0.2,
+            "dropout_range":[0,1]
+        },
+    	"last_layer":{
+            "mult":2,
+            "dropout_rate":0.2,
+            "dropout_range":[0,1]
+        }
+    },
+    "mid_layers_config":{"n_layers":2,"mult":2,"dropout_rate":0.2,"dropout_range":[0,1]},
+    /* Configuraciónes a optimizar para encontrar la mejor arquitectura */
+    "hyperopt_pars":
+    {
+        /* Valures posibles para cantidad de capas intermedias */
+        "mid_layers":[2],
+        /* 
+        Valores posibles para multiplicador de neuronas de cada capa. 
+        Cada capa tendrá mult * cantidad_neuronas_capa_anterior neuronas 
+        */
+        "mults":[2],
+        /* Rango de valores posibles para el rate de cada capa Droput */
+        "dropout_rate_range":[0.1,0.3],
+        /* Cantidad de evaluaciones para hacer la hyperoptimización */
+        "max_evals":1
+    },
+    /* Cual será la medida a optimizar por la red */
+    "model_loss":"mean_absolute_error",
+    /* Cual será el algoritmo de optimización de los pesos a usar */
+    "optimizer":"adam"
+}

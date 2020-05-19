@@ -1,13 +1,13 @@
+from datetime import datetime, timedelta
+import ipdb
 import numpy as np
 import os
 import pandas as pd
 import pickle
 import sys
 import time
-import ipdb
 
-from datetime import datetime
-from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand, CommandError
@@ -36,17 +36,29 @@ from keras.models import load_model
 from sklearn.metrics import mean_absolute_error, r2_score
 
 
-# how to run this ? 
-# nohup python manage.py predict_lstm config_train_lstm_temp_server_A620_temprature.json 'models/esp:10_eps:200_loss:mean_squared_error_opt:adam_pstps:8_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-22_23:09:03.model' 24 60 >> predict_lstm_temp_A620.log 2>&1 &
+'''
+This command can be used to predict future values of a given meteorological variable for a given Station using a pre-trained model
+how to run this: 
+nohup python manage.py predict_lstm config_train_lstm_temp_server_A620_temprature.json 'models/esp:10_eps:200_loss:mean_squared_error_opt:adam_pstps:8_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-22_23:09:03.model' 24 60 >> predict_lstm_temp_A620.log 2>&1 &
+'''
 class Command(BaseCommand):
    
-    """
-    Write predictions to database considering the last datetime and the numeric atribute to update
-    """
-    def save_predictions(self,station_code,predictions,last_datetime,attribute,time_delta):
+    '''
+        Write predictions to database considering the last datetime and the numeric atribute to update
+    '''
+    def save_predictions(self,
+        station_code, # station to update
+        predictions, # set of predictions to use to save / update
+        last_datetime, # date time of the last measurement from where we want to predict
+        attribute, # which is the meteorological variable we are storing predictions for
+        time_delta # how long are our time steps
+        ):
+        # get the station to update predictions
         station = Station.objects.get(code = station_code)
         pred_datetime = None
+        # go over the predictions we previously made
         for predicted_value in predictions:
+            # init 0 value for everything
             attributes = dict(temperature=0,
                               humidity=0,
                               wind_speed=0,
@@ -54,20 +66,21 @@ class Command(BaseCommand):
                               pressure=0,
                               precipitation=0,
                               pm25=0)
-
+            # update the corresponding attribute with the prediction of the current step
             attributes[attribute]= np.float64(predicted_value[0][0])
-            
+            # build the prediction date_time adding the time delta
             if not pred_datetime:
                 pred_datetime = last_datetime + time_delta
             else: 
                 pred_datetime = pred_datetime + time_delta
-        
+            # date processing to acomodate the database restrictions
             dt = datetime.utcnow()
             ts = (pred_datetime - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
             dtime = datetime.utcfromtimestamp(ts)
            
             prediction = None
             try:
+                # get the prediction we currently have for that station and datetime
                 prediction = Prediction.objects.get(
                     datetime = dtime,
                     station = station
@@ -83,7 +96,7 @@ class Command(BaseCommand):
                 self.log_success('Prediction updated to {}'.format(prediction))
                 
             else:
-
+                # if there is no prediction, we create a new one with the attributes dictionary we initialized
                 prediction , created = Prediction.objects.get_or_create(
                     datetime = dtime,
                     station = station,
@@ -95,22 +108,19 @@ class Command(BaseCommand):
 
    
 
-    """
-    Read a time series from database
-    """
-    # TODO : we can try using this in the future https://pypi.org/project/django-pandas/
+    '''
+        Read a time series from database
+    '''
     def read_time_series_from_db(
             self,
-            sensor='A601',
-            date_col='date',
+            sensor='A601', # station code
+            date_col='date', 
             hr_col='hr',
             min_col='minute',
-            numeric_var='temperature',
-            sensor_var='inme',  # TODO : change this for station_code in all the script
-            last_n_steps=None  # TODO change this for a number of steps in past
+            numeric_var='temperature', # meteorological variable
+            sensor_var='inme',  
+            last_n_steps=None  
     ):
-        # get the station (sensor)
-        #station = Station.objects.get(code=sensor)
         # get all the measurements from this station for the last n steps
         measurements = Measurement.objects.filter(station=Station.objects.get(
             code=sensor).id).order_by('-datetime')[:last_n_steps]
@@ -124,7 +134,7 @@ class Command(BaseCommand):
             list(measurements.values('datetime', 'attributes')))
         self.log_success('Dataset from database of shape {}'.format(
             dataset.shape))
-        # parse datetime column to get sepearae date, hr and minute columns
+        # parse datetime column to get sepearate date, hr and minute columns
         dataset[date_col] = dataset.datetime.dt.date
         dataset[hr_col] = dataset.datetime.dt.hour
         dataset[min_col] = dataset.datetime.dt.minute
@@ -141,16 +151,19 @@ class Command(BaseCommand):
 
         return dataset
 
+    '''
+        Util logging function
+    '''
     def log_success(self, msg):
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def predict_lstm(self, script_config, model_package_name , future_steps, step_mins = 15):
-        """
+    '''
         Function to use a trained LSTM neural network to predict measurements
-        """
+    '''
+    def predict_lstm(self, script_config, model_package_name , future_steps, step_mins = 15):
+        
 
         # Read configuration data
-
         n_past_steps = script_config.n_past_steps
 
         self.log_success("using {} steps in the past".format(n_past_steps))
@@ -173,8 +186,7 @@ class Command(BaseCommand):
 
         self.log_success("Dataset of shape {} read".format(raw_dataset.shape))
 
-        # TODO : obtener tambien la columna minuto
-        # Obtener la variable de interes del dataset
+        # Get the variable of the interest meteorological measure
         time_series_dset = get_interest_variable(raw_dataset, sensor_var,
                                                  date_col, hr_col, numeric_var,
                                                  target_sensor)
@@ -182,6 +194,7 @@ class Command(BaseCommand):
             "Got time series dataset of shape {} with columns {}".format(
                 time_series_dset.shape, time_series_dset.columns))
         
+        # getting the values as array to build the datapoint
         datapoint = time_series_dset[numeric_var].values
 
         self.log_success("Got datapoint {}".format(datapoint))
@@ -191,30 +204,31 @@ class Command(BaseCommand):
         
         self.log_success('Using {} packaged model to test'.format(model_package_name))
         
-        # IS IT OK to scale here? predict_with_model does not scale so we should here
+        # read the package object with the pre-trained model, scaler and extra objects
         with open(model_package_name, 'rb') as file_pi:
             model_package = pickle.load(file_pi)
     
+        # get the actual scaler from the packaged object
         scaler = model_package['scaler']
 
         # ensure all data is float
         datapoint = datapoint.astype('float32')
         self.log_success("Got datapoint as float32 {}".format(datapoint))
-
+        # scale the datapoint
         datapoint_scaled = scaler.transform(datapoint.reshape(-1, 1))
         self.log_success("Got datapoint_scaled {}".format(datapoint_scaled))
         
         tic = time.time() 
-        #pred,mae = predict_with_model(datapoint,model_package_name,future_steps = future_steps)
+        # make the prediction for the future steps using the scaled datapoint
         pred,mae = predict_with_model(datapoint_scaled,model_package_name,future_steps = future_steps)
         prediction_time = time.time()-tic
         self.log_success('#{},{},prediction_time,{}'.format(model_package_name,future_steps,prediction_time))
 
-        # writing predictions
         time_delta = np.timedelta64(step_mins,'m')
         last_datetime = raw_dataset.tail(1).datetime.values[0] 
 
         tic = time.time()
+        # writing predictions to the DB
         self.save_predictions(target_sensor,pred,last_datetime,numeric_var,time_delta)
         save_time = time.time()-tic
         self.log_success('#{},{},save_time,{}'.format(model_package_name,future_steps,save_time))
@@ -226,8 +240,6 @@ class Command(BaseCommand):
     
     nohup python manage.py predict_lstm config_train_lstm_temp_server_A620_temprature.json 'models/esp:10_eps:200_loss:mean_squared_error_opt:adam_pstps:8_sensor:A620_var:temperature_basenet:4.4_midnet:4.2_hyperoptpars:[2][2][0.1, 0.3]1_model_hyperopt_package_2020-04-22_23:09:03.model' 24 60 >> predict_lstm_temp_A620.log 2>&1 &
     '''
-
-    #config_file = os.path.join(settings.CONFIG_DIR,'config_train_lstm_temp_server.json')
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -256,6 +268,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
+        # reading parameters
         self.config_file = os.path.join(settings.CONFIG_DIR,options['config_file'])
         self.log_success('Config file read from parameters {}'.format(self.config_file))
 
@@ -286,6 +299,6 @@ class Command(BaseCommand):
             self.log_success('Error trying to read step_mins parameter : {}'.format(e))
 
         self.log_success('Each step is  {} minutes'.format(step_mins))
-
+        # starting the predicction process
         self.predict_lstm(script_config,model_package_path,future_steps,step_mins)
 
