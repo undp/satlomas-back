@@ -160,6 +160,9 @@ class Alert(models.Model):
     measurement_id = models.PositiveIntegerField()
     measurement = GenericForeignKey('measurement_content_type',
                                     'measurement_id')
+
+    value = models.FloatField(null=True)
+
     last_seen_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
