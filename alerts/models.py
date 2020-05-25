@@ -43,6 +43,7 @@ class ScopeTypeRule(models.Model):
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
     change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
+    is_absolute = models.BooleanField(default=False)
     valid_min = models.FloatField(default=-5)
     valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -76,6 +77,7 @@ class ScopeRule(models.Model):
         on_delete=models.CASCADE,
         limit_choices_to=COVERAGE_MEASUREMENT_MODELS)
     change_type = models.CharField(max_length=1, choices=CHANGE_TYPES)
+    is_absolute = models.BooleanField(default=False)
     valid_min = models.FloatField(default=-5)
     valid_max = models.FloatField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
