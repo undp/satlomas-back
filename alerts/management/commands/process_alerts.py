@@ -111,12 +111,13 @@ class Command(BaseCommand):
                 value = m.attributes[rule.parameter] - prev_value
             if value < rule.valid_min or value > rule.valid_max:
                 print(value, rule.get_valid_range_display())
-                self.create_alert(measurement=m, rule=rule)
+                self.create_alert(measurement=m, rule=rule, value=value)
 
-    def create_alert(self, *, rule, measurement):
+    def create_alert(self, *, rule, measurement, value):
         alert = Alert.objects.create(user=rule.user,
                                      rule=rule,
-                                     measurement=measurement)
+                                     measurement=measurement,
+                                     value=value)
         self.log_success(f"New Alert: {alert}")
         return alert
 
