@@ -107,6 +107,7 @@ class AlertSerializer(serializers.ModelSerializer):
     measurement_content_type = GenericRelatedField(queryset=MEASUREMENT_MODELS,
                                                    related_field='app_label')
     measurement = GenericMeasurementSerializer()
+    rule_attributes = serializers.JSONField()
 
     class Meta:
         model = Alert
