@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Place, Station
+from .models import Place, Station, Measurement
 
 
 class PlaceSerializer(serializers.ModelSerializer):
@@ -14,6 +14,12 @@ class StationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Station
+        fields = '__all__'
+
+
+class MeasurementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Measurement
         fields = '__all__'
 
 

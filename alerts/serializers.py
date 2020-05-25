@@ -1,12 +1,19 @@
+import lomas_changes.models
+import lomas_changes.serializers
+import stations.models
+import stations.serializers
+import vi_lomas_changes.models
+import vi_lomas_changes.serializers
+from alerts.models import (Alert, ParameterRule, ScopeRule, ScopeTypeRule,
+                           UserProfile)
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 from rest_framework.fields import Field
-
-from django.contrib.auth.models import User
-from alerts.models import Alert, ParameterRule, ScopeRule, ScopeTypeRule, UserProfile
 from stations.serializers import StationSerializer
 
-from .models import COVERAGE_MEASUREMENT_MODELS, RULE_MODELS
+from .models import (COVERAGE_MEASUREMENT_MODELS, MEASUREMENT_MODELS,
+                     RULE_MODELS)
 
 
 class GenericRelatedField(Field):
@@ -62,15 +69,49 @@ class ScopeTypeRuleSerializer(serializers.ModelSerializer):
         exclude = ('user', )
 
 
+class GenericSerializer(serializers.BaseSerializer):
+    classes = []
+
+    def to_representation(self, instance):
+        for model_class, serializer_class in self.classes:
+            if isinstance(instance, model_class):
+                return serializer_class().to_representation(instance)
+
+    def to_internal_value(self, data):
+        raise ValueError("RuleSerializer is a read-only serializer")
+
+
+class GenericRuleSerializer(GenericSerializer):
+    classes = [
+        (ScopeTypeRule, ScopeTypeRuleSerializer),
+        (ScopeRule, ScopeRuleSerializer),
+        (ParameterRule, ParameterRuleSerializer),
+    ]
+
+
+class GenericMeasurementSerializer(GenericSerializer):
+    classes = [
+        (lomas_changes.models.CoverageMeasurement,
+         lomas_changes.serializers.CoverageMeasurementSerializer),
+        (vi_lomas_changes.models.CoverageMeasurement,
+         vi_lomas_changes.serializers.CoverageMeasurementSerializer),
+        (stations.models.Measurement,
+         stations.serializers.MeasurementSerializer),
+    ]
+
+
 class AlertSerializer(serializers.ModelSerializer):
     rule_content_type = GenericRelatedField(queryset=RULE_MODELS,
                                             related_field='model')
-    measurement_content_type = GenericRelatedField(
-        queryset=COVERAGE_MEASUREMENT_MODELS, related_field='app_label')
+    rule = GenericRuleSerializer()
+    measurement_content_type = GenericRelatedField(queryset=MEASUREMENT_MODELS,
+                                                   related_field='app_label')
+    measurement = GenericMeasurementSerializer()
 
     class Meta:
         model = Alert
         exclude = (
             'user',
+            'rule_id',
             'measurement_id',
         )

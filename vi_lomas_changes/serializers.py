@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Period, Raster
+from .models import CoverageMeasurement, Period, Raster
 
 
 class PeriodSerializer(serializers.ModelSerializer):
@@ -18,3 +18,10 @@ class RasterSerializer(serializers.ModelSerializer):
         model = Raster
         fields = '__all__'
         ref_name = 'VILomasChangesRaster'
+
+
+class CoverageMeasurementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoverageMeasurement
+        fields = '__all__'
+        ref_name = 'LomasChangesCoverageMeasurement'
