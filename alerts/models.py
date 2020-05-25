@@ -97,6 +97,7 @@ class ScopeRule(models.Model):
         return json.dumps(
             dict(scope_id=self.scope and self.scope.pk,
                  scope_name=self.scope and self.scope.name,
+                 scope_type=self.scope and self.scope.scope_type,
                  measurement_content_type_str=str(
                      self.measurement_content_type),
                  change_type=self.change_type,
