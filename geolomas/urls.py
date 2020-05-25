@@ -23,6 +23,10 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.routers import SimpleRouter
 
+admin.site.site_header = "SatLomas"
+admin.site.site_title = "Administrador de SatLomas"
+admin.site.index_title = "Bienvenido al Administrador de SatLomas"
+
 schema_view = get_schema_view(
     openapi.Info(
         title='SatLomas API',
