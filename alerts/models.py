@@ -172,7 +172,7 @@ class Alert(models.Model):
         # Get rule attributes before saving, for historical purposes
         # If related rule is modified in the future, original attributes are
         # preserved in this field.
-        self.rule_attributes = self.rule.serialize()
+        self.rule_attributes = json.loads(self.rule.serialize())
         super().save(*args, **kwargs)
 
 
