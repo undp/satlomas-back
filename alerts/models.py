@@ -168,6 +168,13 @@ class Alert(models.Model):
         m_type = self.measurement_content_type
         return f'{t} :: {r_type}.{self.rule} :: {m_type}.{self.measurement}'
 
+    def save(self, *args, **kwargs):
+        # Get rule attributes before saving, for historical purposes
+        # If related rule is modified in the future, original attributes are
+        # preserved in this field.
+        self.rule_attributes = self.rule.serialize()
+        super().save(*args, **kwargs)
+
 
 auditlog.register(ScopeTypeRule)
 auditlog.register(ScopeRule)

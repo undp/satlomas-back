@@ -116,8 +116,7 @@ class Command(BaseCommand):
     def create_alert(self, *, rule, measurement):
         alert = Alert.objects.create(user=rule.user,
                                      rule=rule,
-                                     measurement=measurement,
-                                     rule_attributes=rule.serialize())
+                                     measurement=measurement)
         self.log_success(f"New Alert: {alert}")
         return alert
 
