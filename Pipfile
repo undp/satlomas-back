@@ -38,6 +38,7 @@ sentinelsat = "*"
 sentry-sdk = "*"
 shapely = "*"
 django-redis-cache = "*"
+django-jsonfield = "*"
 
 [requires]
 python_version = "3"
