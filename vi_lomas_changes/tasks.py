@@ -311,7 +311,7 @@ def hex_to_dec_string(value):
 
 @write_rgb_raster
 def write_vegetation_range_rgb_raster(img):
-    colormap = ['440154', '31688e', '35b779', 'fde725']
+    colormap = ['1F6873', '1FA188', '70CF57', 'FDE725']
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
