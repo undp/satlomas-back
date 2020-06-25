@@ -14,12 +14,10 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Alert)
 def send_email(sender, instance, created, **kwargs):
-    print('send_email')
     profile = UserProfile.objects.get(user=instance.user)
     if profile.email_alerts == True:
-        print('llama a send_mail')
         send_mail('GeoLomas Notificaciones', 
-            'Notificación de prueba', 
+            instance.describe(), 
             'notifications@dymaxionlabs.com', 
             [instance.user.email]
         )

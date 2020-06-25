@@ -181,6 +181,51 @@ class Alert(models.Model):
         self.rule_attributes = json.loads(self.rule.serialize())
         super().save(*args, **kwargs)
 
+    def describe(self):
+        
+        value = self.value
+        if value > 0:
+            changeVerb = 'aumentó'
+            changeVerb2 = 'mayor'
+            threshValue = self.rule_attributes['valid_max']
+        else:
+            changeVerb = 'disminuyó'
+            changeVerb2 = 'menor'
+            threshValue = self.rule_attributes['valid_min']
+
+        if self.rule_content_type.name == "parameter rule":
+            parameterName = self.rule_attributes['parameter']
+            station_name = self.rule_attributes['station_name']
+            return f'El parámetro {parameterName} de la estación {station_name} {changeVerb} {abs(value)}, {changeVerb2} que el umbral {abs(threshValue)}.'
+        
+        elif self.rule_content_type.name == "scope type rule":
+            scopeType = self.rule_attributes['scope_type']
+            change_type = self.rule_attributes['change_type']
+            if change_type == "A":
+                return f'El área en todos los ámbitos de {scopeType} {changeVerb} {abs(value)} has, {changeVerb2} que el umbral de {abs(threshValue)} has.'
+            elif change_type == "P":
+                return f'El porcentaje de área en todos los ámbitos de {scopeType} {changeVerb} {abs(value)} has, {changeVerb2} que el umbral de {abs(threshValue)} has.'
+            else:
+                change_type = self.rule_attributes['change_type']
+                raise Exception(f'Unknown change type {change_type}.')
+        
+        elif self.rule_content_type.name == "scope rule":
+            scopeName = self.rule_attributes['scope_name']
+            scopeType = self.rule_attributes['scope_type']
+            change_type = self.rule_attributes['change_type']
+            if change_type == "A":
+                return f'El área del ámbito {scopeName} ({scopeType}) {changeVerb} {abs(value)} has, {changeVerb2} que el umbral de {abs(threshValue)} has.'
+            elif change_type == "P":
+                return f'El porcentaje de área del ámbito {scopeName} ({scopeType}) {changeVerb} {abs(value)} has, {changeVerb2} que el umbral de {abs(threshValue)} has.'
+            else:
+                change_type = self.rule_attributes['change_type']
+                raise Exception(f'Unknown change type {change_type}.')
+
+        else:
+            
+            raise Exception(f'Unknown rule content type {self.rule_content_type}.')
+
+
 
 auditlog.register(ScopeTypeRule)
 auditlog.register(ScopeRule)
