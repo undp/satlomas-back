@@ -251,8 +251,13 @@ REST_AUTH_SERIALIZERS = {
     'PASSWORD_RESET_SERIALIZER': 'geolomas.serializers.PasswordResetSerializer'
 }
 
-CONTACT_EMAIL = 'contact@dymaxionlabs.com'
+CONTACT_EMAIL = os.getenv('CONTACT_EMAIL')
 COMPANY_NAME = 'Dymaxion Labs'
 LIST_ADDRESS_HTML = 'Maipú 812 10E, Ciudad de Buenos Aires, Argentina (C1006ACL)'
 
 WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
+
+NOTIFICATIONS_EMAIL = os.getenv('NOTIFICATIONS_EMAIL')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND',
+                          'django.core.mail.backends.console.EmailBackend')
+
