@@ -109,6 +109,8 @@ class AlertSerializer(serializers.ModelSerializer):
     measurement = GenericMeasurementSerializer()
     rule_attributes = serializers.JSONField()
 
+    description = serializers.SerializerMethodField()
+
     class Meta:
         model = Alert
         exclude = (
@@ -116,3 +118,6 @@ class AlertSerializer(serializers.ModelSerializer):
             'rule_id',
             'measurement_id',
         )
+    
+    def get_description(self, obj):
+        return obj.describe()
