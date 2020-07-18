@@ -182,8 +182,10 @@ class Alert(models.Model):
         super().save(*args, **kwargs)
 
     def describe(self):
-        
         value = self.value
+        if value is None:
+            return ''
+
         if value > 0:
             changeVerb = 'aumentó'
             changeVerb2 = 'mayor'
