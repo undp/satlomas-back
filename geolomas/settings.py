@@ -199,7 +199,7 @@ REST_FRAMEWORK = {
 
 RQ_SHOW_ADMIN_LINK = True
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'media/'))
 MEDIA_URL = '/media/'
 
 JSON_EDITOR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/4.2.1/jsoneditor.js'
