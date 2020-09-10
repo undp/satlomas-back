@@ -22,6 +22,8 @@ client.on("connect", () => {
   let i = 1;
 
   setInterval(() => {
+    const now = new Date(Date.now());
+
     const data = {
       altitude: randFloat(70, 85, 2),
       ambient_temperature: randFloat(15, 25, 2),
@@ -32,11 +34,12 @@ client.on("connect", () => {
       PM4_0: randInt(20, 40),
       PM10_0: randInt(20, 40),
       relative_humidity: randFloat(0, 100, 2),
-      time: Date.now().toISOString(),
+      time: now.toISOString(),
       tip_count: randInt(0, 3000),
     };
 
-    const mqttPath = `/stations/${id % 3}`;
+    const mqttPath = `/stations/${i % 3}/`;
+    console.log(data);
     client.publish(mqttPath, JSON.stringify(data));
 
     i += 1;
