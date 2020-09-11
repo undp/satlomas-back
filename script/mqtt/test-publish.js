@@ -7,7 +7,7 @@ const mqtt = require("mqtt");
 const mqttUrl = process.env.MQTT_URL;
 
 const randFloat = (min, max, prec) => {
-  return (Math.random() * (max - min) + min).toFixed(prec);
+  return parseFloat((Math.random() * (max - min) + min).toFixed(prec));
 };
 
 const randInt = (min, max) => {
