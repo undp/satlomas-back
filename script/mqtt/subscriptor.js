@@ -2,11 +2,14 @@
 require("dotenv").config();
 
 const process = require("process");
+const fs = require("fs");
 const mqtt = require("mqtt");
 const { Client } = require("pg");
 
+// Environment variables
 const mqttUrl = process.env.MQTT_URL;
-const clientId = process.env.MQTT_CLIENT_ID || "satlomas-db";
+const clientId = process.env.MQTT_CLIENT_ID || "satlomas-sub";
+const logFile = process.env.MQTT_LOG_FILE || "measurements.log";
 
 if (!mqttUrl) {
   console.error(
@@ -14,6 +17,16 @@ if (!mqttUrl) {
   );
   process.exit(1);
 }
+
+const storeMeasurementAppendOnly = (body, path) => {
+  try {
+    var stream = fs.createWriteStream(path, { flags: "a" });
+    stream.write(JSON.stringify(body) + "\n");
+    stream.end();
+  } catch (err) {
+    console.error("Failed to save measurement to log file", err);
+  }
+};
 
 const pgClient = new Client();
 
@@ -27,15 +40,27 @@ const pgClient = new Client();
     process.exit();
   });
 
-  const insertMeasurement = async (id, attributes) => {
+  const getStationIdFromCode = async (id) => {
+    const query = "SELECT id from stations_station WHERE code = $1";
+    try {
+      const res = await pgClient.query(query, [id]);
+      return res.rows[0]["id"];
+    } catch (err) {
+      console.error("Failed to get ");
+      return null;
+    }
+  };
+
+  const insertMeasurement = async (attributes) => {
+    const stationId = await getStationIdFromCode(attributes["id"]);
+
     const query =
       "INSERT INTO stations_measurement(station_id, datetime, attributes) VALUES($1, $2, $3) RETURNING *";
 
     const time = attributes["time"];
     delete attributes["time"];
-    const values = [id, time, attributes];
+    const values = [stationId, time, attributes];
 
-    // async/await
     try {
       const res = await pgClient.query(query, values);
       console.log("INSERT ok:", res.rows[0]);
@@ -52,19 +77,21 @@ const pgClient = new Client();
   mqttClient.on("connect", () => {
     console.log(`Client '${clientId}' has connected`);
     // Subscribe to all stations topics
-    mqttClient.subscribe("/stations/+/");
+    // mqttClient.subscribe("/stations/+/");
+    mqttClient.subscribe("/weather_station/");
   });
 
   mqttClient.on("message", (topic, message) => {
+    let body;
     try {
-      const body = JSON.parse(message);
-      console.log(topic, body);
-
-      const parts = topic.split("/");
-      const stationId = parts[parts.length - 1];
-      insertMeasurement(stationId, body);
+      body = JSON.parse(message);
     } catch (err) {
       console.error("Failed parsing JSON message", err);
     }
+
+    console.log(topic, body);
+
+    storeMeasurementAppendOnly(body, logFile);
+    insertMeasurement(body);
   });
 })();

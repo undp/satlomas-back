@@ -5,6 +5,7 @@ const process = require("process");
 const mqtt = require("mqtt");
 
 const mqttUrl = process.env.MQTT_URL;
+const clientId = "test";
 
 const randFloat = (min, max, prec) => {
   return parseFloat((Math.random() * (max - min) + min).toFixed(prec));
@@ -14,34 +15,30 @@ const randInt = (min, max) => {
   return Math.floor(Math.random() * (max - min + 1) + min);
 };
 
-const client = mqtt.connect(mqttUrl, {
-  clientId: "test",
-});
+console.log("Connect to MQTT broker", mqttUrl, "with client id", clientId);
+const client = mqtt.connect(mqttUrl, { clientId });
 
 client.on("connect", () => {
-  let i = 1;
-
   setInterval(() => {
     const now = new Date(Date.now());
 
     const data = {
-      altitude: randFloat(70, 85, 2),
-      ambient_temperature: randFloat(15, 25, 2),
-      atmospheric_pressure: randFloat(800, 1200, 2),
-      internal_temperature: randFloat(16, 28, 2),
+      Altitude: randFloat(70, 85, 2),
+      Ambient_Temperature: randFloat(15, 25, 2),
+      Atmospheric_Pressure: randFloat(800, 1200, 2),
+      Internal_Temperature: randFloat(16, 28, 2),
       PM1_0: randInt(20, 40),
       PM2_5: randInt(20, 40),
       PM4_0: randInt(20, 40),
       PM10_0: randInt(20, 40),
-      relative_humidity: randFloat(0, 100, 2),
+      Relative_Humidity: randFloat(0, 100, 2),
+      Tip_Counts: randInt(0, 3000),
       time: now.toISOString(),
-      tip_count: randInt(0, 3000),
+      id: "pcb_radio_nebli",
     };
 
-    const mqttPath = `/stations/${i % 3}/`;
+    const mqttPath = `/weather_station/`;
     console.log(data);
     client.publish(mqttPath, JSON.stringify(data));
-
-    i += 1;
-  }, 1000);
+  }, 3000);
 });
