@@ -1,5 +1,5 @@
 """
-WSGI config for geolomas project.
+WSGI config for satlomas project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -14,6 +14,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'geolomas.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'satlomas.settings')
 
 application = get_wsgi_application()

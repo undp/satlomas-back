@@ -6,7 +6,7 @@ const mqtt = require("mqtt");
 const { Client } = require("pg");
 
 const mqttUrl = process.env.MQTT_URL;
-const clientId = process.env.MQTT_CLIENT_ID || "geolomas-db";
+const clientId = process.env.MQTT_CLIENT_ID || "satlomas-db";
 
 if (!mqttUrl) {
   console.error(

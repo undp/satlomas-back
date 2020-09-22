@@ -11,8 +11,8 @@ Group=www-data
 SyslogIdentifier=rqworker
 StandardOutput=syslog
 StandardError=syslog
-WorkingDirectory=/home/ubuntu/geolomas-back
-ExecStart=/bin/bash -c '/home/ubuntu/.local/share/virtualenvs/geolomas-back-O5su8kSy/bin/python /home/ubuntu/geolomas-back/manage.py rqworker --sentry-dsn=${SENTRY_DNS}'
+WorkingDirectory=/home/ubuntu/satlomas-back
+ExecStart=/bin/bash -c '/home/ubuntu/.local/share/virtualenvs/satlomas-back-O5su8kSy/bin/python /home/ubuntu/satlomas-back/manage.py rqworker --sentry-dsn=${SENTRY_DNS}'
 
 [Install]
 WantedBy=multi-user.target

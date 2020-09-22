@@ -123,21 +123,21 @@ sudo -u postgres createuser -s $USER
 Create the database:
 
 ```sh
-createdb geolomas
+createdb satlomas
 ```
 
-Set user password for the user you just created (`geolomas`). Please replace
+Set user password for the user you just created (`satlomas`). Please replace
 `foobar` for a long and difficult to guess password:
 
 ```sh
-psql geolomas -c "ALTER USER $USER WITH PASSWORD 'foobar'"
+psql satlomas -c "ALTER USER $USER WITH PASSWORD 'foobar'"
 ```
 
 Add TimescaleDB and PostGIS extensions to the database
 
 ```sh
-psql geolomas -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
-psql geolomas -c "CREATE EXTENSION IF NOT EXISTS postgis CASCADE"
+psql satlomas -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
+psql satlomas -c "CREATE EXTENSION IF NOT EXISTS postgis CASCADE"
 ```
 
 * Copy `env.sample` and edit it to suit your needs. See the Configuration
@@ -222,7 +222,7 @@ nginx.
 ```
 sudo apt install nginx
 sudo cp tools/nginx/* /etc/nginx/sites-available/
-sudo ln -s /etc/nginx/sites-available/geolomas* /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/satlomas* /etc/nginx/sites-enabled/
 sudo systemctl restart nginx
 ```
 

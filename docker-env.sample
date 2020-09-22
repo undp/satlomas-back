@@ -4,7 +4,7 @@
 ALLOWED_HOSTS=
 SECRET_KEY=
 
-PGDATABASE=geolomas
+PGDATABASE=satlomas
 PGUSER=postgres
 PGPASSWORD=postgres
 PGHOST=db

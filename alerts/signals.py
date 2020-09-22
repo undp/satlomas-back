@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import UserProfile , Alert
+from .models import UserProfile, Alert
 
 
 @receiver(post_save, sender=User)
@@ -17,8 +17,5 @@ def create_user_profile(sender, instance, created, **kwargs):
 def send_email(sender, instance, created, **kwargs):
     profile = UserProfile.objects.get(user=instance.user)
     if profile.email_alerts == True:
-        send_mail('GeoLomas Notificaciones', 
-            instance.describe(),
-            settings.NOTIFICATIONS_EMAIL,
-            [instance.user.email]
-        )
+        send_mail('[SatLomas] Notificación', instance.describe(),
+                  settings.NOTIFICATIONS_EMAIL, [instance.user.email])

@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 from scopes.models import Scope
 
 from .models import Mask, Period, Raster
-from geolomas.renderers import BinaryFileRenderer
+from satlomas.renderers import BinaryFileRenderer
 from .serializers import RasterSerializer
 
 
@@ -174,9 +174,11 @@ class RasterDownloadView(APIView):
             # Monkey patch .close method so that file is removed after closing it
             # i.e. when response finishes
             original_close = stream_file.close
+
             def new_close():
                 original_close()
                 os.remove(tmp.name)
+
             stream_file.close = new_close
 
             return FileResponse(stream_file,

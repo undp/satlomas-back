@@ -2,7 +2,7 @@ version: "3.6"
 
 x-back-opts: &back-opts
   build: .
-  image: "geolomas-back:latest"
+  image: "satlomas-back:latest"
   env_file:
     - .env
   volumes:
@@ -29,16 +29,20 @@ services:
     <<: *back-opts
     stdin_open: true
     tty: true
-    command: [
-      "wait-for-postgres.sh", "db",
-      "pipenv", "run", "./manage.py", "runserver", "0.0.0.0:8000"
-    ]
+    command:
+      [
+        "wait-for-postgres.sh",
+        "db",
+        "pipenv",
+        "run",
+        "./manage.py",
+        "runserver",
+        "0.0.0.0:8000",
+      ]
     ports:
       - "8000:8000"
       - "25:25"
   worker:
     <<: *back-opts
-    command: [
-      "wait-for-postgres.sh", "db",
-      "pipenv", "run", "./manage.py", "rqworker"
-    ]
+    command:
+      ["wait-for-postgres.sh", "db", "pipenv", "run", "./manage.py", "rqworker"]

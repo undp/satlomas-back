@@ -18,7 +18,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from geolomas.renderers import BinaryFileRenderer
+from satlomas.renderers import BinaryFileRenderer
 from scopes.models import Scope
 
 from .models import Mask, Period, Raster
