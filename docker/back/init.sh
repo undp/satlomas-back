@@ -2,7 +2,7 @@
 set -e
 
 echo "Create database $PGDATABASE at $PGHOST (user $PGUSER)"
-psql -c "CREATE DATABASE $PGDATABASE";
+createdb
 
 echo "Run migrations"
 pipenv run ./manage.py migrate
