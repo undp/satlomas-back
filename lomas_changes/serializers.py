@@ -35,3 +35,10 @@ class CoverageMeasurementSerializer(serializers.ModelSerializer):
         model = CoverageMeasurement
         fields = '__all__'
         ref_name = 'LomasChangesCoverageMeasurement'
+
+
+class SFTPConnectionSerializer(serializers.Serializer):
+    hostname = serializers.CharField()
+    port = serializers.IntegerField()
+    username = serializers.CharField(required=False)
+    password = serializers.CharField(required=False)
