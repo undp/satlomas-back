@@ -13,8 +13,10 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
+from paramiko.ssh_exception import AuthenticationException
 from rest_framework import permissions, status, viewsets
-from rest_framework.exceptions import APIException, NotFound, PermissionDenied
+from rest_framework.exceptions import (APIException, AuthenticationFailed,
+                                       NotFound, PermissionDenied)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from satlomas.renderers import BinaryFileRenderer
@@ -230,5 +232,8 @@ class ImportSFTPListView(APIView):
         try:
             files = client.listdir(path)
         except PermissionError:
-            raise PermissionDenied(detail=f'cannot listdir {path}')
+            raise PermissionDenied(
+                detail=f'Listing {path} not allowed for user')
+        except AuthenticationException:
+            raise AuthenticationFailed()
         return Response(dict(values=files))
