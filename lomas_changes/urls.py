@@ -14,4 +14,6 @@ urlpatterns = [
         views.RasterDownloadView.as_view()),
     url(r'^coverage/?', views.TimeSeries.as_view()),
     url(r'^available-periods/?', views.AvailablePeriods.as_view()),
+    url(r'^import/sftp/list/?', views.ImportSFTPListView.as_view()),
+    url(r'^import/sftp/?', views.ImportSFTPView.as_view())
 ]

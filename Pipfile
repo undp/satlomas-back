@@ -39,6 +39,7 @@ sentry-sdk = "*"
 shapely = "*"
 django-redis-cache = "*"
 django-jsonfield = "*"
+pysftp = "*"
 
 [requires]
 python_version = "3"

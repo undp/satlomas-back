@@ -2,6 +2,7 @@ import mimetypes
 import os
 import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -13,16 +14,19 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
-from rest_framework import permissions, viewsets
-from rest_framework.exceptions import APIException
+from paramiko.ssh_exception import AuthenticationException
+from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import (APIException, AuthenticationFailed,
+                                       NotFound, PermissionDenied)
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from satlomas.renderers import BinaryFileRenderer
 from scopes.models import Scope
 
+from .clients import SFTPClient
 from .models import Mask, Period, Raster
-from .serializers import MaskSerializer, RasterSerializer
+from .serializers import (MaskSerializer, RasterSerializer,
+                          ImportSFTPListSerializer, ImportSFTPSerializer)
 
 
 def intersection_area_sql(scope_geom, period):
@@ -214,3 +218,36 @@ class RasterDownloadView(APIView):
             # Make sure to remove temp file
             os.remove(tmp.name)
             raise APIException(err)
+
+
+class ImportSFTPListView(APIView):
+    def post(self, request):
+        serializer = ImportSFTPListSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        params = serializer.data
+        path = params['path'] or '/'
+        client = SFTPClient(hostname=params['hostname'],
+                            port=params['port'],
+                            username=params['username'],
+                            password=params['password'])
+        try:
+            files = client.listdir(path)
+        except PermissionError:
+            raise PermissionDenied(
+                detail=f'Listing {path} not allowed for user')
+        except AuthenticationException:
+            raise AuthenticationFailed()
+        return Response(dict(values=files))
+
+
+class ImportSFTPView(APIView):
+    def post(self, request):
+        serializer = ImportSFTPSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        params = serializer.data
+        time.sleep(2)
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
