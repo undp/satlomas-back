@@ -67,6 +67,7 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += swagger_urls
 
+urlpatterns += [path('jobs/', include('jobs.urls'))]
 urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
 urlpatterns += [path('lomas/', include('lomas_changes.urls'))]
 urlpatterns += [path('stations/', include('stations.urls'))]
