@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from jobs.models import Job
+from jobs.models import Job, JobLogEntry
 
 
 class JobSerializer(serializers.ModelSerializer):
@@ -9,3 +9,9 @@ class JobSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'args', 'kwargs', 'state', 'created_at',
                   'finished_at', 'updated_at', 'metadata', 'duration', 'error',
                   'estimated_duration')
+
+
+class JobLogEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobLogEntry
+        fields = '__all__'

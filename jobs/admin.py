@@ -30,12 +30,12 @@ class JobAdmin(admin.ModelAdmin):
     search_fields = ('name', 'id', 'status')
 
     def arguments(self, instance):
-        return format_html('<pre>{}</pre>',
+        return format_html('<pre style="margin: 0">{}</pre>',
                            json.dumps(instance.args, indent=4, sort_keys=True))
 
     def keyword_arguments(self, instance):
         return format_html(
-            '<pre>{}</pre>',
+            '<pre style="margin: 0">{}</pre>',
             json.dumps(instance.kwargs, indent=4, sort_keys=True))
 
 

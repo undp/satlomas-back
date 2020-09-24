@@ -12,8 +12,8 @@ class Job(models.Model):
     JOB_STATE_CHOICES = sorted(zip(states.ALL_STATES, states.ALL_STATES))
 
     name = models.CharField(_('name'), max_length=255)
-    args = JSONField(_('arguments'), default=list)
-    kwargs = JSONField(_('keyword arguments'), default=dict)
+    args = JSONField(_('arguments'), default=list, blank=True)
+    kwargs = JSONField(_('keyword arguments'), default=dict, blank=True)
     state = models.CharField(_('state'),
                              max_length=50,
                              default=states.PENDING,
@@ -21,12 +21,14 @@ class Job(models.Model):
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     finished_at = models.DateTimeField(_('finished at'), null=True, blank=True)
-    metadata = JSONField(_("metadata"), default=dict)
+    metadata = JSONField(_("metadata"), default=dict, blank=True)
     error = models.TextField(_("error"), blank=True, null=True)
     estimated_duration = models.PositiveIntegerField(_('estimated duration'),
                                                      blank=True,
                                                      null=True)
-    internal_metadata = JSONField(_("internal metadata"), default=dict)
+    internal_metadata = JSONField(_("internal metadata"),
+                                  default=dict,
+                                  blank=True)
 
     def __str__(self):
         return f'{self.name}({self.args}, {self.kwargs})'
