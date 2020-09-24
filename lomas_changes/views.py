@@ -2,6 +2,7 @@ import mimetypes
 import os
 import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -25,7 +26,7 @@ from scopes.models import Scope
 from .clients import SFTPClient
 from .models import Mask, Period, Raster
 from .serializers import (MaskSerializer, RasterSerializer,
-                          SFTPConnectionSerializer)
+                          ImportSFTPListSerializer, ImportSFTPSerializer)
 
 
 def intersection_area_sql(scope_geom, period):
@@ -221,14 +222,16 @@ class RasterDownloadView(APIView):
 
 class ImportSFTPListView(APIView):
     def post(self, request):
-        serializer = SFTPConnectionSerializer(data=request.data)
+        serializer = ImportSFTPListSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
-        path = self.request.query_params.get('path', None)
-        if not path:
-            path = '/'
-        client = SFTPClient(**serializer.data)
+        params = serializer.data
+        path = params['path'] or '/'
+        client = SFTPClient(hostname=params['hostname'],
+                            port=params['port'],
+                            username=params['username'],
+                            password=params['password'])
         try:
             files = client.listdir(path)
         except PermissionError:
@@ -237,3 +240,14 @@ class ImportSFTPListView(APIView):
         except AuthenticationException:
             raise AuthenticationFailed()
         return Response(dict(values=files))
+
+
+class ImportSFTPView(APIView):
+    def post(self, request):
+        serializer = ImportSFTPSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        params = serializer.data
+        time.sleep(2)
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
