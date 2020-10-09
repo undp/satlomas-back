@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'jsoneditor',
     'django_rq',
     'leaflet',
+    'jobs.apps.JobsConfig',
     'stations.apps.StationsConfig',
     'lomas_changes.apps.LomasChangesConfig',
     'vi_lomas_changes.apps.VILomasChangesConfig',
