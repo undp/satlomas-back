@@ -30,6 +30,10 @@ class SFTPClient:
                     dict(name=file, isdir=sftp.isdir(filepath), **stats))
             return files
 
+    def get(self, path, output_path):
+        with self.connection() as sftp:
+            sftp.get(path, output_path)
+
     def connection(self):
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None

@@ -1,15 +1,20 @@
 import logging
 import os
 import sys
+import tempfile
+from datetime import datetime
 
 import geopandas as gpd
 import shapely.wkt
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
-from shapely.ops import unary_union
-
+import django_rq
+from django_rq import job
+from lomas_changes.clients import SFTPClient
 from lomas_changes.models import Mask, Object, Raster
+from lomas_changes.utils import unzip
+from shapely.ops import unary_union
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -20,9 +25,37 @@ logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
 DATA_DIR = os.path.join(settings.BASE_DIR, 'data', 'lomas_changes', 'ps1')
+RAW_DIR = os.path.join(DATA_DIR, 'raw')
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 IMAGE_DIR = os.path.join(DATA_DIR, 'image')
 RGB_DIR = os.path.join(DATA_DIR, 'rgb')
+
+
+@job('process')
+def import_scene_from_sftp(sftp_conn_info, filepath):
+    """Connects to an SFTP server and downloads a scene"""
+
+    client = SFTPClient(**sftp_conn_info)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        basename = os.path.basename(filepath)
+        id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
+        scene_dir = os.path.join(RAW_DIR, id_s)
+
+        # Download file and extract to RAW_DIR
+        dst = os.path.join(tmpdir, basename)
+        client.get(filepath, dst)
+        unzip(dst, scene_dir)
+
+        # Process new scene
+        queue = django_rq.get_queue('process')
+        queue.enqueue(process_scene, scene_dir)
+
+
+@job('process')
+def process_scene(scene_dir):
+    # TODO
+    # call perusat_process
+    pass
 
 
 def load_data(period, product_id):
