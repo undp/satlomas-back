@@ -14,6 +14,7 @@ class Job(models.Model):
     name = models.CharField(_('name'), max_length=255)
     args = JSONField(_('arguments'), default=list, blank=True)
     kwargs = JSONField(_('keyword arguments'), default=dict, blank=True)
+    queue = models.CharField(_('queue'), max_length=64, blank=True, null=True)
     state = models.CharField(_('state'),
                              max_length=50,
                              default=states.PENDING,
