@@ -183,10 +183,15 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 SITE_ID = 1
 
+RQ_REDIS_URL = os.getenv('RQ_REDIS_URL', 'redis://localhost:6379/0')
 RQ_QUEUES = {
     'default': {
-        'URL': os.getenv('RQ_REDIS_URL', 'redis://localhost:6379/0'),
-        'DEFAULT_TIMEOUT': os.getenv('RQ_TIMEOUT', 360),
+        'URL': RQ_REDIS_URL,
+        'DEFAULT_TIMEOUT': os.getenv('RQ_TIMEOUT', 60 * 2),
+    },
+    'processing': {
+        'URL': RQ_REDIS_URL,
+        'DEFAULT_TIMEOUT': os.getenv('RQ_TIMEOUT', 60 * 10),
     }
 }
 
