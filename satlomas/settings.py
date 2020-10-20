@@ -261,3 +261,7 @@ WEBCLIENT_URL = os.getenv('WEBCLIENT_URL')
 NOTIFICATIONS_EMAIL = os.getenv('NOTIFICATIONS_EMAIL')
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND',
                           'django.core.mail.backends.console.EmailBackend')
+
+# Path for optional command to run after enqueuing a processing job
+# (e.g. see tools/start-vm.sh)
+RUN_AFTER_ENQUEUE_PROC_JOB = os.getenv('RUN_AFTER_ENQUEUE_PROC_JOB')
