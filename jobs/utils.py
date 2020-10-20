@@ -2,7 +2,6 @@ import logging
 import subprocess
 
 import django_rq
-from django.conf import settings
 
 
 def run_command(cmd):
@@ -10,10 +9,8 @@ def run_command(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
-def enqueue_processing_job(method, *args, **kwargs):
-    queue = django_rq.get_queue('process')
-    queue.enqueue(method, *args, **kwargs)
-
-    cmd = settings.RUN_AFTER_ENQUEUE_PROC_JOB
-    if cmd:
-        run_command(cmd)
+def enqueue_job(method, queue=None, **kwargs):
+    from jobs.models import Job
+    job = Job.objects.create(name=method, kwargs=kwargs, queue=queue)
+    job.start()
+    return job

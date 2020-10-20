@@ -68,7 +68,8 @@ class Job(models.Model):
 
     def start(self):
         if self.state == states.PENDING:
-            django_rq.enqueue(self.name, self.pk)
+            queue = django_rq.get_queue(self.queue or 'default')
+            queue.enqueue(self.name, self.pk)
             self.state = states.STARTED
             self.save(update_fields=['state', 'updated_at'])
             signals.job_started.send(sender=self.__class__, job=self)
