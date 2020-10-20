@@ -9,8 +9,8 @@ import shapely.wkt
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
-import django_rq
 from django_rq import job
+from jobs.utils import enqueue_processing_job
 from lomas_changes.clients import SFTPClient
 from lomas_changes.models import Mask, Object, Raster
 from lomas_changes.utils import unzip
@@ -47,8 +47,7 @@ def import_scene_from_sftp(sftp_conn_info, filepath):
         unzip(dst, scene_dir)
 
         # Process new scene
-        queue = django_rq.get_queue('process')
-        queue.enqueue(process_scene, scene_dir)
+        enqueue_processing_job(process_scene, scene_dir)
 
 
 @job('process')
