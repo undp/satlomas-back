@@ -10,7 +10,8 @@ from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
 from django_rq import job
-from jobs.utils import enqueue_processing_job
+from jobs.models import Job
+from jobs.utils import enqueue_job
 from lomas_changes.clients import SFTPClient
 from lomas_changes.models import Mask, Object, Raster
 from lomas_changes.utils import unzip
@@ -31,9 +32,13 @@ IMAGE_DIR = os.path.join(DATA_DIR, 'image')
 RGB_DIR = os.path.join(DATA_DIR, 'rgb')
 
 
-@job('process')
-def import_scene_from_sftp(sftp_conn_info, filepath):
+@job('processing')
+def import_scene_from_sftp(job_pk):
     """Connects to an SFTP server and downloads a scene"""
+
+    job = Job.objects.get(pk=job_pk)
+    sftp_conn_info = job.kwargs['sftp_conn_info']
+    filepath = job.kwargs['file']
 
     client = SFTPClient(**sftp_conn_info)
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -46,14 +51,21 @@ def import_scene_from_sftp(sftp_conn_info, filepath):
         client.get(filepath, dst)
         unzip(dst, scene_dir)
 
-        # Process new scene
-        enqueue_processing_job(process_scene, scene_dir)
+        # Finish. Process new scene
+        job.mark_as_finished()
+        enqueue_job('lomas_changes.tasks.perusat1.process_scene',
+                    scene_dir=scene_dir,
+                    queue='processing')
 
 
-@job('process')
-def process_scene(scene_dir):
+@job('processing')
+def process_scene(job_pk):
+    job = Job.objects.get(pk=job_pk)
+    scene_dir = job.kwargs['scene_dir']
+
     # TODO
     # call perusat_process
+
     pass
 
 

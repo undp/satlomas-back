@@ -22,6 +22,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from satlomas.renderers import BinaryFileRenderer
 from scopes.models import Scope
+from jobs.utils import enqueue_job
 
 from .clients import SFTPClient
 from .models import Mask, Period, Raster
@@ -249,5 +250,18 @@ class ImportSFTPView(APIView):
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
         params = serializer.data
-        time.sleep(2)
+
+        sftp_conn_info = {
+            'hostname': params['hostname'],
+            'port': params['port'],
+            'username': params['username'],
+            'password': params['password']
+        }
+
+        for file in params['files']:
+            enqueue_job('lomas_changes.tasks.perusat1.import_scene_from_sftp',
+                        sftp_conn_info=sftp_conn_info,
+                        file=file,
+                        queue='processing')
+
         return Response({}, status=status.HTTP_204_NO_CONTENT)
