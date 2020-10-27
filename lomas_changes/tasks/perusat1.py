@@ -4,8 +4,6 @@ import sys
 import tempfile
 from datetime import datetime
 
-import geopandas as gpd
-import shapely.wkt
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
@@ -15,7 +13,6 @@ from jobs.utils import enqueue_job
 from lomas_changes.clients import SFTPClient
 from lomas_changes.models import Mask, Object, Raster
 from lomas_changes.utils import unzip
-from shapely.ops import unary_union
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -25,11 +22,16 @@ out_handler.setLevel(logging.INFO)
 logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
+# Base directory
 DATA_DIR = os.path.join(settings.BASE_DIR, 'data', 'lomas_changes', 'ps1')
+# "raw" directory contains uncompressed Level-1 PeruSat-1 scenes
 RAW_DIR = os.path.join(DATA_DIR, 'raw')
-RESULTS_DIR = os.path.join(DATA_DIR, 'results')
-IMAGE_DIR = os.path.join(DATA_DIR, 'image')
+# "proc" directory contains pansharpened scenes (result of perusatproc)
+PROC_DIR = os.path.join(DATA_DIR, 'proc')
+# "rgb" directory contains RGB 8-bit images to be predicted and loaded
 RGB_DIR = os.path.join(DATA_DIR, 'rgb')
+# "results" directory contains binary rasters with results of model prediction
+RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
 
 @job('processing')
@@ -61,12 +63,23 @@ def import_scene_from_sftp(job_pk):
 @job('processing')
 def process_scene(job_pk):
     job = Job.objects.get(pk=job_pk)
-    scene_dir = job.kwargs['scene_dir']
+    raw_scene_dir = job.kwargs['scene_dir']
 
-    # TODO
-    # call perusat_process
+    from perusatproc.console.process import process_product
 
-    pass
+    basename = os.path.basename(raw_scene_dir)
+
+    proc_scene_dir = os.path.join(PROC_DIR, basename)
+    process_product(scene_dir, proc_scene_dir)
+
+    job.mark_as_finished()
+
+    # TODO: create RGB image from pansharpened image
+    #rgb_scene_dir = os.path.join(RGB_DIR, basename)
+    # TODO: load RGB image
+    # TODO: predict over RGB image
+    # TODO: postprocess results
+    # TODO: load results (raster and mask)
 
 
 def load_data(period, product_id):
@@ -83,6 +96,10 @@ def load_raster(period, product_id):
 
 
 def load_mask_and_objects(period, product_id):
+    from shapely.ops import unary_union
+    import shapely.wkt
+    import geopandas as gpd
+
     logging.info("Reproject to epsg:4326")
     src_path = os.path.join(RESULTS_DIR, product_id, 'objects.geojson')
     dst_path = os.path.join(RESULTS_DIR, product_id, 'objects_4326.geojson')
