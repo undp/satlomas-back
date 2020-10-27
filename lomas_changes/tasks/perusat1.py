@@ -39,40 +39,48 @@ def import_scene_from_sftp(job_pk):
     """Connects to an SFTP server and downloads a scene"""
 
     job = Job.objects.get(pk=job_pk)
-    sftp_conn_info = job.kwargs['sftp_conn_info']
-    filepath = job.kwargs['file']
 
-    client = SFTPClient(**sftp_conn_info)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        basename = os.path.basename(filepath)
-        id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
-        scene_dir = os.path.join(RAW_DIR, id_s)
+    try:
+        sftp_conn_info = job.kwargs['sftp_conn_info']
+        filepath = job.kwargs['file']
 
-        # Download file and extract to RAW_DIR
-        dst = os.path.join(tmpdir, basename)
-        client.get(filepath, dst)
-        unzip(dst, scene_dir)
+        client = SFTPClient(**sftp_conn_info)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            basename = os.path.basename(filepath)
+            id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
+            scene_dir = os.path.join(RAW_DIR, id_s)
 
-        # Finish. Process new scene
-        job.mark_as_finished()
-        enqueue_job('lomas_changes.tasks.perusat1.process_scene',
-                    scene_dir=scene_dir,
-                    queue='processing')
+            # Download file and extract to RAW_DIR
+            dst = os.path.join(tmpdir, basename)
+            client.get(filepath, dst)
+            unzip(dst, scene_dir)
+
+            # Finish. Process new scene
+            job.mark_as_finished()
+            enqueue_job('lomas_changes.tasks.perusat1.process_scene',
+                        scene_dir=scene_dir,
+                        queue='processing')
+    except Exception as err:
+        job.mark_as_failed(reason=err)
 
 
 @job('processing')
 def process_scene(job_pk):
     job = Job.objects.get(pk=job_pk)
-    raw_scene_dir = job.kwargs['scene_dir']
 
-    from perusatproc.console.process import process_product
+    try:
+        raw_scene_dir = job.kwargs['scene_dir']
 
-    basename = os.path.basename(raw_scene_dir)
+        from perusatproc.console.process import process_product
 
-    proc_scene_dir = os.path.join(PROC_DIR, basename)
-    process_product(scene_dir, proc_scene_dir)
+        basename = os.path.basename(raw_scene_dir)
 
-    job.mark_as_finished()
+        proc_scene_dir = os.path.join(PROC_DIR, basename)
+        process_product(scene_dir, proc_scene_dir)
+
+        job.mark_as_finished()
+    except Exception as err:
+        job.mark_as_failed(reason=err)
 
     # TODO: create RGB image from pansharpened image
     #rgb_scene_dir = os.path.join(RGB_DIR, basename)
