@@ -9,7 +9,7 @@ Group=www-data
 WorkingDirectory=/home/ubuntu/satlomas-back
 ExecStart=/home/ubuntu/.local/share/virtualenvs/satlomas-back-XVGhZdP0/bin/gunicorn \
           --access-logfile - \
-	  --timeout 600 \
+          --timeout 600 \
           --workers 3 \
           --bind unix:/run/gunicorn.sock \
           satlomas.wsgi:application
