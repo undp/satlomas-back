@@ -23,7 +23,7 @@ logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
 # Base directory
-DATA_DIR = os.path.join(settings.BASE_DIR, 'data', 'lomas_changes', 'ps1')
+DATA_DIR = os.path.join(settings.DATA_DIR, 'lomas_changes', 'ps1')
 # "raw" directory contains uncompressed Level-1 PeruSat-1 scenes
 RAW_DIR = os.path.join(DATA_DIR, 'raw')
 # "proc" directory contains pansharpened scenes (result of perusatproc)
