@@ -4,12 +4,12 @@ import sys
 import tempfile
 from datetime import datetime
 
+import django_rq
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
-from django_rq import job
 from jobs.models import Job
-from jobs.utils import enqueue_job
+from jobs.utils import enqueue_job, job
 from lomas_changes.clients import SFTPClient
 from lomas_changes.models import Mask, Object, Raster
 from lomas_changes.utils import unzip
@@ -35,59 +35,49 @@ RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
 
 @job('processing')
-def import_scene_from_sftp(job_pk):
+def import_scene_from_sftp(job):
     """Connects to an SFTP server and downloads a scene"""
 
-    job = Job.objects.get(pk=job_pk)
+    sftp_conn_info = job.kwargs['sftp_conn_info']
+    filepath = job.kwargs['file']
 
-    try:
-        sftp_conn_info = job.kwargs['sftp_conn_info']
-        filepath = job.kwargs['file']
+    client = SFTPClient(**sftp_conn_info)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        basename = os.path.basename(filepath)
+        id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
+        scene_dir = os.path.join(RAW_DIR, id_s)
 
-        client = SFTPClient(**sftp_conn_info)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            basename = os.path.basename(filepath)
-            id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
-            scene_dir = os.path.join(RAW_DIR, id_s)
+        # Download file and extract to RAW_DIR
+        dst = os.path.join(tmpdir, basename)
+        logger.info("Download %s to %s", filepath, dst)
+        client.get(filepath, dst)
+        logger.info("Unzip %s into %s", dst, scene_dir)
+        unzip(dst, scene_dir)
 
-            # Download file and extract to RAW_DIR
-            dst = os.path.join(tmpdir, basename)
-            client.get(filepath, dst)
-            unzip(dst, scene_dir)
-
-            # Finish. Process new scene
-            job.mark_as_finished()
-            enqueue_job('lomas_changes.tasks.perusat1.process_scene',
-                        scene_dir=scene_dir,
-                        queue='processing')
-    except Exception as err:
-        job.mark_as_failed(reason=err)
+        # Next job: process new scene
+        enqueue_job('lomas_changes.tasks.perusat1.process_scene',
+                    scene_dir=scene_dir,
+                    queue='processing')
 
 
 @job('processing')
-def process_scene(job_pk):
-    job = Job.objects.get(pk=job_pk)
+def process_scene(job):
+    raw_scene_dir = job.kwargs['scene_dir']
 
-    try:
-        raw_scene_dir = job.kwargs['scene_dir']
+    from perusatproc.console.process import process_product
 
-        from perusatproc.console.process import process_product
+    basename = os.path.basename(raw_scene_dir)
+    proc_scene_dir = os.path.join(PROC_DIR, basename)
 
-        basename = os.path.basename(raw_scene_dir)
+    logger.info("Process %s into %s", raw_scene_dir, proc_scene_dir)
+    process_product(raw_scene_dir, proc_scene_dir)
 
-        proc_scene_dir = os.path.join(PROC_DIR, basename)
-        process_product(scene_dir, proc_scene_dir)
-
-        job.mark_as_finished()
-    except Exception as err:
-        job.mark_as_failed(reason=err)
-
-    # TODO: create RGB image from pansharpened image
+    # TODO: Create RGB image from pansharpened image
     #rgb_scene_dir = os.path.join(RGB_DIR, basename)
-    # TODO: load RGB image
-    # TODO: predict over RGB image
-    # TODO: postprocess results
-    # TODO: load results (raster and mask)
+    # TODO: Load RGB image
+    # TODO: Predict over RGB image
+    # TODO: Postprocess results
+    # TODO: Load results (raster and mask)
 
 
 def load_data(period, product_id):
@@ -104,9 +94,9 @@ def load_raster(period, product_id):
 
 
 def load_mask_and_objects(period, product_id):
-    from shapely.ops import unary_union
-    import shapely.wkt
     import geopandas as gpd
+    import shapely.wkt
+    from shapely.ops import unary_union
 
     logging.info("Reproject to epsg:4326")
     src_path = os.path.join(RESULTS_DIR, product_id, 'objects.geojson')
