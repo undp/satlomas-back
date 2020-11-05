@@ -44,7 +44,7 @@ def import_scene_from_sftp(job):
     client = SFTPClient(**sftp_conn_info)
     with tempfile.TemporaryDirectory() as tmpdir:
         basename = os.path.basename(filepath)
-        id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
+        id_s = datetime.now().strftime('%Y%m%d_%H%M%S')
         scene_dir = os.path.join(RAW_DIR, id_s)
 
         # Download file and extract to RAW_DIR
