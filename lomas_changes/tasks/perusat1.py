@@ -47,15 +47,12 @@ def import_scene_from_sftp(job):
         id_s = datetime.now().strftime('%YYYY%m%d_%H%M%S')
         scene_dir = os.path.join(RAW_DIR, id_s)
 
-        if os.path.exists(scene_dir):
-            logger.info("Scene already downloaded at %s", scene_dir)
-        else:
-            # Download file and extract to RAW_DIR
-            dst = os.path.join(tmpdir, basename)
-            logger.info("Download %s to %s", filepath, dst)
-            client.get(filepath, dst)
-            logger.info("Unzip %s into %s", dst, scene_dir)
-            unzip(dst, scene_dir)
+        # Download file and extract to RAW_DIR
+        dst = os.path.join(tmpdir, basename)
+        logger.info("Download %s to %s", filepath, dst)
+        client.get(filepath, dst)
+        logger.info("Unzip %s into %s", dst, scene_dir)
+        unzip(dst, scene_dir)
 
         # Next job: process new scene
         enqueue_job('lomas_changes.tasks.perusat1.process_scene',
