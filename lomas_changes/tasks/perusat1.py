@@ -32,16 +32,19 @@ RAW_DIR = os.path.join(DATA_DIR, 'raw')
 PROC_DIR = os.path.join(DATA_DIR, 'proc')
 # "chips" dreictory contains all image chips for prediction
 CHIPS_DIR = os.path.join(DATA_DIR, 'chips')
-# "rgb" directory contains RGB 8-bit images to be predicted and loaded
-#RGB_DIR = os.path.join(DATA_DIR, 'rgb')
-# "results" directory contains binary rasters with results of model prediction
+# "predict" directory contains result chips from prediction
+PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
+# "results" directory contains post-processed chips
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
 AOI_PATH = os.path.join(DATA_DIR, 'aoi.geojson')
 RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
 BANDS = (1, 2, 3)  # RGB
+CLASSES = ('C', 'U', 'D')
 SIZE = 320
 STEP_SIZE = 320
+BATCH_SIZE = 32
+MODEL_PATH = os.path.join(DATA_DIR, 'weights', 'lomas_ps1_v3.h5')
 
 
 @job('processing')
@@ -86,7 +89,7 @@ def pansharpen_scene(job):
     shutil.rmtree(raw_scene_dir)
 
     # Next job: process new scene
-    enqueue_job('lomas_changes.tasks.perusat1.extract_chips',
+    enqueue_job('lomas_changes.tasks.perusat1.extract_chips_from_scene',
                 scene_dir=proc_scene_dir,
                 queue='processing')
 
@@ -99,7 +102,7 @@ def pansharpen_scene(job):
 
 
 @job('processing')
-def extract_chips(job):
+def extract_chips_from_scene(job):
     scene_dir = job.kwargs['scene_dir']
 
     from satlomas.chips import extract_chips
@@ -107,9 +110,9 @@ def extract_chips(job):
     rasters = glob(os.path.join(scene_dir, '*.tif'))
     logger.info("Num. rasters: %i", len(rasters))
 
-    output_dir = os.path.join(CHIPS_DIR, os.path.basename(scene_dir))
+    chips_dir = os.path.join(CHIPS_DIR, os.path.basename(scene_dir))
     logger.info("Extract chips on images from %s into %s", scene_dir,
-                output_dir)
+                chips_dir)
 
     extract_chips(rasters,
                   aoi=AOI_PATH,
@@ -119,7 +122,30 @@ def extract_chips(job):
                   type='tif',
                   size=SIZE,
                   step_size=STEP_SIZE,
-                  output_dir=output_dir)
+                  output_dir=chips_dir)
+
+    # Next job: process new scene
+    enqueue_job('lomas_changes.tasks.perusat1.predict_scene',
+                chips_dir=chips_dir,
+                queue='processing')
+
+
+@job('processing')
+def predict_scene(job):
+    chips_dir = job.kwargs['chips_dir']
+
+    from satlomas.unet.predict import PredictConfig, predict
+
+    predict_chips_dir = os.path.join(PREDICT_DIR, os.path.basename(chips_dir))
+    cfg = PredictConfig(images_path=chips_dir,
+                        results_path=predict_chips_dir,
+                        batch_size=BATCH_SIZE,
+                        model_path=MODEL_PATH,
+                        height=SIZE,
+                        width=SIZE,
+                        n_channels=len(BANDS),
+                        n_classes=len(CLASSES))
+    predict(cfg)
 
 
 def load_data(period, product_id):
