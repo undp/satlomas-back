@@ -3,6 +3,11 @@ from itertools import zip_longest
 import keras
 import skimage.transform
 import cv2
+import subprocess
+
+
+def run_command(cmd):
+    subprocess.run(cmd, shell=True, check=True)
 
 
 def grouper(iterable, n, fillvalue=None):

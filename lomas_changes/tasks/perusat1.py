@@ -67,7 +67,6 @@ def import_scene_from_sftp(job):
         logger.info("Unzip %s into %s", dst, scene_dir)
         unzip(dst, scene_dir)
 
-        # Next job: process new scene
         enqueue_job('lomas_changes.tasks.perusat1.pansharpen_scene',
                     scene_dir=scene_dir,
                     queue='processing')
@@ -88,7 +87,6 @@ def pansharpen_scene(job):
     logger.info("Delete raw scene directory")
     shutil.rmtree(raw_scene_dir)
 
-    # Next job: process new scene
     enqueue_job('lomas_changes.tasks.perusat1.extract_chips_from_scene',
                 scene_dir=proc_scene_dir,
                 queue='processing')
@@ -124,7 +122,6 @@ def extract_chips_from_scene(job):
                   step_size=STEP_SIZE,
                   output_dir=chips_dir)
 
-    # Next job: process new scene
     enqueue_job('lomas_changes.tasks.perusat1.predict_scene',
                 chips_dir=chips_dir,
                 queue='processing')

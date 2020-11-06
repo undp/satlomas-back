@@ -1,0 +1,75 @@
+import math
+import os
+import tempfile
+from glob import glob
+
+import numpy as np
+import rasterio
+from tqdm import tqdm
+
+from .utils import grouper, run_command
+
+
+def coalesce_and_binarize(src_path, threshold=0.5, *, output_dir):
+    with rasterio.open(src_path) as src:
+        profile = src.profile.copy()
+        img = np.dstack(src.read())
+
+    mask_t = threshold * 255
+    mask = ((img[:, :, 0] >= mask_t) | (img[:, :, 1] >= mask_t) |
+            (img[:, :, 2] >= mask_t)).astype(np.uint8)
+    max_img = ((np.argmax(img, axis=2) + 1) * mask).astype(np.uint8)
+
+    dst_path = os.path.join(output_dir, os.path.basename(src_path))
+    profile.update(count=1, nodata=0)
+    with rasterio.open(dst_path, 'w', **profile) as dst:
+        dst.write(max_img, 1)
+
+
+def coalesce_and_binarize_all(threshold=0.75, *, input_dir, output_dir):
+    images = glob(os.path.join(input_dir, '*.tif'))
+    os.makedirs(output_dir, exist_ok=True)
+    # TODO: Use multiprocessing
+    for image in tqdm(images):
+        coalesce_and_binarize(image,
+                              threshold=threshold,
+                              output_dir=output_dir)
+
+
+def gdal_merge(output, files):
+    cmd = f"gdal_merge.py -n 0 -a_nodata 0 " \
+        f"-co TILED=YES " \
+        f"-o {output} {' '.join(files)}"
+    run_command(cmd)
+
+
+def merge_all(batch_size=1000, temp_dir=None, *, input_dir, output):
+    files = sorted(list(glob(os.path.join(input_dir, '*.tif'))))
+    if not files:
+        print("No files")
+
+    tmpdir = None
+    if not temp_dir:
+        tmpdir = tempfile.TemporaryDirectory()
+        temp_dir = tmpdir.name
+
+    os.makedirs(temp_dir, exist_ok=True)
+
+    merged_files = []
+    total = math.ceil(len(files) / batch_size)
+    for i, group in tqdm(enumerate(grouper(files, batch_size)), total=total):
+        dst = os.path.join(temp_dir, f"{i}.tif")
+        group = [f for f in group if f]
+        gdal_merge(dst, group)
+        merged_files.append(dst)
+
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    if os.path.exists(output):
+        os.unlink(output)
+
+    gdal_merge(output, merged_files)
+
+    if tmpdir:
+        tmpdir.close()
+
+    print(f"{output} written")
