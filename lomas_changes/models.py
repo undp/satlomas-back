@@ -22,7 +22,7 @@ class Period(models.Model):
 
 class Raster(models.Model):
     slug = models.SlugField()
-    period = models.ForeignKey(Period, on_delete=models.PROTECT)
+    date = models.DateField(null=True)
     file = models.FileField(upload_to=raster_path, blank=True, null=True)
     name = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
@@ -31,18 +31,17 @@ class Raster(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (('slug', 'period'), )
+        unique_together = (('slug', 'date'), )
 
     def __str__(self):
-        return f'{self.period} {self.name}'
+        return f'{self.date} {self.name}'
 
     def tiles_url(self):
         return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
 
     def path(self):
-        date_from = self.period.date_from.strftime('%Y%m%d')
-        date_to = self.period.date_to.strftime('%Y%m%d')
-        return f'{self.slug}/{date_from}-{date_to}/'
+        date_str = self.date.strftime('%Y%m%d')
+        return f'{self.slug}/{date_str}/'
 
 
 class Mask(models.Model):
