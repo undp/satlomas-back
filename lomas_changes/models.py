@@ -9,17 +9,6 @@ def raster_path(instance, filename):
                                               filename=filename)
 
 
-class Period(models.Model):
-    date_from = models.DateField()
-    date_to = models.DateField()
-
-    class Meta:
-        unique_together = (('date_from', 'date_to'), )
-
-    def __str__(self):
-        return '{} - {}'.format(self.date_from, self.date_to)
-
-
 class Raster(models.Model):
     slug = models.SlugField()
     date = models.DateField(null=True)
@@ -42,31 +31,6 @@ class Raster(models.Model):
     def path(self):
         date_str = self.date.strftime('%Y%m%d')
         return f'{self.slug}/{date_str}/'
-
-
-class Mask(models.Model):
-    period = models.ForeignKey(Period, on_delete=models.PROTECT)
-    mask_type = models.CharField(max_length=32, blank=True, null=True)
-    geom = models.MultiPolygonField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = (('period', 'mask_type'), )
-
-    def __str__(self):
-        return f'{self.period} {self.mask_type}'
-
-
-class Object(models.Model):
-    period = models.ForeignKey(Period, on_delete=models.PROTECT)
-    object_type = models.CharField(max_length=8, blank=True, null=True)
-    geom = models.PolygonField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f'{self.period} {self.object_type}'
 
 
 class CoverageMeasurement(models.Model):
