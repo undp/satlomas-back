@@ -33,6 +33,13 @@ class Raster(models.Model):
         return f'{self.slug}/{date_str}/'
 
 
+class CoverageRaster(models.Model):
+    raster = models.ForeignKey(Raster, on_delete=models.CASCADE)
+    cov_rast = models.RasterField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class CoverageMeasurement(models.Model):
     date = models.DateField()
     scope = models.ForeignKey('scopes.Scope',

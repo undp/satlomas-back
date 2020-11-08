@@ -1,7 +1,7 @@
 from django.contrib import admin
 from leaflet.admin import LeafletGeoAdmin
 
-from .models import CoverageMeasurement, Raster
+from .models import CoverageMeasurement, CoverageRaster, Raster
 
 
 class RasterAdmin(admin.ModelAdmin):
@@ -22,4 +22,5 @@ class CoverageMeasurementAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Raster, RasterAdmin)
+admin.site.register(CoverageRaster)
 admin.site.register(CoverageMeasurement, CoverageMeasurementAdmin)
