@@ -12,8 +12,7 @@ class RasterAdmin(admin.ModelAdmin):
 
 class CoverageMeasurementAdmin(admin.ModelAdmin):
     list_display = [
-        'date_from',
-        'date_to',
+        'date',
         'scope',
         'area_km2',
         'perc_area_100',

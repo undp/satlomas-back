@@ -34,8 +34,7 @@ class Raster(models.Model):
 
 
 class CoverageMeasurement(models.Model):
-    date_from = models.DateField()
-    date_to = models.DateField()
+    date = models.DateField()
     scope = models.ForeignKey('scopes.Scope',
                               related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
@@ -46,12 +45,11 @@ class CoverageMeasurement(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['date_from', 'date_to', 'scope']
+        unique_together = ['date', 'scope']
 
     def __str__(self):
-        return '{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)'.format(
-            dfrom=self.date_from,
-            dto=self.date_to,
+        return '{date} :: {scope} :: {area}km2 ({perc_area}%)'.format(
+            date=self.date,
             scope=self.scope and self.scope.name,
             area=self.area_km2(),
             perc_area=self.perc_area_100())
