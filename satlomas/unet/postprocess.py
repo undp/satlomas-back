@@ -11,15 +11,22 @@ from .utils import grouper, run_command
 
 
 def coalesce_and_binarize(src_path, threshold=0.5, *, output_dir):
+    # Read image
     with rasterio.open(src_path) as src:
         profile = src.profile.copy()
         img = np.dstack(src.read())
 
+    # Build mask
     mask_t = threshold * 255
-    mask = ((img[:, :, 0] >= mask_t) | (img[:, :, 1] >= mask_t) |
-            (img[:, :, 2] >= mask_t)).astype(np.uint8)
+    mask = img[:, :, 0] >= mask_t
+    for b in range(1, img.shape[2]):
+        mask = mask | img[:, :, b]
+    mask = mask.astype(np.uint8)
+
+    # Get class with max probability and apply mask
     max_img = ((np.argmax(img, axis=2) + 1) * mask).astype(np.uint8)
 
+    # Write image
     dst_path = os.path.join(output_dir, os.path.basename(src_path))
     profile.update(count=1, nodata=0)
     with rasterio.open(dst_path, 'w', **profile) as dst:
@@ -70,6 +77,6 @@ def merge_all(batch_size=1000, temp_dir=None, *, input_dir, output):
     gdal_merge(output, merged_files)
 
     if tmpdir:
-        tmpdir.close()
+        tmpdir.cleanup()
 
     print(f"{output} written")
