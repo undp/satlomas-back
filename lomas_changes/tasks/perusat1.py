@@ -45,6 +45,7 @@ SIZE = 320
 STEP_SIZE = 320
 BATCH_SIZE = 32
 MODEL_PATH = os.path.join(DATA_DIR, 'weights', 'lomas_ps1_v3.h5')
+BIN_THRESHOLD = 0.4
 
 
 @job('processing')
@@ -91,13 +92,6 @@ def pansharpen_scene(job):
                 scene_dir=proc_scene_dir,
                 queue='processing')
 
-    # TODO: Create RGB image from pansharpened image
-    #rgb_scene_dir = os.path.join(RGB_DIR, basename)
-    # TODO: Load RGB image
-    # TODO: Predict over RGB image
-    # TODO: Postprocess results
-    # TODO: Load results (raster and mask)
-
 
 @job('processing')
 def extract_chips_from_scene(job):
@@ -112,6 +106,10 @@ def extract_chips_from_scene(job):
     logger.info("Extract chips on images from %s into %s", scene_dir,
                 chips_dir)
 
+    # TODO: Generate RGB image
+    # TODO: Lload RGB image
+
+    # FIXME: Once RGB image is prepared, there is no need to rescale on chips...
     extract_chips(rasters,
                   aoi=AOI_PATH,
                   rescale_mode='values',
@@ -142,7 +140,46 @@ def predict_scene(job):
                         width=SIZE,
                         n_channels=len(BANDS),
                         n_classes=len(CLASSES))
+    logger.info("Predict chips on %s", predict_chips_dir)
     predict(cfg)
+
+    logger.info("Delete chips directory")
+    shutil.rmtree(chips_dir)
+
+    enqueue_job('lomas_changes.tasks.perusat1.postprocess_scene',
+                predict_chips_dir=predict_chips_dir,
+                queue='processing')
+
+
+@job('processing')
+def postprocess_scene(job):
+    predict_chips_dir = job.kwargs['predict_chips_dir']
+
+    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all, clip
+
+    result_path = os.path.join(RESULTS_DIR,
+                               f'{os.path.basename(predict_chips_dir)}.tif')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bin_path = os.path.join(tmpdir, 'bin')
+        logger.info(
+            "Coalesce and binarize all in %s into %s (with threshold %d)",
+            predict_chips_dir, bin_path, BIN_THRESHOLD)
+        coalesce_and_binarize_all(input_dir=predict_chips_dir,
+                                  output_dir=bin_path,
+                                  threshold=BIN_THRESHOLD)
+
+        merged_path = os.path.join(tmpdir, 'merged.tif')
+        logger.info("Merge all binarized chips on %s into %s", bin_path,
+                    merged_path)
+        merge_all(input_dir=bin_path, output=merged_path)
+
+        logger.info("Clip merged raster %s into %s using AOI at %s",
+                    merged_path, result_path, AOI_PATH)
+        clip(src=merged_path, dst=result_path, aoi=AOI_PATH)
+
+    logger.info("Delete predict chips")
+    shutil.rmtree(predict_chips_dir)
 
 
 def load_data(period, product_id):
