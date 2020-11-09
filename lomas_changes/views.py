@@ -25,7 +25,7 @@ from scopes.models import Scope
 from jobs.utils import enqueue_job
 
 from .clients import SFTPClient
-from .models import Raster
+from .models import Raster, CoverageRaster
 from .serializers import (RasterSerializer, ImportSFTPListSerializer,
                           ImportSFTPSerializer)
 
@@ -111,32 +111,26 @@ from .serializers import (RasterSerializer, ImportSFTPListSerializer,
 #         values = None
 #         return Response(dict(values=values))
 
-# class AvailablePeriods(APIView):
-#     permission_classes = [permissions.AllowAny]
 
-#     def get(self, request):
-#         masks = Mask.objects.all().order_by('period__date_to')
+class AvailableDates(APIView):
+    permission_classes = [permissions.AllowAny]
 
-#         types = request.query_params.get('type', None)
-#         if types:
-#             masks = masks.filter(mask_type__in=types.split(','))
+    def get(self, request):
+        rasters = CoverageRaster.objects.all().order_by('date')
 
-#         if masks.count() > 0:
-#             periods = [m.period for m in masks]
-#             periods = sorted(list(
-#                 set([(p.id, p.date_from, p.date_to) for p in periods])),
-#                              key=lambda x: x[2])
-#             periods = [
-#                 dict(id=id, date_from=date_from, date_to=date_to)
-#                 for id, date_from, date_to in periods
-#             ]
-#             response = dict(first_date=masks.first().period.date_from,
-#                             last_date=masks.last().period.date_to,
-#                             availables=periods)
-#             return Response(response)
-#         else:
-#             return Response(
-#                 dict(first_date=None, last_date=None, availables=[]))
+        types = request.query_params.get('type', None)
+        if types:
+            rasters = rasters.filter(raster__slug__in=types.split(','))
+
+        if rasters.count() > 0:
+            response = dict(
+                first_date=rasters.first().date,
+                last_date=rasters.last().date,
+                availables=[dict(id=r.id, date=r.date) for r in rasters])
+            return Response(response)
+        else:
+            return Response(
+                dict(first_date=None, last_date=None, availables=[]))
 
 
 class RasterViewSet(viewsets.ReadOnlyModelViewSet):
