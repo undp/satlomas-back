@@ -70,7 +70,7 @@ class Job(models.Model):
         if self.state == states.PENDING:
             if sync:
                 method = self._get_function_from_string(self.name)
-                method(self.pk)
+                method(self.pk, sync=True)
             else:
                 queue = django_rq.get_queue(self.queue or 'default')
                 queue.enqueue(self.name, self.pk)

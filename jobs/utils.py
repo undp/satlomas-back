@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 def job(func_or_queue, connection=None, *args, **kwargs):
     """Job decorator"""
     def wrapper(func):
-        def monitored_func(job_pk):
+        def monitored_func(job_pk, sync=False):
             from jobs.models import Job
             job = Job.objects.get(pk=job_pk)
 
@@ -25,6 +25,8 @@ def job(func_or_queue, connection=None, *args, **kwargs):
             except Exception as err:
                 # TODO: Add traceback
                 job.mark_as_failed(reason=err)
+                if sync:
+                    raise err
             else:
                 job.mark_as_finished()
 
