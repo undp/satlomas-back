@@ -42,11 +42,16 @@ def run_command(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
-def enqueue_job(method, queue=None, **kwargs):
+def enqueue_job(method, queue=None, sync=False, **kwargs):
     from jobs.models import Job
 
-    logger.info("Create next job %s with kwargs: %s, on queue '%s'", method,
-                kwargs, queue)
+    logger.info("Create job %s with kwargs: %s, on queue '%s'", method, kwargs,
+                queue)
     job = Job.objects.create(name=method, kwargs=kwargs, queue=queue)
-    job.start()
+    logger.info("Start job (sync=%s)", sync)
+    job.start(sync=sync)
     return job
+
+
+def run_job(method, queue=None, **kwargs):
+    return enqueue_job(method, sync=True, queue=queue, **kwargs)

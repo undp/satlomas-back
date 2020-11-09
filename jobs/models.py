@@ -66,10 +66,14 @@ class Job(models.Model):
         # Jobs cannot be cancelled for now
         return False
 
-    def start(self):
+    def start(self, sync=False):
         if self.state == states.PENDING:
-            queue = django_rq.get_queue(self.queue or 'default')
-            queue.enqueue(self.name, self.pk)
+            if sync:
+                method = self._get_function_from_string(self.name)
+                method(self.pk)
+            else:
+                queue = django_rq.get_queue(self.queue or 'default')
+                queue.enqueue(self.name, self.pk)
             self.state = states.STARTED
             self.save(update_fields=['state', 'updated_at'])
             signals.job_started.send(sender=self.__class__, job=self)
@@ -134,6 +138,19 @@ class Job(models.Model):
         self.state = state
         self.finished_at = finished_at or timezone.now()
         self.save(update_fields=['state', 'finished_at', 'updated_at'])
+
+    @staticmethod
+    def _get_function_from_string(s):
+        import importlib
+
+        # First import module
+        parts = s.split('.')
+        module_s = '.'.join(parts[:-1])
+        mod = importlib.import_module(module_s)
+
+        # Return method by fetching attribute from module
+        method_s = parts[-1]
+        return getattr(mod, method_s)
 
 
 class JobLogEntry(models.Model):
