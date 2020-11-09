@@ -37,7 +37,8 @@ PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
 # "results" directory contains post-processed chips
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
-AOI_PATH = os.path.join(DATA_DIR, 'aoi.geojson')
+AOI_PATH = os.path.join(DATA_DIR, 'aoi.gpkg')
+
 RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
 BANDS = (1, 2, 3)  # RGB
 CLASSES = ('C', 'U', 'D')
