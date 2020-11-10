@@ -40,6 +40,8 @@ AOI_UTM_PATH = os.path.join(DATA_DIR, 'aoi_utm.gpkg')
 EXTENT_PATH = os.path.join(DATA_DIR, 'extent.geojson')
 EXTENT_UTM_PATH = os.path.join(DATA_DIR, 'extent_utm.geojson')
 
+MAX_CLOUD_PERC = 20
+
 # extract_chips
 BANDS = (1, 2, 3)
 NUM_CLASSES = 2
@@ -86,12 +88,12 @@ def download_and_build_composite(date_from, date_to):
     extent = read_geojson(EXTENT_PATH)
     footprint = geojson_to_wkt(extent)
     logger.info(
-        "Query S2MSI2A products with up to 10%% cloud cover from %s to %s",
-        date_from, date_to)
+        "Query S2MSI2A products with up to %d%% cloud cover from %s to %s",
+        MAX_CLOUD_PERC, date_from, date_to)
     products = api.query(footprint,
                          date=(date_from, date_to),
                          platformname='Sentinel-2',
-                         cloudcoverpercentage=(0, 10),
+                         cloudcoverpercentage=(0, MAX_CLOUD_PERC),
                          producttype='S2MSI2A')
     logger.info("Found %d products", len(products))
 
@@ -119,7 +121,9 @@ def download_and_build_composite(date_from, date_to):
 
     # Build mosaic
     proc_scene_dir = os.path.join(PROC_DIR, period_s)
-    os.makedirs(proc_scene_dir, exist_ok=True)
+
+    mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
+    os.makedirs(mosaic_dir, exist_ok=True)
     # FIXME: Read bounds from EXTENT_UTM_PATH
     xmin, ymin, xmax, ymax = [
         260572.3994411753083114, 8620358.0515629947185516,
@@ -128,32 +132,20 @@ def download_and_build_composite(date_from, date_to):
     cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
             f"-te {xmin} {ymin} {xmax} {ymax} " \
             f"-e 32718 -res 10 -v " \
-            f"-o {proc_scene_dir} {raw_dir}"
+            f"-p {settings.S2M_NUM_JOBS} " \
+            f"-o {mosaic_dir} {raw_dir}"
     run_subprocess(cmd)
 
     import pdb
     pdb.set_trace()
 
-    # raw_scene_dir = os.path.join(raw_dir, '{}.SAFE'.format(p['title']))
+    # Use gdalbuildvrt to concatenate bands
 
-    # # Download product
-    # if not os.path.exists(raw_scene_dir):
-    #     zip_path = os.path.join(raw_dir, '{}.zip'.format(p['title']))
-    #     if not os.path.exists(zip_path):
-    #         logger.info("Download product to %s", raw_dir)
-    #         os.makedirs(raw_dir, exist_ok=True)
-    #         api.download(p_id, directory_path=raw_dir)
-
-    #     # Extract product zip file
-    #     logger.info("Unzip %s", zip_path)
-    #     unzip(zip_path, delete_zip=False)
-
-    # # Get TCI image
     # tci_path = glob(
     #     os.path.join(raw_scene_dir, 'GRANULE', '*', 'IMG_DATA', 'R10m',
     #                  '*_TCI_*.jp2'))[0]
 
-    # # Clip it to extent and store it on proc dir
+    # Clip virtual raster to extent and store it on proc dir
     # proc_scene_dir = os.path.join(PROC_DIR, period_s)
     # clipped_tci_path = os.path.join(proc_scene_dir, 'tci.tif')
     # clip(src=tci_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
