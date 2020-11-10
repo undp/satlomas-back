@@ -1,0 +1,3 @@
+[submodule "vendor/sen2mosaic"]
+	path = vendor/sen2mosaic
+	url = https://sambowers@bitbucket.org/sambowers/sen2mosaic.git
