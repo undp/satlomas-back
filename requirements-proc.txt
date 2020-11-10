@@ -7,3 +7,7 @@ scikit-image==0.17.2
 scikit-learn==0.23.2
 sentinelsat==0.14
 tensorflow==1.14
+# sen2mosaic
+#gdal (install manually)
+pyshp==2.1.2
+psutil==5.7.3

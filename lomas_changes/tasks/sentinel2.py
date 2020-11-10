@@ -101,13 +101,21 @@ def download_and_build_composite(date_from, date_to):
     # Filter already downloaded products
     products_to_download = {
         k: v
-        for k, v in products.items() if
-        not os.path.exists(os.path.join(raw_dir, '{}.zip'.format(v['title'])))
+        for k, v in products.items()
+        if not (os.path.exists(
+            os.path.join(raw_dir, '{}.zip'.format(v['title']))) or os.path.
+                exists(os.path.join(raw_dir, '{}.SAFE'.format(v['title']))))
     }
 
     # Download products
-    api.download_all(products_to_download, directory_path=raw_dir)
-    products = list(products.values())
+    if products_to_download:
+        logger.info("Download all products (%d)", len(products_to_download))
+        api.download_all(products_to_download, directory_path=raw_dir)
+
+    # Unzip compressed files, if there are any
+    for p in glob(os.path.join(raw_dir, '*.zip')):
+        logger.info("Unzip %s", p)
+        unzip(p, delete_zip=False)
 
     # Build mosaic
     proc_scene_dir = os.path.join(PROC_DIR, period_s)
@@ -117,13 +125,11 @@ def download_and_build_composite(date_from, date_to):
         260572.3994411753083114, 8620358.0515629947185516,
         324439.4877797830849886, 8720597.2414500378072262
     ]
-    mosaic_name = f's2_{period_s}_mosaic'
-    for res in [10, 20]:
-        cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
-              f"-te {xmin} {ymin} {xmax} {ymax}" \
-              f"-e 32718 -res {res} -n {mosaic_name} -v " \
-              f"-o {mosaic_path} {raw_dir}"
-        run_subprocess(cmd)
+    cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
+            f"-te {xmin} {ymin} {xmax} {ymax} " \
+            f"-e 32718 -res 10 -v " \
+            f"-o {proc_scene_dir} {raw_dir}"
+    run_subprocess(cmd)
 
     import pdb
     pdb.set_trace()
