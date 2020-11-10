@@ -108,7 +108,7 @@ def extract_chips_from_scene(job):
                 chips_dir)
 
     # TODO: Generate RGB image
-    # TODO: Lload RGB image
+    # TODO: Load RGB image
 
     # FIXME: Once RGB image is prepared, there is no need to rescale on chips...
     extract_chips(rasters,

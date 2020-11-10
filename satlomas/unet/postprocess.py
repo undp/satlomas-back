@@ -44,7 +44,8 @@ def coalesce_and_binarize_all(threshold=0.75, *, input_dir, output_dir):
 
 
 def gdal_merge(output, files):
-    cmd = f"gdal_merge.py -n 0 -a_nodata 0 " \
+    gdal_merge_bin = f'{settings.GDAL_BIN_PATH}/gdal_merge.py'
+    cmd = f"{gdal_merge_bin} -n 0 -a_nodata 0 " \
         f"-co TILED=YES " \
         f"-o {output} {' '.join(files)}"
     run_command(cmd)

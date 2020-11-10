@@ -4,29 +4,16 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
+from datetime import datetime
 from glob import glob
-from pathlib import Path
-from zipfile import ZipFile
-
-from django.conf import settings
-from django.core.files import File
-from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
+from django.conf import settings
+from django.core.files import File
+from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
 from lomas_changes.utils import run_subprocess, unzip, write_rgb_raster
-
-APPDIR = os.path.dirname(lomas_changes.__file__)
-
-RESULTS_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
-RGB_PATH = os.path.join(settings.BASE_DIR, 'data', 'images', 'rgb')
-
-S2_BASE_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 's2')
-S2_L1C_PATH = os.path.join(S2_BASE_DIR, 'l1c')
-S2_L2A_PATH = os.path.join(S2_BASE_DIR, 'l2a')
-
-AOI_PATH = os.path.join(APPDIR, 'data', 'extent.geojson')
-AOI_UTM_PATH = os.path.join(APPDIR, 'data', 'extent_utm.geojson')
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -36,27 +23,58 @@ out_handler.setLevel(logging.INFO)
 logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
+# Base directory
+DATA_DIR = os.path.join(settings.DATA_DIR, 'lomas_changes', 's2')
+# "raw" directory contains uncompressed Sentinel-2 products
+RAW_DIR = os.path.join(DATA_DIR, 'raw')
+# "proc" directory contains already scaled TCI images
+PROC_DIR = os.path.join(DATA_DIR, 'proc')
+# "chips" dreictory contains all image chips for prediction
+CHIPS_DIR = os.path.join(DATA_DIR, 'chips')
+# "predict" directory contains result chips from prediction
+PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
+# "results" directory contains post-processed chips
+RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
-def process_all(period):
-    download_scenes(period)
-    create_rgb_rasters(period)
+AOI_UTM_PATH = os.path.join(DATA_DIR, 'aoi_utm.gpkg')
+EXTENT_PATH = os.path.join(DATA_DIR, 'extent.geojson')
+EXTENT_UTM_PATH = os.path.join(DATA_DIR, 'extent_utm.geojson')
+
+# extract_chips
+BANDS = (1, 2, 3)
+NUM_CLASSES = 2
+SIZE = 160
+STEP_SIZE = 160
+
+# predict
+BATCH_SIZE = 64
+MODEL_PATH = os.path.join(DATA_DIR, 'lomas_sen2_v10.h5')
+BIN_THRESHOLD = 0.4
 
 
-def download_scenes(period):
-    date_from = period.date_from
-    date_to = period.date_to
+@job('processing')
+def process_period(job):
+    date_from = datetime.strptime(job.kwargs['date_from'], '%Y-%m-%d')
+    date_to = datetime.strptime(job.kwargs['date_to'], '%Y-%m-%d')
 
-    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
-                                      dto=period.date_to.strftime("%Y%m"))
+    ### Processing pipeline ###
 
-    # Check if result has already been done
-    scene_filename = f's2_{period_s}*.tif'
-    scene_path = os.path.join(RESULTS_PATH, scene_filename)
-    if len(glob(scene_path)) == 2:
-        print(
-            "Sentinel-2 mosaic for period {}-{} already done:".format(
-                date_from, date_to), scene_path)
-        return
+    proc_scene_dir = download_and_build_composite(date_from, date_to)
+    # TODO: Load RGB raster on DB
+    # chips_dir = extract_chips_from_scene(proc_scene_dir)
+    # predict_chips_dir = predict_scene(chips_dir)
+    # result_path = postprocess_scene(predict_chips_dir)
+
+    # logger.info("Result path: %s", result_path)
+    # TODO: Load result raster on DB
+
+
+def download_and_build_composite(date_from, date_to):
+    from lomas_changes.utils import clip
+    from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
+
+    period_s = '{dfrom}_{dto}'.format(dfrom=date_from.strftime("%Y%m%d"),
+                                      dto=date_to.strftime("%Y%m%d"))
 
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
@@ -65,239 +83,165 @@ def download_scenes(period):
     api = SentinelAPI(settings.SCIHUB_USER, settings.SCIHUB_PASS,
                       settings.SCIHUB_URL)
 
-    # Search by polygon, time, and Hub query keywords
-    footprint = geojson_to_wkt(
-        read_geojson(os.path.join(APPDIR, 'data', 'extent.geojson')))
-
+    extent = read_geojson(EXTENT_PATH)
+    footprint = geojson_to_wkt(extent)
+    logger.info(
+        "Query S2MSI2A products with up to 10%% cloud cover from %s to %s",
+        date_from, date_to)
     products = api.query(footprint,
                          date=(date_from, date_to),
                          platformname='Sentinel-2',
-                         cloudcoverpercentage=(0, 20))
+                         cloudcoverpercentage=(0, 10),
+                         producttype='S2MSI2A')
+    logger.info("Found %d products", len(products))
 
-    # Skip L2A products
-    l2 = []
-    for p in products:
-        if 'MSIL2A' in products[p]['title']:
-            l2.append(p)
-    for p in l2:
-        products.pop(p)
-
-    for p in products:
-        print(products[p]['title'])
+    raw_dir = os.path.join(RAW_DIR, period_s)
+    os.makedirs(raw_dir, exist_ok=True)
 
     # Filter already downloaded products
-    l1c_path = os.path.join(S2_L1C_PATH, period_s)
-    os.makedirs(l1c_path, exist_ok=True)
     products_to_download = {
         k: v
         for k, v in products.items() if
-        not os.path.exists(os.path.join(l1c_path, '{}.zip'.format(v['title'])))
+        not os.path.exists(os.path.join(raw_dir, '{}.zip'.format(v['title'])))
     }
 
     # Download products
-    api.download_all(products_to_download, directory_path=l1c_path)
-
+    api.download_all(products_to_download, directory_path=raw_dir)
     products = list(products.values())
 
-    # Unzip
-    for p in products:
-        unzip_product(p, period_s)
-
-    # Get the list of L1C products still to be processed to L2A
-    l2a_path = os.path.join(S2_L2A_PATH, period_s)
-    os.makedirs(l2a_path, exist_ok=True)
-    l1c_can_prods = get_canonical_names(glob(os.path.join(l1c_path, '*.SAFE')))
-    l2a_can_prods = get_canonical_names(glob(os.path.join(l2a_path, '*.SAFE')))
-    missing_l1c_prods = [
-        l1c_can_prods[k]
-        for k in set(l1c_can_prods.keys()) - set(l2a_can_prods.keys())
-    ]
-
-    # Run s2m preprocess (sen2cor) on raw directory
-    for p in missing_l1c_prods:
-        sen2_preprocess(p, period_s)
-
     # Build mosaic
-    mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
-    os.makedirs(mosaic_path, exist_ok=True)
-
+    proc_scene_dir = os.path.join(PROC_DIR, period_s)
+    os.makedirs(proc_scene_dir, exist_ok=True)
+    # FIXME: Read bounds from EXTENT_UTM_PATH
     xmin, ymin, xmax, ymax = [
         260572.3994411753083114, 8620358.0515629947185516,
         324439.4877797830849886, 8720597.2414500378072262
     ]
-    mosaic_name = 's2_{}{}_{}{}_mosaic'.format(date_from.year, date_from.month,
-                                               date_to.year, date_to.month)
-
+    mosaic_name = f's2_{period_s}_mosaic'
     for res in [10, 20]:
-        cmd = "python3 {}/mosaic.py -te {} {} {} {} -e 32718 -res {} -n {} -v -o {} {}".format(
-            settings.S2M_CLI_PATH, xmin, ymin, xmax, ymax, res, mosaic_name,
-            mosaic_path, l2a_path)
-        rv = os.system(cmd)
-        if rv != 0:
-            raise ValueError('s2m mosaic failed')
+        cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
+              f"-te {xmin} {ymin} {xmax} {ymax}" \
+              f"-e 32718 -res {res} -n {mosaic_name} -v " \
+              f"-o {mosaic_path} {raw_dir}"
+        run_subprocess(cmd)
 
-    generate_vegetation_indexes(mosaic_name, period_s)
-    concatenate_results(mosaic_name, period_s)
-    clip_results(period_s)
+    import pdb
+    pdb.set_trace()
 
-    clean_temp_files(period_s)
+    # raw_scene_dir = os.path.join(raw_dir, '{}.SAFE'.format(p['title']))
 
+    # # Download product
+    # if not os.path.exists(raw_scene_dir):
+    #     zip_path = os.path.join(raw_dir, '{}.zip'.format(p['title']))
+    #     if not os.path.exists(zip_path):
+    #         logger.info("Download product to %s", raw_dir)
+    #         os.makedirs(raw_dir, exist_ok=True)
+    #         api.download(p_id, directory_path=raw_dir)
 
-def unzip_product(product, period_s):
-    filename = '{}.zip'.format(product['title'])
-    zip_path = os.path.join(S2_L1C_PATH, period_s, filename)
-    outdir = os.path.join(S2_L1C_PATH, period_s,
-                          '{}.SAFE'.format(product['title']))
-    if not os.path.exists(outdir):
-        print("# Unzip", product['title'])
-        unzip(zip_path, delete_zip=False)
+    #     # Extract product zip file
+    #     logger.info("Unzip %s", zip_path)
+    #     unzip(zip_path, delete_zip=False)
 
+    # # Get TCI image
+    # tci_path = glob(
+    #     os.path.join(raw_scene_dir, 'GRANULE', '*', 'IMG_DATA', 'R10m',
+    #                  '*_TCI_*.jp2'))[0]
 
-def generate_vegetation_indexes(mosaic_name, period_s):
-    mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
-    nir = os.path.join(mosaic_path, '{}_R10m_NIR.vrt'.format(mosaic_name))
-    rgb = os.path.join(mosaic_path, '{}_R10m_RGB.vrt'.format(mosaic_name))
+    # # Clip it to extent and store it on proc dir
+    # proc_scene_dir = os.path.join(PROC_DIR, period_s)
+    # clipped_tci_path = os.path.join(proc_scene_dir, 'tci.tif')
+    # clip(src=tci_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
 
-    #ndiv
-    dst = os.path.join(mosaic_path, '{}_R10m_NDVI.tif'.format(mosaic_name))
-    exp = '(im1b1 - im2b1) / (im1b1 + im2b1)'
-    run_subprocess(
-        '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
-        .format(otb_bin_path=settings.OTB_BIN_PATH,
-                nir=nir,
-                rgb=rgb,
-                dst=dst,
-                exp=exp))
-
-    #ndwi
-    dst = os.path.join(mosaic_path, '{}_R10m_NDWI.tif'.format(mosaic_name))
-    exp = '(im1b1 - im2b2) / (im1b1 + im2b2)'
-    run_subprocess(
-        '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
-        .format(otb_bin_path=settings.OTB_BIN_PATH,
-                nir=nir,
-                rgb=rgb,
-                dst=dst,
-                exp=exp))
-
-    #evi
-    dst = os.path.join(mosaic_path, '{}_R10m_EVI.tif'.format(mosaic_name))
-    exp = '(2.5 * ((im1b1 - im2b1) / (im1b1 + 6 * im2b1 - 7.5 * im2b3 + 1)))'
-    run_subprocess(
-        '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
-        .format(otb_bin_path=settings.OTB_BIN_PATH,
-                nir=nir,
-                rgb=rgb,
-                dst=dst,
-                exp=exp))
-
-    #savi
-    dst = os.path.join(mosaic_path, '{}_R10m_SAVI.tif'.format(mosaic_name))
-    exp = '((im1b1 - im2b1) * 1.5 / (im1b1 + im2b1 + 0.5))'
-    run_subprocess(
-        '{otb_bin_path}/otbcli_BandMath -il {nir} {rgb} -out {dst} -exp "{exp}"'
-        .format(otb_bin_path=settings.OTB_BIN_PATH,
-                nir=nir,
-                rgb=rgb,
-                dst=dst,
-                exp=exp))
+    return proc_scene_dir
 
 
-def concatenate_results(mosaic_name, period_s):
-    mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
-    tif_10m = f's2_{period_s}_10m.tif'
-    tif_20m = f's2_{period_s}_20m.tif'
+def extract_chips_from_scene(scene_dir):
+    from satlomas.chips import extract_chips
 
-    R10m_B02 = os.path.join(mosaic_path, '{}_R10m_B02.tif'.format(mosaic_name))
-    R10m_B03 = os.path.join(mosaic_path, '{}_R10m_B03.tif'.format(mosaic_name))
-    R10m_B04 = os.path.join(mosaic_path, '{}_R10m_B04.tif'.format(mosaic_name))
-    R10m_B08 = os.path.join(mosaic_path, '{}_R10m_B08.tif'.format(mosaic_name))
-    R10m_NDVI = os.path.join(mosaic_path,
-                             '{}_R10m_NDVI.tif'.format(mosaic_name))
-    R10m_NDVI = os.path.join(mosaic_path,
-                             '{}_R10m_NDWI.tif'.format(mosaic_name))
-    R10m_EVI = os.path.join(mosaic_path, '{}_R10m_EVI.tif'.format(mosaic_name))
-    R10m_SAVI = os.path.join(mosaic_path,
-                             '{}_R10m_SAVI.tif'.format(mosaic_name))
-    src = ' '.join([
-        R10m_B02, R10m_B03, R10m_B04, R10m_B08, R10m_NDVI, R10m_NDVI, R10m_EVI,
-        R10m_SAVI
-    ])
-    run_subprocess(
-        '{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
-            otb_bin_path=settings.OTB_BIN_PATH,
-            src=src,
-            dst=os.path.join(mosaic_path, tif_10m)))
+    rasters = glob(os.path.join(scene_dir, '*.tif'))
+    logger.info("Num. rasters: %i", len(rasters))
 
-    R20m_B05 = os.path.join(mosaic_path, '{}_R20m_B05.tif'.format(mosaic_name))
-    R20m_B06 = os.path.join(mosaic_path, '{}_R20m_B06.tif'.format(mosaic_name))
-    R20m_B07 = os.path.join(mosaic_path, '{}_R20m_B07.tif'.format(mosaic_name))
-    R20m_B8A = os.path.join(mosaic_path, '{}_R20m_B8A.tif'.format(mosaic_name))
-    R20m_B11 = os.path.join(mosaic_path, '{}_R20m_B11.tif'.format(mosaic_name))
-    R20m_B12 = os.path.join(mosaic_path, '{}_R20m_B12.tif'.format(mosaic_name))
-    src = ' '.join(
-        [R20m_B05, R20m_B06, R20m_B07, R20m_B8A, R20m_B11, R20m_B12])
-    run_subprocess(
-        '{otb_bin_path}/otbcli_ConcatenateImages -il {src} -out {dst}'.format(
-            otb_bin_path=settings.OTB_BIN_PATH,
-            src=src,
-            dst=os.path.join(mosaic_path, tif_20m)))
+    chips_dir = os.path.join(CHIPS_DIR, os.path.basename(scene_dir))
+    logger.info("Extract chips on images from %s into %s", scene_dir,
+                chips_dir)
+
+    extract_chips(rasters,
+                  aoi=AOI_UTM_PATH,
+                  bands=BANDS,
+                  type='tif',
+                  size=SIZE,
+                  step_size=STEP_SIZE,
+                  output_dir=chips_dir)
+
+    return chips_dir
 
 
-def clip_results(period_s):
-    mosaic_path = os.path.join(settings.IMAGES_PATH, 'mosaic', period_s)
-    tif_10m = f's2_{period_s}_10m.tif'
-    tif_20m = f's2_{period_s}_20m.tif'
+def predict_scene(chips_dir):
+    from satlomas.unet.predict import PredictConfig, predict
 
-    srcs = [tif_10m, tif_20m]
+    predict_chips_dir = os.path.join(PREDICT_DIR, os.path.basename(chips_dir))
+    cfg = PredictConfig(images_path=chips_dir,
+                        results_path=predict_chips_dir,
+                        batch_size=BATCH_SIZE,
+                        model_path=MODEL_PATH,
+                        height=SIZE,
+                        width=SIZE,
+                        n_channels=len(BANDS),
+                        n_classes=NUM_CLASSES)
+    logger.info("Predict chips on %s", predict_chips_dir)
+    predict(cfg)
 
-    for src in srcs:
-        run_subprocess(
-            '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
-            .format(gdal_bin_path=settings.GDAL_BIN_PATH,
-                    aoi=AOI_UTM_PATH,
-                    src=os.path.join(mosaic_path, src),
-                    dst=os.path.join(RESULTS_PATH, src)))
+    logger.info("Delete chips directory")
+    shutil.rmtree(chips_dir)
 
-
-def get_canonical_names(prods):
-    r = [os.path.basename(p) for p in prods]
-    r = [n.split('_') for n in r]
-    r = ["_".join([ps[i] for i in [0, 2, 4, 5]]) for ps in r]
-    return dict(zip(r, prods))
+    return predict_chips_dir
 
 
-def sen2_preprocess(product_path, period_s):
-    cmd = "python3 {}/preprocess.py -v -o {} -res 10 {}".format(
-        settings.S2M_CLI_PATH, os.path.join(S2_L2A_PATH, period_s),
-        product_path)
-    print(cmd)
-    os.system(cmd)
+def postprocess_scene(predict_chips_dir):
+    from satlomas.unet.postprocess import (clip, coalesce_and_binarize_all,
+                                           merge_all)
+
+    result_path = os.path.join(RESULTS_DIR,
+                               f'{os.path.basename(predict_chips_dir)}.tif')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bin_path = os.path.join(tmpdir, 'bin')
+        logger.info(
+            "Coalesce and binarize all in %s into %s (with threshold %d)",
+            predict_chips_dir, bin_path, BIN_THRESHOLD)
+        coalesce_and_binarize_all(input_dir=predict_chips_dir,
+                                  output_dir=bin_path,
+                                  threshold=BIN_THRESHOLD)
+
+        merged_path = os.path.join(tmpdir, 'merged.tif')
+        logger.info("Merge all binarized chips on %s into %s", bin_path,
+                    merged_path)
+        merge_all(input_dir=bin_path, output=merged_path)
+
+        logger.info("Clip merged raster %s into %s using AOI at %s",
+                    merged_path, result_path, AOI_UTM_PATH)
+        clip(src=merged_path, dst=result_path, aoi=AOI_UTM_PATH)
+
+    logger.info("Delete predict chips")
+    shutil.rmtree(predict_chips_dir)
+
+    return result_path
 
 
-def create_rgb_rasters(period):
-    period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
-                                      dto=period.date_to.strftime("%Y%m"))
+# def create_rgb_rasters(period):
+#     period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
+#                                       dto=period.date_to.strftime("%Y%m"))
 
-    src_path = os.path.join(RESULTS_PATH, f's2_{period_s}_10m.tif')
-    dst_path = os.path.join(RGB_PATH, os.path.basename(src_path))
+#     src_path = os.path.join(RESULTS_PATH, f's2_{period_s}_10m.tif')
+#     dst_path = os.path.join(RGB_PATH, os.path.basename(src_path))
 
-    if not os.path.exists(dst_path):
-        logger.info("Build RGB Sentinel-2 raster")
-        write_rgb_raster(src_path=src_path,
-                         dst_path=dst_path,
-                         bands=(3, 2, 1),
-                         in_range=((0, 3000), (0, 3000), (0, 3000)))
-    raster, _ = Raster.objects.update_or_create(
-        period=period,
-        slug="s2",
-        defaults=dict(name="Sentinel-2 (RGB, 10m)"))
-    with open(dst_path, 'rb') as f:
-        raster.file.save(f's2.tif', File(f, name='s2.tif'))
-
-
-def clean_temp_files(period_s):
-    for dirname in glob(os.path.join(S2_L1C_PATH, period_s, '*.SAFE')):
-        shutil.rmtree(dirname)
-    shutil.rmtree(os.path.join(S2_L2A_PATH, period_s))
-    shutil.rmtree(os.path.join(settings.IMAGES_PATH, 'mosaic', period_s))
+#     if not os.path.exists(dst_path):
+#         logger.info("Build RGB Sentinel-2 raster")
+#         write_rgb_raster(src_path=src_path,
+#                          dst_path=dst_path,
+#                          bands=(3, 2, 1),
+#                          in_range=((0, 3000), (0, 3000), (0, 3000)))
+#     raster, _ = Raster.objects.update_or_create(
+#         period=period, slug="s2", defaults=dict(name="Sentinel-2 (RGB, 10m)"))
+#     with open(dst_path, 'rb') as f:
+#         raster.file.save(f's2.tif', File(f, name='s2.tif'))

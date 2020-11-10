@@ -1,18 +1,22 @@
+import logging
 import os
 import subprocess
 import zipfile
 
 import numpy as np
 import rasterio
+from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rasterio.windows import Window
 from shapely.geometry import box
 from skimage import exposure
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 
 def run_subprocess(cmd):
-    print(cmd)
+    logger.info("Run: %s", cmd)
     subprocess.run(cmd, shell=True, check=True)
 
 
@@ -59,3 +63,15 @@ def write_rgb_raster(bands=[], *, src_path, dst_path, in_range):
                 for i in range(3):
                     dst.write(new_img[:, :, i], i + 1, window=window)
 
+
+def clip(src, dst, *, aoi):
+    # Make sure directory exists, and if file exists, delete to overwrite
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.exists(dst):
+        os.unlink(dst)
+
+    logger.info("Clip raster %s to %s using %s as cutline", src, dst, aoi)
+    gdalwarp_bin = f'{settings.GDAL_BIN_PATH}/gdalwarp'
+    run_subprocess(
+        f'{gdalwarp_bin} -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+    )
