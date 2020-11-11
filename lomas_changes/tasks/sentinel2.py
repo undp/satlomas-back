@@ -40,7 +40,7 @@ AOI_UTM_PATH = os.path.join(DATA_DIR, 'aoi_utm.gpkg')
 EXTENT_PATH = os.path.join(DATA_DIR, 'extent.geojson')
 EXTENT_UTM_PATH = os.path.join(DATA_DIR, 'extent_utm.geojson')
 
-MAX_CLOUD_PERC = 20
+MAX_CLOUD_PERC = 80
 
 # extract_chips
 BANDS = (1, 2, 3)
@@ -116,10 +116,10 @@ def download_and_build_composite(date_from, date_to):
 
     # Unzip compressed files, if there are any
     for p in glob(os.path.join(raw_dir, '*.zip')):
-        logger.info("Unzip %s", p)
         name, _ = os.path.splitext(os.path.basename(p))
         p_dir = os.path.join(raw_dir, f'{name}.SAFE')
         if not os.path.exists(p_dir):
+            logger.info("Unzip %s", p)
             unzip(p, delete_zip=False)
 
     # Build mosaic
@@ -129,8 +129,8 @@ def download_and_build_composite(date_from, date_to):
     os.makedirs(mosaic_dir, exist_ok=True)
     # FIXME: Read bounds from EXTENT_UTM_PATH
     xmin, ymin, xmax, ymax = [
-        260572.3994411753083114, 8620358.0515629947185516,
-        324439.4877797830849886, 8720597.2414500378072262
+        261215.0000000000000000, 8620583.0000000000000000,
+        323691.8790999995544553, 8719912.0846999995410442
     ]
     cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
             f"-te {xmin} {ymin} {xmax} {ymax} " \
@@ -139,19 +139,22 @@ def download_and_build_composite(date_from, date_to):
             f"-o {mosaic_dir} {raw_dir}"
     run_subprocess(cmd)
 
-    import pdb
-    pdb.set_trace()
+    # Use gdalbuildvrt to concatenate RGB bands from mosaic
+    mosaic_r = glob(os.path.join(mosaic_dir, '*_B04.tif'))[0]
+    mosaic_g = glob(os.path.join(mosaic_dir, '*_B03.tif'))[0]
+    mosaic_b = glob(os.path.join(mosaic_dir, '*_B02.tif'))[0]
+    vrt_path = os.path.join(mosaic_dir, 'tci.vrt')
+    cmd = f'gdalbuildvrt -separate {vrt_path} {mosaic_r} {mosaic_g} {mosaic_b}'
+    run_subprocess(cmd)
 
-    # Use gdalbuildvrt to concatenate bands
+    # Clip to extent and rescale virtual raster
+    clipped_tci_path = os.path.join(mosaic_dir, 'tci.tif')
+    clip(src=vrt_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
 
-    # tci_path = glob(
-    #     os.path.join(raw_scene_dir, 'GRANULE', '*', 'IMG_DATA', 'R10m',
-    #                  '*_TCI_*.jp2'))[0]
-
-    # Clip virtual raster to extent and store it on proc dir
-    # proc_scene_dir = os.path.join(PROC_DIR, period_s)
-    # clipped_tci_path = os.path.join(proc_scene_dir, 'tci.tif')
-    # clip(src=tci_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
+    # Rescale image
+    proc_scene_dir = os.path.join(PROC_DIR, period_s)
+    tci_path = os.path.join(proc_scene_dir, 'tci.tif')
+    rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
     return proc_scene_dir
 
