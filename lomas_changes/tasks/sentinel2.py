@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, unzip, write_rgb_raster, rescale_byte
+from lomas_changes.utils import run_subprocess, write_rgb_raster
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ def process_period(job):
 
 
 def download_and_build_composite(date_from, date_to):
-    from lomas_changes.utils import clip
+    from lomas_changes.utils import unzip, clip, rescale_byte
     from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
     period_s = '{dfrom}_{dto}'.format(dfrom=date_from.strftime("%Y%m%d"),
@@ -128,11 +128,13 @@ def download_and_build_composite(date_from, date_to):
     mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
     os.makedirs(mosaic_dir, exist_ok=True)
     mosaic_rgb_paths = [
-        glob(os.path.join(mosaic_dir, '*_{band}.tif'))[0]
+        glob(os.path.join(mosaic_dir, f'*_{band}.tif'))
         for band in ['B04', 'B03', 'B02']
     ]
+    mosaic_rgb_paths = [p[0] for p in mosaic_rgb_paths if p]
+    logger.info("RGB paths: %s", mosaic_rgb_paths)
 
-    if not all(os.path.exists(p) for p in mosaic_rgb_paths):
+    if len(mosaic_rgb_paths) != 3:
         # FIXME: Read bounds from EXTENT_UTM_PATH
         xmin, ymin, xmax, ymax = [
             261215.0000000000000000, 8620583.0000000000000000,
@@ -146,11 +148,8 @@ def download_and_build_composite(date_from, date_to):
         run_subprocess(cmd)
 
     # Use gdalbuildvrt to concatenate RGB bands from mosaic
-    mosaic_r = glob(os.path.join(mosaic_dir, '*_B04.tif'))[0]
-    mosaic_g = glob(os.path.join(mosaic_dir, '*_B03.tif'))[0]
-    mosaic_b = glob(os.path.join(mosaic_dir, '*_B02.tif'))[0]
     vrt_path = os.path.join(mosaic_dir, 'tci.vrt')
-    cmd = f'gdalbuildvrt -separate {vrt_path} {mosaic_r} {mosaic_g} {mosaic_b}'
+    cmd = f"gdalbuildvrt -separate {vrt_path} {' '.join(mosaic_rgb_paths)}"
     run_subprocess(cmd)
 
     # Clip to extent and rescale virtual raster

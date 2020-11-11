@@ -73,7 +73,7 @@ def clip(src, dst, *, aoi):
     logger.info("Clip raster %s to %s using %s as cutline", src, dst, aoi)
     gdalwarp_bin = f'{settings.GDAL_BIN_PATH}/gdalwarp'
     run_subprocess(
-        f'{gdalwarp_bin} -of GTiff -cutline {aoi} -crop_to_cutline -dstalpha {src} {dst}'
+        f'{gdalwarp_bin} -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
     )
 
 
@@ -86,7 +86,7 @@ def rescale_byte(src, dst, *, in_range):
     logger.info("Rescale raster %s to %s with input range %s", src, dst,
                 in_range)
     gdal_translate_bin = f'{settings.GDAL_BIN_PATH}/gdal_translate'
-    run_subprocess(f"{gdal_translate_bin} -of GTiff -ot {out_type} " \
-        f"-scale {' '.join(in_range)} 1 255 -a_nodata 0 " \
+    run_subprocess(f"{gdal_translate_bin} -of GTiff -ot Byte " \
+        f"-scale {' '.join(str(v) for v in in_range)} 1 255 -a_nodata 0 " \
         f"-co COMPRESS=DEFLATE -co TILED=YES " \
         f"{src} {dst}")
