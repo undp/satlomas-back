@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, unzip, write_rgb_raster
+from lomas_changes.utils import run_subprocess, unzip, write_rgb_raster, rescale_byte
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -127,17 +127,23 @@ def download_and_build_composite(date_from, date_to):
 
     mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
     os.makedirs(mosaic_dir, exist_ok=True)
-    # FIXME: Read bounds from EXTENT_UTM_PATH
-    xmin, ymin, xmax, ymax = [
-        261215.0000000000000000, 8620583.0000000000000000,
-        323691.8790999995544553, 8719912.0846999995410442
+    mosaic_rgb_paths = [
+        glob(os.path.join(mosaic_dir, '*_{band}.tif'))[0]
+        for band in ['B04', 'B03', 'B02']
     ]
-    cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
-            f"-te {xmin} {ymin} {xmax} {ymax} " \
-            f"-e 32718 -res 10 -v " \
-            f"-p {settings.S2M_NUM_JOBS} " \
-            f"-o {mosaic_dir} {raw_dir}"
-    run_subprocess(cmd)
+
+    if not all(os.path.exists(p) for p in mosaic_rgb_paths):
+        # FIXME: Read bounds from EXTENT_UTM_PATH
+        xmin, ymin, xmax, ymax = [
+            261215.0000000000000000, 8620583.0000000000000000,
+            323691.8790999995544553, 8719912.0846999995410442
+        ]
+        cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
+                f"-te {xmin} {ymin} {xmax} {ymax} " \
+                f"-e 32718 -res 10 -v " \
+                f"-p {settings.S2M_NUM_JOBS} " \
+                f"-o {mosaic_dir} {raw_dir}"
+        run_subprocess(cmd)
 
     # Use gdalbuildvrt to concatenate RGB bands from mosaic
     mosaic_r = glob(os.path.join(mosaic_dir, '*_B04.tif'))[0]
@@ -152,7 +158,6 @@ def download_and_build_composite(date_from, date_to):
     clip(src=vrt_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
 
     # Rescale image
-    proc_scene_dir = os.path.join(PROC_DIR, period_s)
     tci_path = os.path.join(proc_scene_dir, 'tci.tif')
     rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
