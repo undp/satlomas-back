@@ -5,6 +5,7 @@ from glob import glob
 
 import numpy as np
 import rasterio
+from django.conf import settings
 from tqdm import tqdm
 
 from .utils import grouper, run_command
