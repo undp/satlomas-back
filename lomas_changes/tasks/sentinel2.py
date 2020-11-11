@@ -77,6 +77,12 @@ def download_and_build_composite(date_from, date_to):
 
     period_s = '{dfrom}_{dto}'.format(dfrom=date_from.strftime("%Y%m%d"),
                                       dto=date_to.strftime("%Y%m%d"))
+    proc_scene_dir = os.path.join(PROC_DIR, period_s)
+    tci_path = os.path.join(proc_scene_dir, 'tci.tif')
+
+    if os.path.exists(tci_path):
+        logger.info("TCI file already generated at %s", tci_path)
+        return [tci_path]
 
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
@@ -123,7 +129,6 @@ def download_and_build_composite(date_from, date_to):
             unzip(p, delete_zip=False)
 
     # Build mosaic
-    proc_scene_dir = os.path.join(PROC_DIR, period_s)
 
     mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
     os.makedirs(mosaic_dir, exist_ok=True)
@@ -157,7 +162,6 @@ def download_and_build_composite(date_from, date_to):
     clip(src=vrt_path, dst=clipped_tci_path, aoi=EXTENT_UTM_PATH)
 
     # Rescale image
-    tci_path = os.path.join(proc_scene_dir, 'tci.tif')
     rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
     return [tci_path]
