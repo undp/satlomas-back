@@ -117,7 +117,9 @@ def download_and_build_composite(date_from, date_to):
     # Unzip compressed files, if there are any
     for p in glob(os.path.join(raw_dir, '*.zip')):
         logger.info("Unzip %s", p)
-        unzip(p, delete_zip=False)
+        p_dir = os.path.join(raw_dir, f'{os.path.basename(p)}.SAFE')
+        if not os.path.exists(p_dir):
+            unzip(p, delete_zip=False)
 
     # Build mosaic
     proc_scene_dir = os.path.join(PROC_DIR, period_s)
