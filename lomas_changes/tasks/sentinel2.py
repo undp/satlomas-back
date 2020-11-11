@@ -210,8 +210,8 @@ def predict_scene(chips_dir):
 
 
 def postprocess_scene(predict_chips_dir):
-    from satlomas.unet.postprocess import (clip, coalesce_and_binarize_all,
-                                           merge_all)
+    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all
+    from lomas_changes.utils import clip
 
     result_path = os.path.join(RESULTS_DIR,
                                f'{os.path.basename(predict_chips_dir)}.tif')
