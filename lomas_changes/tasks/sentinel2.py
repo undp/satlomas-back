@@ -61,13 +61,13 @@ def process_period(job):
 
     ### Processing pipeline ###
 
-    proc_scene_dir = download_and_build_composite(date_from, date_to)
+    image_paths = download_and_build_composite(date_from, date_to)
     # TODO: Load RGB raster on DB
-    # chips_dir = extract_chips_from_scene(proc_scene_dir)
-    # predict_chips_dir = predict_scene(chips_dir)
-    # result_path = postprocess_scene(predict_chips_dir)
+    chips_dir = extract_chips_from_scene(image_paths)
+    predict_chips_dir = predict_scene(chips_dir)
+    result_path = postprocess_scene(predict_chips_dir)
 
-    # logger.info("Result path: %s", result_path)
+    logger.info("Result path: %s", result_path)
     # TODO: Load result raster on DB
 
 
@@ -160,15 +160,15 @@ def download_and_build_composite(date_from, date_to):
     tci_path = os.path.join(proc_scene_dir, 'tci.tif')
     rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
-    return proc_scene_dir
+    return [tci_path]
 
 
-def extract_chips_from_scene(scene_dir):
+def extract_chips_from_scene(rasters):
     from satlomas.chips import extract_chips
 
-    rasters = glob(os.path.join(scene_dir, '*.tif'))
-    logger.info("Num. rasters: %i", len(rasters))
+    logger.info("Num. rasters to extract chips: %i", len(rasters))
 
+    scene_dir = os.path.dirname(rasters[0])
     chips_dir = os.path.join(CHIPS_DIR, os.path.basename(scene_dir))
     logger.info("Extract chips on images from %s into %s", scene_dir,
                 chips_dir)
