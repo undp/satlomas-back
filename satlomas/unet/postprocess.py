@@ -21,7 +21,7 @@ def coalesce_and_binarize(src_path, threshold=0.5, *, output_dir):
     mask_t = threshold * 255
     mask = img[:, :, 0] >= mask_t
     for b in range(1, img.shape[2]):
-        mask = mask | img[:, :, b] >= mask_t
+        mask = mask | (img[:, :, b] >= mask_t)
     mask = mask.astype(np.uint8)
 
     # Get class with max probability and apply mask
