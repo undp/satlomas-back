@@ -129,7 +129,6 @@ def download_and_build_composite(date_from, date_to):
             unzip(p, delete_zip=False)
 
     # Build mosaic
-
     mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
     os.makedirs(mosaic_dir, exist_ok=True)
     mosaic_rgb_paths = [
@@ -210,18 +209,23 @@ def predict_scene(chips_dir):
 
 
 def postprocess_scene(predict_chips_dir):
-    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all
+    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all, smooth_stitch
     from lomas_changes.utils import clip
 
     result_path = os.path.join(RESULTS_DIR,
                                f'{os.path.basename(predict_chips_dir)}.tif')
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        smooth_dir = os.path.join(tmpdir, 'smooth')
+        logger.info("Stitch prediction chips at %s on %s", predict_chips_dir,
+                    smooth_dir)
+        smooth_stitch(input_dir=predict_chips_dir, output_dir=smooth_dir)
+
         bin_path = os.path.join(tmpdir, 'bin')
         logger.info(
             "Coalesce and binarize all in %s into %s (with threshold %f)",
             predict_chips_dir, bin_path, BIN_THRESHOLD)
-        coalesce_and_binarize_all(input_dir=predict_chips_dir,
+        coalesce_and_binarize_all(input_dir=smooth_dir,
                                   output_dir=bin_path,
                                   threshold=BIN_THRESHOLD)
 
