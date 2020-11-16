@@ -13,3 +13,4 @@ perusatproc
 #gdal (install manually)
 pyshp==2.1.2
 psutil==5.7.3
+rtree==0.9.4
