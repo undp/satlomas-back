@@ -10,6 +10,15 @@ from tqdm import tqdm
 
 from .utils import grouper, run_command
 
+import logging
+import sys
+logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
+
 
 def coalesce_and_binarize(src_path, threshold=0.5, *, output_dir):
     # Read image

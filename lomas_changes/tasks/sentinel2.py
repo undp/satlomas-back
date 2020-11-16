@@ -46,7 +46,7 @@ MAX_CLOUD_PERC = 80
 BANDS = (1, 2, 3)
 NUM_CLASSES = 2
 SIZE = 160
-STEP_SIZE = 160
+STEP_SIZE = 80
 
 # predict
 BATCH_SIZE = 64
@@ -219,7 +219,7 @@ def postprocess_scene(predict_chips_dir):
     with tempfile.TemporaryDirectory() as tmpdir:
         bin_path = os.path.join(tmpdir, 'bin')
         logger.info(
-            "Coalesce and binarize all in %s into %s (with threshold %d)",
+            "Coalesce and binarize all in %s into %s (with threshold %f)",
             predict_chips_dir, bin_path, BIN_THRESHOLD)
         coalesce_and_binarize_all(input_dir=predict_chips_dir,
                                   output_dir=bin_path,

@@ -58,15 +58,15 @@ def predict(cfg):
 
         # Predict batch
         pred = model.predict(np.array(X_predict))
-        preds_test_ = pred  #> 0.05
+        preds_test_ = pred
 
         preds_test_scaled_ = minmax_scale(preds_test_.ravel(),
-                                          feature_range=(0, 255)).reshape(
+                                          feature_range=(1, 255)).reshape(
                                               preds_test_.shape)
 
         for i, img_path in enumerate(mini_group):
             profile_ = X_profile[i]
-            profile_.update(count=cfg.n_classes, dtype=np.uint8)
+            profile_.update(count=cfg.n_classes, dtype=np.uint8, nodata=0)
 
             out_height, out_width = profile_['height'], profile_['width']
 
