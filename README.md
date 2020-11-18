@@ -96,6 +96,7 @@ sudo apt-get install \
   libgdal-dev \
   libpq-dev \
   libproj-dev \
+  libspatialindex-dev \
   python3 \
   python3-dev \
   python3-pip \
