@@ -37,6 +37,7 @@ def sliding_windows(size, width, height):
             yield Window(j, i, min(width - j, size), min(height - i, size))
 
 
+# TODO: check if used, if not, delete
 def write_rgb_raster(bands=[], *, src_path, dst_path, in_range):
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with rasterio.open(src_path) as src:
@@ -90,3 +91,32 @@ def rescale_byte(src, dst, *, in_range):
         f"-scale {' '.join(str(v) for v in in_range)} 1 255 -a_nodata 0 " \
         f"-co COMPRESS=DEFLATE -co TILED=YES " \
         f"{src} {dst}")
+
+
+def create_rgb_raster(raster_path, *, slug, date, name):
+    raster, _ = Raster.objects.update_or_create(date=date,
+                                                slug=slug,
+                                                defaults=dict(name=name))
+    with open(raster_path, 'rb') as f:
+        raster.file.save(f'{slug}.tif', File(f, name='{slug}.tif'))
+
+
+def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
+    with rasterio.open(src_path) as src:
+        img = src.read(1)
+        profile = src.profile.copy()
+
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    profile.update(count=3, dtype=np.uint8, nodata=0)
+    with rasterio.open(dst_path, 'w', **profile) as dst:
+        for i in range(new_img.shape[2]):
+            dst.write(new_img[:, :, i], i + 1)
+
+
+def hex_to_dec_string(value):
+    return np.array([int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]],
+                    np.uint8)

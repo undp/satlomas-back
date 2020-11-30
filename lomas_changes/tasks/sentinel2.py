@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, write_rgb_raster
+from lomas_changes.utils import run_subprocess, write_rgb_raster, write_paletted_rgb_raster
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -33,14 +33,18 @@ PROC_DIR = os.path.join(DATA_DIR, 'proc')
 CHIPS_DIR = os.path.join(DATA_DIR, 'chips')
 # "predict" directory contains result chips from prediction
 PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
-# "results" directory contains post-processed chips
+# "results" directory contains final rasters.  In this case: 1) Sentinel-2 RGB
+# raster and 2) Classification result as RGB raster (using a colormap)
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
+
+#MASK_DIR = os.path.join(DATA_DIR, 'mask')
+RESULTS_RGB_DIR = os.path.join(RESULTS_DIR, 'rgb')
 
 AOI_UTM_PATH = os.path.join(DATA_DIR, 'aoi_utm.gpkg')
 EXTENT_PATH = os.path.join(DATA_DIR, 'extent.geojson')
 EXTENT_UTM_PATH = os.path.join(DATA_DIR, 'extent_utm.geojson')
 
-MAX_CLOUD_PERC = 80
+MAX_CLOUD_PERC = 50
 
 # extract_chips
 BANDS = (1, 2, 3)
@@ -51,7 +55,9 @@ STEP_SIZE = 80
 # predict
 BATCH_SIZE = 64
 MODEL_PATH = os.path.join(DATA_DIR, 'lomas_sen2_v10.h5')
-BIN_THRESHOLD = 0.4
+BIN_THRESHOLD = 0.2
+
+COLORMAP = ['#ff0000', '#00c8ff']
 
 
 @job('processing')
@@ -61,18 +67,19 @@ def process_period(job):
 
     ### Processing pipeline ###
 
-    image_paths = download_and_build_composite(date_from, date_to)
-    # TODO: Load RGB raster on DB
-    chips_dir = extract_chips_from_scene(image_paths)
+    tci_path = download_and_build_composite(date_from, date_to)
+    create_rgb_raster(tci_path,
+                      slug='s2',
+                      date=date_to,
+                      name='Sentinel-2 (RGB, 10m)')
+    chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
-
-    logger.info("Result path: %s", result_path)
-    # TODO: Load result raster on DB
+    create_rgb_raster(result_path, slug='loss', date=date_to, name='Loss mask')
 
 
 def download_and_build_composite(date_from, date_to):
-    from lomas_changes.utils import unzip, clip, rescale_byte
+    from lomas_changes.utils import clip, rescale_byte, unzip
     from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
     period_s = '{dfrom}_{dto}'.format(dfrom=date_from.strftime("%Y%m%d"),
@@ -163,7 +170,7 @@ def download_and_build_composite(date_from, date_to):
     # Rescale image
     rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
-    return [tci_path]
+    return tci_path
 
 
 def extract_chips_from_scene(rasters):
@@ -209,8 +216,9 @@ def predict_scene(chips_dir):
 
 
 def postprocess_scene(predict_chips_dir):
-    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all, smooth_stitch
     from lomas_changes.utils import clip
+    from satlomas.unet.postprocess import (coalesce_and_binarize_all,
+                                           merge_all, smooth_stitch)
 
     result_path = os.path.join(RESULTS_DIR,
                                f'{os.path.basename(predict_chips_dir)}.tif')
@@ -234,30 +242,16 @@ def postprocess_scene(predict_chips_dir):
                     merged_path)
         merge_all(input_dir=bin_path, output=merged_path)
 
+        clipped_path = os.path.join(tmpdir, 'clipped.tif')
         logger.info("Clip merged raster %s into %s using AOI at %s",
-                    merged_path, result_path, AOI_UTM_PATH)
-        clip(src=merged_path, dst=result_path, aoi=AOI_UTM_PATH)
+                    merged_path, clipped_path, AOI_UTM_PATH)
+        clip(src=merged_path, dst=clipped_path, aoi=AOI_UTM_PATH)
 
-    logger.info("Delete predict chips")
-    shutil.rmtree(predict_chips_dir)
+        logger.info("Write paletted RGB raster %s into %s", clipped_path,
+                    result_path)
+        write_paletted_rgb_raster(clipped_path, result_path, colormap=COLORMAP)
+
+    # logger.info("Delete predict chips")
+    # shutil.rmtree(predict_chips_dir)
 
     return result_path
-
-
-# def create_rgb_rasters(period):
-#     period_s = '{dfrom}_{dto}'.format(dfrom=period.date_from.strftime("%Y%m"),
-#                                       dto=period.date_to.strftime("%Y%m"))
-
-#     src_path = os.path.join(RESULTS_PATH, f's2_{period_s}_10m.tif')
-#     dst_path = os.path.join(RGB_PATH, os.path.basename(src_path))
-
-#     if not os.path.exists(dst_path):
-#         logger.info("Build RGB Sentinel-2 raster")
-#         write_rgb_raster(src_path=src_path,
-#                          dst_path=dst_path,
-#                          bands=(3, 2, 1),
-#                          in_range=((0, 3000), (0, 3000), (0, 3000)))
-#     raster, _ = Raster.objects.update_or_create(
-#         period=period, slug="s2", defaults=dict(name="Sentinel-2 (RGB, 10m)"))
-#     with open(dst_path, 'rb') as f:
-#         raster.file.save(f's2.tif', File(f, name='s2.tif'))
