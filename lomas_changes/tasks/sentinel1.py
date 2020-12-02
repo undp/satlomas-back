@@ -16,7 +16,8 @@ from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 import lomas_changes
 from lomas_changes.models import Raster
-from lomas_changes.utils import (run_subprocess, sliding_windows, unzip, write_rgb_raster)
+from lomas_changes.utils import (run_subprocess, sliding_windows, unzip,
+                                 write_rgb_raster)
 
 APPDIR = os.path.dirname(lomas_changes.__file__)
 
@@ -355,6 +356,7 @@ def create_rgb_rasters(period):
 
     if not os.path.exists(dst_path):
         logger.info("Build RGB Sentinel-1 raster")
+        # FIXME: Replace with rescale_byte and write_rgb
         write_rgb_raster(src_path=src_path,
                          dst_path=dst_path,
                          bands=(1, 2, 3),
