@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, write_rgb_raster, write_paletted_rgb_raster
+from lomas_changes.utils import run_subprocess, write_paletted_rgb_raster, create_rgb_raster
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ BATCH_SIZE = 64
 MODEL_PATH = os.path.join(DATA_DIR, 'lomas_sen2_v10.h5')
 BIN_THRESHOLD = 0.2
 
-COLORMAP = ['#ff0000', '#00c8ff']
+COLORMAP = ['ff0000', '00c8ff']
 
 
 @job('processing')
@@ -89,7 +89,7 @@ def download_and_build_composite(date_from, date_to):
 
     if os.path.exists(tci_path):
         logger.info("TCI file already generated at %s", tci_path)
-        return [tci_path]
+        return tci_path
 
     if not settings.SCIHUB_USER or not settings.SCIHUB_PASS:
         raise "SCIHUB_USER and/or SCIHUB_PASS are not set. " + \
@@ -138,25 +138,25 @@ def download_and_build_composite(date_from, date_to):
     # Build mosaic
     mosaic_dir = os.path.join(proc_scene_dir, 'mosaic')
     os.makedirs(mosaic_dir, exist_ok=True)
+    # FIXME: Read bounds from EXTENT_UTM_PATH
+    xmin, ymin, xmax, ymax = [
+        261215.0000000000000000, 8620583.0000000000000000,
+        323691.8790999995544553, 8719912.0846999995410442
+    ]
+    cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
+            f"-te {xmin} {ymin} {xmax} {ymax} " \
+            f"-e 32718 -res 10 -v " \
+            f"-p {settings.S2M_NUM_JOBS} " \
+            f"-o {mosaic_dir} {raw_dir}"
+    run_subprocess(cmd)
+
+    # Get mosaic band rasters
     mosaic_rgb_paths = [
         glob(os.path.join(mosaic_dir, f'*_{band}.tif'))
         for band in ['B04', 'B03', 'B02']
     ]
     mosaic_rgb_paths = [p[0] for p in mosaic_rgb_paths if p]
     logger.info("RGB paths: %s", mosaic_rgb_paths)
-
-    if len(mosaic_rgb_paths) != 3:
-        # FIXME: Read bounds from EXTENT_UTM_PATH
-        xmin, ymin, xmax, ymax = [
-            261215.0000000000000000, 8620583.0000000000000000,
-            323691.8790999995544553, 8719912.0846999995410442
-        ]
-        cmd = f"python3 {settings.S2M_CLI_PATH}/mosaic.py " \
-                f"-te {xmin} {ymin} {xmax} {ymax} " \
-                f"-e 32718 -res 10 -v " \
-                f"-p {settings.S2M_NUM_JOBS} " \
-                f"-o {mosaic_dir} {raw_dir}"
-        run_subprocess(cmd)
 
     # Use gdalbuildvrt to concatenate RGB bands from mosaic
     vrt_path = os.path.join(mosaic_dir, 'tci.vrt')
@@ -209,8 +209,8 @@ def predict_scene(chips_dir):
     logger.info("Predict chips on %s", predict_chips_dir)
     predict(cfg)
 
-    logger.info("Delete chips directory")
-    shutil.rmtree(chips_dir)
+    # logger.info("Delete chips directory")
+    # shutil.rmtree(chips_dir)
 
     return predict_chips_dir
 

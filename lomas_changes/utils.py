@@ -5,12 +5,15 @@ import zipfile
 
 import numpy as np
 import rasterio
+from django.core.files import File
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rasterio.windows import Window
 from shapely.geometry import box
 from skimage import exposure
 from tqdm import tqdm
+
+from lomas_changes.models import Raster
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +101,7 @@ def create_rgb_raster(raster_path, *, slug, date, name):
                                                 slug=slug,
                                                 defaults=dict(name=name))
     with open(raster_path, 'rb') as f:
-        raster.file.save(f'{slug}.tif', File(f, name='{slug}.tif'))
+        raster.file.save(f'{slug}.tif', File(f, name=f'{slug}.tif'))
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
