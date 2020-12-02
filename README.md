@@ -139,6 +139,7 @@ Add TimescaleDB and PostGIS extensions to the database
 ```sh
 psql satlomas -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
 psql satlomas -c "CREATE EXTENSION IF NOT EXISTS postgis CASCADE"
+psql satlomas -c "CREATE EXTENSION IF NOT EXISTS postgis_raster CASCADE"
 ```
 
 * Copy `env.sample` and edit it to suit your needs. See the Configuration
