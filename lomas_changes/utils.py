@@ -134,7 +134,11 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    profile.update(count=3, dtype=np.uint8, nodata=0)
+    profile.update(count=3,
+                   dtype=np.uint8,
+                   nodata=0,
+                   compress='deflate',
+                   tiled=True)
     with rasterio.open(dst_path, 'w', **profile) as dst:
         for i in range(new_img.shape[2]):
             dst.write(new_img[:, :, i], i + 1)
