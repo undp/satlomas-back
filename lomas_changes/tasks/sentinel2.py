@@ -243,15 +243,14 @@ def postprocess_scene(predict_chips_dir):
                     merged_path)
         merge_all(input_dir=bin_path, output=merged_path)
 
-        clipped_path = os.path.join(tmpdir, 'clipped.tif')
         logger.info("Clip merged raster %s into %s using AOI at %s",
-                    merged_path, clipped_path, AOI_UTM_PATH)
-        clip(src=merged_path, dst=clipped_path, aoi=AOI_UTM_PATH)
+                    merged_path, result_path, AOI_UTM_PATH)
+        clip(src=merged_path, dst=result_path, aoi=AOI_UTM_PATH)
 
     # logger.info("Delete predict chips")
     # shutil.rmtree(predict_chips_dir)
 
-    return clipped_path
+    return result_path
 
 
 def create_loss_raster(result_path, *, date):

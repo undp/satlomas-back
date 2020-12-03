@@ -77,7 +77,7 @@ def clip(src, dst, *, aoi):
     logger.info("Clip raster %s to %s using %s as cutline", src, dst, aoi)
     gdalwarp_bin = f'{settings.GDAL_BIN_PATH}/gdalwarp'
     run_subprocess(
-        f'{gdalwarp_bin} -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
+        f'{gdalwarp_bin} -of GTiff -co COMPRESS=DEFLATE -co TILED=YES -cutline {aoi} -crop_to_cutline {src} {dst}'
     )
 
 
@@ -105,11 +105,15 @@ def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
     with rasterio.open(rgb_raster_path) as src:
         if src.count != 3:
             raise RuntimeError("Must have 3 bands, but has %d" % (src.count))
-        if src.crs != 'epsg:4326':
-            raise RuntimeError("CRS must be epsg:4326, but was %s" % (src.crs))
-        if src.dtype != np.uint8:
+        if src.crs != 'epsg:32718':
+            raise RuntimeError("CRS must be epsg:32718, but was %s" % (src.crs))
+        if any(np.dtype(dt) != rasterio.uint8 for dt in src.dtypes):
             raise RuntimeError("dtype should be uint8, but was %s" %
-                               (src.dtype))
+                               (src.profile['dtype']))
+
+    # If raster already has a file, delete it
+    if raster.file:
+        raster.file.delete()
 
     # Store RGB raster on `file` field
     with open(rgb_raster_path, 'rb') as f:
