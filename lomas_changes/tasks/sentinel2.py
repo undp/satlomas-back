@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, write_paletted_rgb_raster, create_rgb_raster
+from lomas_changes.utils import run_subprocess, write_paletted_rgb_raster, create_raster
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -68,14 +68,15 @@ def process_period(job):
     ### Processing pipeline ###
 
     tci_path = download_and_build_composite(date_from, date_to)
-    create_rgb_raster(tci_path,
-                      slug='s2',
-                      date=date_to,
-                      name='Sentinel-2 (RGB, 10m)')
+    create_raster(tci_path,
+                  slug='s2-rgb',
+                  date=date_to,
+                  name='Sentinel-2 (RGB, 10m)')
+
     chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
-    create_rgb_raster(result_path, slug='loss', date=date_to, name='Loss mask')
+    create_loss_raster(result_path, date=date_to)
 
 
 def download_and_build_composite(date_from, date_to):
@@ -247,11 +248,21 @@ def postprocess_scene(predict_chips_dir):
                     merged_path, clipped_path, AOI_UTM_PATH)
         clip(src=merged_path, dst=clipped_path, aoi=AOI_UTM_PATH)
 
-        logger.info("Write paletted RGB raster %s into %s", clipped_path,
-                    result_path)
-        write_paletted_rgb_raster(clipped_path, result_path, colormap=COLORMAP)
-
     # logger.info("Delete predict chips")
     # shutil.rmtree(predict_chips_dir)
 
-    return result_path
+    return clipped_path
+
+
+def create_loss_raster(result_path, *, date):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        loss_rgb_path = os.path.join(tmpdir, 's2-loss-rgb.tif')
+        logger.info("Write paletted RGB raster %s into %s", result_path,
+                    loss_rgb_path)
+        write_paletted_rgb_raster(result_path,
+                                  loss_rgb_path,
+                                  colormap=COLORMAP)
+        create_raster(loss_rgb_path,
+                      slug='s2-loss',
+                      date=date,
+                      name='Sentinel-2 Loss Mask')

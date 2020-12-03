@@ -96,12 +96,32 @@ def rescale_byte(src, dst, *, in_range):
         f"{src} {dst}")
 
 
-def create_rgb_raster(raster_path, *, slug, date, name):
+def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
     raster, _ = Raster.objects.update_or_create(date=date,
                                                 slug=slug,
                                                 defaults=dict(name=name))
-    with open(raster_path, 'rb') as f:
+
+    # Validate RGB raster
+    with rasterio.open(rgb_raster_path) as src:
+        if src.count != 3:
+            raise RuntimeError("Must have 3 bands, but has %d" % (src.count))
+        if src.crs != 'epsg:4326':
+            raise RuntimeError("CRS must be epsg:4326, but was %s" % (src.crs))
+        if src.dtype != np.uint8:
+            raise RuntimeError("dtype should be uint8, but was %s" %
+                               (src.dtype))
+
+    # Store RGB raster on `file` field
+    with open(rgb_raster_path, 'rb') as f:
         raster.file.save(f'{slug}.tif', File(f, name=f'{slug}.tif'))
+
+    # Create a related CoverageRaster, if `cov_raster_path` was provided
+    if cov_raster_path:
+        coverage_raster, _ = CoverageRaster.objects.update_or_create(
+            raster=raster)
+        with rasterio.open(cov_raster_path) as src:
+            coverage_raster.cov_raster = src.read()
+        coverage_raster.save()
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
