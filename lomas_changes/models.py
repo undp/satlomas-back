@@ -46,13 +46,14 @@ class CoverageMeasurement(models.Model):
                               related_name="%(app_label)s_%(class)s_related",
                               on_delete=models.SET_NULL,
                               null=True)
+    kind = models.CharField(max_length=2)
     area = models.FloatField()
     perc_area = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['date', 'scope']
+        unique_together = ['date', 'scope', 'kind']
 
     def __str__(self):
         return '{date} :: {scope} :: {area}km2 ({perc_area}%)'.format(
