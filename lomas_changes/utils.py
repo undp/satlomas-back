@@ -103,10 +103,13 @@ def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
 
     # Validate RGB raster
     with rasterio.open(rgb_raster_path) as src:
-        if src.count != 3:
-            raise RuntimeError("Must have 3 bands, but has %d" % (src.count))
+        if src.count != 4:
+            raise RuntimeError(
+                "Must have 4 bands (RGB + alpha band), but has %d" %
+                (src.count))
         if src.crs != 'epsg:32718':
-            raise RuntimeError("CRS must be epsg:32718, but was %s" % (src.crs))
+            raise RuntimeError("CRS must be epsg:32718, but was %s" %
+                               (src.crs))
         if any(np.dtype(dt) != rasterio.uint8 for dt in src.dtypes):
             raise RuntimeError("dtype should be uint8, but was %s" %
                                (src.profile['dtype']))
@@ -135,17 +138,18 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
 
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
-        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+        color = hex_to_dec_string(colormap[i])
+        new_img[img == (i + 1), :] = color
+    mask = (img != 0).astype(np.uint8) * 255
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    profile.update(count=3,
-                   dtype=np.uint8,
-                   nodata=0,
-                   compress='deflate',
-                   tiled=True)
+    profile.update(count=4, dtype='uint8', compress='deflate', tiled=True)
+    del profile['nodata']
     with rasterio.open(dst_path, 'w', **profile) as dst:
         for i in range(new_img.shape[2]):
             dst.write(new_img[:, :, i], i + 1)
+        # Write alpha band
+        dst.write(mask, 4)
 
 
 def hex_to_dec_string(value):
