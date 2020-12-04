@@ -35,7 +35,7 @@ class Raster(models.Model):
 
 class CoverageRaster(models.Model):
     raster = models.ForeignKey(Raster, on_delete=models.CASCADE)
-    cov_rast = models.RasterField()
+    cov_rast = models.RasterField(srid=32718)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
