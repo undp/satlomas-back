@@ -1,21 +1,31 @@
 import logging
 import os
 import subprocess
+import sys
 import zipfile
 
 import numpy as np
 import rasterio
-from django.core.files import File
 from django.conf import settings
+from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.files import File
+from django.db import DatabaseError, connection, transaction
 from rasterio.windows import Window
+from scopes.models import Scope
 from shapely.geometry import box
 from skimage import exposure
 from tqdm import tqdm
 
-from lomas_changes.models import Raster
+from lomas_changes.models import CoverageMeasurement, CoverageRaster, Raster
 
+# Configure logger
 logger = logging.getLogger(__name__)
+out_handler = logging.StreamHandler(sys.stdout)
+out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setLevel(logging.INFO)
+logger.addHandler(out_handler)
+logger.setLevel(logging.INFO)
 
 
 def run_subprocess(cmd):
@@ -124,11 +134,9 @@ def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
 
     # Create a related CoverageRaster, if `cov_raster_path` was provided
     if cov_raster_path:
-        coverage_raster, _ = CoverageRaster.objects.update_or_create(
-            raster=raster)
-        with rasterio.open(cov_raster_path) as src:
-            coverage_raster.cov_raster = src.read()
-        coverage_raster.save()
+        cov_rast = GDALRaster(cov_raster_path, write=True)
+        CoverageRaster.objects.update_or_create(cov_rast=cov_rast,
+                                                raster=raster)
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
@@ -155,3 +163,67 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
 def hex_to_dec_string(value):
     return np.array([int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]],
                     np.uint8)
+
+
+def select_sql(query, *params):
+    import time
+
+    with connection.cursor() as cursor:
+        start = time.time()
+        cursor.execute(query, params)
+        res = cursor.fetchall()
+        end = time.time()
+        logger.info("Took %f to execute SQL: %s", end - start, query)
+        return res
+
+
+# FIXME: Update
+def generate_measurements(*, date, raster_type, kinds_per_value):
+    logger.info("Generate measurements for raster '%s' at date %s")
+
+    for scope in Scope.objects.all():
+        # coverage_raster = CoverageRaster.objects.filter(
+        #     date=date, raster__slug=raster_type).first()
+
+        # FIXME Join with scopes directly instead of passing scope geom as WKT
+        try:
+            res = select_sql(
+                """
+                WITH reprojected_scope AS (
+                    SELECT ST_Transform(ST_GeomFromText(%s, 4326), 32718) AS scope_geom
+                ), area_scope AS (
+                    SELECT ST_Area(scope_geom) AS scope_area
+                    FROM reprojected_scope
+                ), clipped_raster AS (
+                    SELECT ST_Clip(cr.cov_rast, 1, scope_geom, true) AS rast
+                    FROM reprojected_scope, lomas_changes_coverageraster cr
+                    INNER JOIN lomas_changes_raster r ON r.id = cr.raster_id
+                    WHERE r.slug = %s AND r.date = %s
+                ), count_agg AS (
+                    SELECT CAST(ST_CountAgg(rast, 1, false) AS double precision) AS total
+                    FROM clipped_raster
+                ), value_count AS (
+                    SELECT (ST_ValueCount(rast)).*
+                    FROM clipped_raster
+                )
+                SELECT value_count.value, value_count.count / total, scope_area
+                FROM clipped_raster, count_agg, value_count, area_scope
+            """, scope.geom.wkt, raster_type, date)
+
+            if res:
+                for value, ratio, scope_area in res:
+                    kind = kinds_per_value[value]
+                    area = scope_area * ratio
+                    measurement, created = CoverageMeasurement.objects.update_or_create(
+                        date=date,
+                        scope=scope,
+                        kind=kind,
+                        defaults=dict(area=area, perc_area=ratio))
+                    if created:
+                        logger.info(f"New measurement: {measurement}")
+
+        except DatabaseError as err:
+            logger.error(err)
+            logger.info(
+                f"An error occurred! Skipping measurement for scope {scope.id}..."
+            )

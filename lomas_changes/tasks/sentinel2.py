@@ -13,7 +13,8 @@ from django.conf import settings
 from django.core.files import File
 from jobs.utils import enqueue_job, job
 from lomas_changes.models import Raster
-from lomas_changes.utils import run_subprocess, write_paletted_rgb_raster, create_raster
+from lomas_changes.utils import (create_raster, generate_measurements,
+                                 run_subprocess, write_paletted_rgb_raster)
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ MODEL_PATH = os.path.join(DATA_DIR, 'lomas_sen2_v10.h5')
 BIN_THRESHOLD = 0.2
 
 COLORMAP = ['ff0000', '00c8ff']
+CLASSES_PER_VALUE = {1: 'LS', 2: 'CL'}
 
 
 @job('processing')
@@ -76,7 +78,12 @@ def process_period(job):
     chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
+
     create_loss_raster(result_path, date=date_to)
+
+    generate_measurements(date=date_to,
+                          raster_type='s2-loss',
+                          kinds_per_value=CLASSES_PER_VALUE)
 
 
 def download_and_build_composite(date_from, date_to):
@@ -262,6 +269,7 @@ def create_loss_raster(result_path, *, date):
                                   loss_rgb_path,
                                   colormap=COLORMAP)
         create_raster(loss_rgb_path,
+                      cov_raster_path=result_path,
                       slug='s2-loss',
                       date=date,
                       name='Sentinel-2 Loss Mask')
