@@ -228,9 +228,11 @@ S2M_NUM_JOBS = int(os.getenv('S2M_NUM_JOBS', 1))
 # Number of cores to use for multi processing S1 images
 S1_PROC_NUM_JOBS = int(os.getenv("S1_PROC_NUM_JOBS", 3))
 
-# OTB
+# OTB and GDAL tools
 OTB_BIN_PATH = os.getenv('OTB_BIN_PATH')
 GDAL_BIN_PATH = os.getenv('GDAL_BIN_PATH')
+GDAL2TILES_BIN_PATH = os.getenv(
+    'GDAL2TILES_BIN_PATH', os.path.join(BASE_DIR, 'script', 'gdal2tilesp.py'))
 
 # MODIS
 MODIS_USER = os.getenv('MODIS_USER')
@@ -252,6 +254,7 @@ CACHES = {
     }
 }
 
+TILES_DIR = os.path.join(MEDIA_ROOT, 'tiles')
 TILE_SERVER_URL = os.getenv('TILE_SERVER_URL',
                             'http://localhost:8000/media/tiles/')
 

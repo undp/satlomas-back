@@ -1,7 +1,9 @@
 import logging
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 import numpy as np
@@ -106,7 +108,13 @@ def rescale_byte(src, dst, *, in_range):
         f"{src} {dst}")
 
 
-def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
+def create_raster(rgb_raster_path,
+                  cov_raster_path=None,
+                  *,
+                  slug,
+                  date,
+                  name,
+                  zoom_range):
     raster, _ = Raster.objects.update_or_create(date=date,
                                                 slug=slug,
                                                 defaults=dict(name=name))
@@ -137,6 +145,9 @@ def create_raster(rgb_raster_path, cov_raster_path=None, *, slug, date, name):
         cov_rast = GDALRaster(cov_raster_path, write=True)
         CoverageRaster.objects.update_or_create(cov_rast=cov_rast,
                                                 raster=raster)
+
+    # Generate tiles for map view
+    generate_raster_tiles(raster, zoom_range=zoom_range)
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
@@ -177,7 +188,6 @@ def select_sql(query, *params):
         return res
 
 
-# FIXME: Update
 def generate_measurements(*, date, raster_type, kinds_per_value):
     logger.info("Generate measurements for raster '%s' at date %s")
 
@@ -227,3 +237,26 @@ def generate_measurements(*, date, raster_type, kinds_per_value):
             logger.info(
                 f"An error occurred! Skipping measurement for scope {scope.id}..."
             )
+
+
+def generate_raster_tiles(raster, zoom_range=(4, 18)):
+    # First, download file from storage to temporary local file
+    with tempfile.NamedTemporaryFile() as tmpfile:
+        shutil.copyfileobj(raster.file, tmpfile)
+        src = tmpfile.name
+
+        from_zoom, to_zoom = zoom_range
+        zoom_range = '{}-{}'.format(from_zoom, to_zoom)
+
+        # Create destination directory
+        tiles_dir = os.path.join(settings.TILES_DIR, raster.path)
+        os.makedirs(tiles_dir, exist_ok=True)
+
+        # Use gdal2tiles to generate raster tiles
+        cmd = '{gdal2tiles} -e -w none -n -z {zoom_range} {src} {dst}'.format(
+            gdal2tiles=settings.GDAL2TILES_BIN_PATH,
+            zoom_range=zoom_range,
+            src=tmpfile.name,
+            dst=tiles_dir,
+        )
+        run_subprocess(cmd)

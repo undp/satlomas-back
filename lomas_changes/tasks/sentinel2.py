@@ -73,7 +73,7 @@ def process_period(job):
     create_raster(tci_path,
                   slug='s2-rgb',
                   date=date_to,
-                  name='Sentinel-2 (RGB, 10m)')
+                  name='Sentinel-2 (RGB, 10m)', zoom_range=(6, 14)))
 
     chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
@@ -272,4 +272,5 @@ def create_loss_raster(result_path, *, date):
                       cov_raster_path=result_path,
                       slug='s2-loss',
                       date=date,
-                      name='Sentinel-2 Loss Mask')
+                      name='Sentinel-2 Loss Mask',
+                      zoom_range=(6, 14))
