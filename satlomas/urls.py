@@ -70,6 +70,7 @@ if settings.DEBUG:
 urlpatterns += [path('jobs/', include('jobs.urls'))]
 urlpatterns += [path('vi-lomas/', include('vi_lomas_changes.urls'))]
 urlpatterns += [path('lomas/', include('lomas_changes.urls'))]
+urlpatterns += [path('eo-sensors/', include('eo_sensors.urls'))]
 urlpatterns += [path('stations/', include('stations.urls'))]
 urlpatterns += [path('scopes/', include('scopes.urls'))]
 urlpatterns += [path('alerts/', include('alerts.urls'))]
