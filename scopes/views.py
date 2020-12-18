@@ -5,8 +5,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets
 
-from vi_lomas_changes.models import Mask
-
 from .models import Scope
 from .serializers import ScopeSerializer
 
