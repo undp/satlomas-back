@@ -25,6 +25,7 @@ class Command(BaseCommand):
                       date_to=options['date_to'].strftime('%Y-%m-%d'),
                       queue='processing')
 
+        # enqueue_job('eo_sensors.tasks.modis.download_scene', **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel1.download_scene', **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel2.download_scene', **kwargs)
-        run_job('eo_sensors.tasks.sentinel2.process_period', **kwargs)
+        run_job('eo_sensors.tasks.modis.process_period', **kwargs)
