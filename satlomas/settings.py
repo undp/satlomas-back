@@ -70,8 +70,6 @@ INSTALLED_APPS = [
     'jobs.apps.JobsConfig',
     'stations.apps.StationsConfig',
     'eo_sensors.apps.EOSensorsConfig',
-    'lomas_changes.apps.LomasChangesConfig',
-    'vi_lomas_changes.apps.VILomasChangesConfig',
     'scopes.apps.ScopesConfig',
     'alerts.apps.AlertsConfig',
 ]
