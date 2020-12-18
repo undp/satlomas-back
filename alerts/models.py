@@ -7,15 +7,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from alerts import CHANGE_APPS
 from scopes.models import Scope
 
-# FIXME Move this to Settings
-CHANGE_APPS = ['lomas_changes', 'vi_lomas_changes']
-
 # FIXME generate based on CHANGE_APPS
-COVERAGE_MEASUREMENT_MODELS = models.Q(
-    app_label='lomas_changes', model='coveragemeasurement') | models.Q(
-        app_label='vi_lomas_changes', model='coveragemeasurement')
+COVERAGE_MEASUREMENT_MODELS = models.Q(app_label='eo_sensors',
+                                       model='coveragemeasurement')
 MEASUREMENT_MODELS = COVERAGE_MEASUREMENT_MODELS | models.Q(
     app_label='stations', model='measurement')
 
@@ -199,7 +196,7 @@ class Alert(models.Model):
             parameterName = self.rule_attributes['parameter']
             station_name = self.rule_attributes['station_name']
             return f'El parámetro {parameterName} de la estación {station_name} {changeVerb} {abs(value)}, {changeVerb2} que el umbral {abs(threshValue)}.'
-        
+
         elif self.rule_content_type.name == "scope type rule":
             scopeType = self.rule_attributes['scope_type']
             change_type = self.rule_attributes['change_type']
@@ -210,7 +207,7 @@ class Alert(models.Model):
             else:
                 change_type = self.rule_attributes['change_type']
                 raise Exception(f'Unknown change type {change_type}.')
-        
+
         elif self.rule_content_type.name == "scope rule":
             scopeName = self.rule_attributes['scope_name']
             scopeType = self.rule_attributes['scope_type']
@@ -224,9 +221,9 @@ class Alert(models.Model):
                 raise Exception(f'Unknown change type {change_type}.')
 
         else:
-            
-            raise Exception(f'Unknown rule content type {self.rule_content_type}.')
 
+            raise Exception(
+                f'Unknown rule content type {self.rule_content_type}.')
 
 
 auditlog.register(ScopeTypeRule)

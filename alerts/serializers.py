@@ -1,16 +1,13 @@
-import lomas_changes.models
-import lomas_changes.serializers
 import stations.models
 import stations.serializers
-import vi_lomas_changes.models
-import vi_lomas_changes.serializers
+import eo_sensors.models
+import eo_sensors.serializers
 from alerts.models import (Alert, ParameterRule, ScopeRule, ScopeTypeRule,
                            UserProfile)
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 from rest_framework.fields import Field
-from stations.serializers import StationSerializer
 
 from .models import (COVERAGE_MEASUREMENT_MODELS, MEASUREMENT_MODELS,
                      RULE_MODELS)
@@ -91,10 +88,8 @@ class GenericRuleSerializer(GenericSerializer):
 
 class GenericMeasurementSerializer(GenericSerializer):
     classes = [
-        (lomas_changes.models.CoverageMeasurement,
-         lomas_changes.serializers.CoverageMeasurementSerializer),
-        (vi_lomas_changes.models.CoverageMeasurement,
-         vi_lomas_changes.serializers.CoverageMeasurementSerializer),
+        (eo_sensors.models.CoverageMeasurement,
+         eo_sensors.serializers.CoverageMeasurementSerializer),
         (stations.models.Measurement,
          stations.serializers.MeasurementSerializer),
     ]
@@ -118,6 +113,6 @@ class AlertSerializer(serializers.ModelSerializer):
             'rule_id',
             'measurement_id',
         )
-    
+
     def get_description(self, obj):
         return obj.describe()

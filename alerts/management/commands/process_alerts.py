@@ -7,10 +7,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from alerts import CHANGE_APPS
 from alerts.models import (Alert, AlertCheck, ParameterRule, ScopeRule,
                            ScopeTypeRule)
-
-CHANGE_APPS = ['lomas_changes', 'vi_lomas_changes']
 
 
 def timezone_min():
