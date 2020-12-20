@@ -6,7 +6,7 @@ opencv-python==4.4.0.46
 scikit-image==0.17.2
 scikit-learn==0.23.2
 sentinelsat==0.14
-tensorflow==1.14
+tensorflow==2.4.0
 h5py==2.10.0
 perusatproc
 # sen2mosaic
