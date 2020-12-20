@@ -28,12 +28,9 @@ PROC_DIR = os.path.join(DATA_DIR, 'proc')
 CHIPS_DIR = os.path.join(DATA_DIR, 'chips')
 # "predict" directory contains result chips from prediction
 PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
-# "results" directory contains final rasters.  In this case: 1) Sentinel-2 RGB
-# raster and 2) Classification result as RGB raster (using a colormap)
+# "results" directory contains final classification result as RGB raster
+# (using a colormap).
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
-
-#MASK_DIR = os.path.join(DATA_DIR, 'mask')
-RESULTS_RGB_DIR = os.path.join(RESULTS_DIR, 'rgb')
 
 AOI_UTM_PATH = os.path.join(DATA_DIR, 'aoi_utm.gpkg')
 EXTENT_PATH = os.path.join(DATA_DIR, 'extent.geojson')
@@ -67,7 +64,8 @@ def process_period(job):
     create_raster(tci_path,
                   slug='s2-rgb',
                   date=date_to,
-                  name='Sentinel-2 (RGB, 10m)', zoom_range=(6, 14)))
+                  name='Sentinel-2 (RGB, 10m)',
+                  zoom_range=(6, 14))
     chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
