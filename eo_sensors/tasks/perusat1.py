@@ -32,7 +32,8 @@ PROC_DIR = os.path.join(DATA_DIR, 'proc')
 CHIPS_DIR = os.path.join(DATA_DIR, 'chips')
 # "predict" directory contains result chips from prediction
 PREDICT_DIR = os.path.join(DATA_DIR, 'predict')
-# "results" directory contains post-processed chips
+# "results" directory contains final classification result as RGB raster
+# (using a colormap).
 RESULTS_DIR = os.path.join(DATA_DIR, 'results')
 
 AOI_PATH = os.path.join(DATA_DIR, 'aoi.gpkg')
