@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from dateutil.relativedelta import relativedelta
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from jobs.utils import enqueue_job, run_job
-from eo_sensors.tasks import sentinel1, sentinel2
 
 
 class Command(BaseCommand):
@@ -25,7 +24,7 @@ class Command(BaseCommand):
                       date_to=options['date_to'].strftime('%Y-%m-%d'),
                       queue='processing')
 
-        # enqueue_job('eo_sensors.tasks.modis.download_scene', **kwargs)
+        # enqueue_job('eo_sensors.tasks.modis_vi.download_scene', **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel1.download_scene', **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel2.download_scene', **kwargs)
-        run_job('eo_sensors.tasks.modis.process_period', **kwargs)
+        run_job('eo_sensors.tasks.modis_vi.process_period', **kwargs)

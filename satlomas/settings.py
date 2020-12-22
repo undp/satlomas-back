@@ -274,3 +274,6 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND',
 # Path for optional command to run after enqueuing a processing job
 # (e.g. see tools/start-vm.sh)
 RUN_AFTER_ENQUEUE_PROC_JOB = os.getenv('RUN_AFTER_ENQUEUE_PROC_JOB')
+
+EO_SENSORS_TASKS_DATA_DIR = os.getenv(
+    'EO_SENSORS_TASKS_DATA_DIR', os.path.join(BASE_DIR, 'data', 'eo_sensors'))

@@ -130,6 +130,9 @@ dmypy.json
 data/images/*
 data/vi/*
 
+# eo_sensors data dir
+data/eo_sensors/
+
 # Vim swap files
 *.swp
 
