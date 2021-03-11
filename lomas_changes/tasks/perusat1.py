@@ -98,7 +98,7 @@ def pansharpen_scene(job):
 def extract_chips_from_scene(job):
     scene_dir = job.kwargs['scene_dir']
 
-    from satlomas.chips import extract_chips
+    from satlomasproc.chips import extract_chips
 
     rasters = glob(os.path.join(scene_dir, '*.tif'))
     logger.info("Num. rasters: %i", len(rasters))
@@ -130,7 +130,7 @@ def extract_chips_from_scene(job):
 def predict_scene(job):
     chips_dir = job.kwargs['chips_dir']
 
-    from satlomas.unet.predict import PredictConfig, predict
+    from satlomasproc.unet.predict import PredictConfig, predict
 
     predict_chips_dir = os.path.join(PREDICT_DIR, os.path.basename(chips_dir))
     cfg = PredictConfig(images_path=chips_dir,
@@ -156,7 +156,7 @@ def predict_scene(job):
 def postprocess_scene(job):
     predict_chips_dir = job.kwargs['predict_chips_dir']
 
-    from satlomas.unet.postprocess import coalesce_and_binarize_all, merge_all, clip
+    from satlomasproc.unet.postprocess import coalesce_and_binarize_all, merge_all, clip
 
     result_path = os.path.join(RESULTS_DIR,
                                f'{os.path.basename(predict_chips_dir)}.tif')

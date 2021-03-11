@@ -171,7 +171,7 @@ def download_and_build_composite(date_from, date_to):
 
 
 def extract_chips_from_scene(rasters):
-    from satlomas.chips import extract_chips
+    from satlomasproc.chips import extract_chips
 
     logger.info("Num. rasters to extract chips: %i", len(rasters))
 
@@ -192,7 +192,7 @@ def extract_chips_from_scene(rasters):
 
 
 def predict_scene(chips_dir):
-    from satlomas.unet.predict import PredictConfig, predict
+    from satlomasproc.unet.predict import PredictConfig, predict
 
     predict_chips_dir = os.path.join(PREDICT_DIR, os.path.basename(chips_dir))
     cfg = PredictConfig(images_path=chips_dir,
@@ -214,7 +214,7 @@ def predict_scene(chips_dir):
 
 def postprocess_scene(predict_chips_dir):
     from eo_sensors.utils import clip
-    from satlomas.unet.postprocess import (coalesce_and_binarize_all,
+    from satlomasproc.unet.postprocess import (coalesce_and_binarize_all,
                                            merge_all, smooth_stitch)
 
     result_path = os.path.join(RESULTS_DIR,
