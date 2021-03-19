@@ -18,7 +18,7 @@ django-extensions = "*"
 django-jsoneditor = "*"
 django-leaflet = "*"
 django-rest-auth = {version = "==0.9.5",extras = ["with_social"]}
-djangorestframework = "==3.11.1"
+djangorestframework = "==3.11.2"
 djangorestframework-csv = "==2.1.0"
 djangorestframework-gis = "==0.16"
 django-rq = "==2.3.2"
