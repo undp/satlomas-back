@@ -11,18 +11,18 @@ rope = "*"
 [packages]
 dateutils = "*"
 django = "==3.1.6"
-django-anymail = {version = "*",extras = ["mailgun"]}
+django-anymail = {extras = ["mailgun"], version = "*"}
 django-auditlog = {git = "https://github.com/dymaxionlabs/django-auditlog.git"}
 django-cors-headers = "*"
 django-extensions = "*"
 django-jsoneditor = "*"
 django-leaflet = "*"
-django-rest-auth = {version = "==0.9.5",extras = ["with_social"]}
+django-rest-auth = {extras = ["with_social"], version = "*"}
 djangorestframework = "==3.11.2"
 djangorestframework-csv = "==2.1.0"
 djangorestframework-gis = "==0.16"
 django-rq = "==2.3.2"
-django-storages = {version = "==1.10.1",extras = ["google"]}
+django-storages = {extras = ["google"], version = "*"}
 drf-yasg = "*"
 geopandas = "*"
 gunicorn = "*"
