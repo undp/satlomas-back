@@ -3,7 +3,7 @@ from auditlog.registry import auditlog
 
 from django.contrib.gis.db import models
 from django.contrib.gis.geos.point import Point
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from django.utils.translation import gettext as _
 
 from .managers import MeasurementManager, PredictionManager
