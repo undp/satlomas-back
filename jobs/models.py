@@ -11,32 +11,29 @@ from jobs import signals, states
 class Job(models.Model):
     JOB_STATE_CHOICES = sorted(zip(states.ALL_STATES, states.ALL_STATES))
 
-    name = models.CharField(_('name'), max_length=255)
-    args = JSONField(_('arguments'), default=list, blank=True)
-    kwargs = JSONField(_('keyword arguments'), default=dict, blank=True)
-    queue = models.CharField(_('queue'), max_length=64, blank=True, null=True)
-    state = models.CharField(_('state'),
-                             max_length=50,
-                             default=states.PENDING,
-                             choices=JOB_STATE_CHOICES)
-    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
-    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
-    finished_at = models.DateTimeField(_('finished at'), null=True, blank=True)
+    name = models.CharField(_("name"), max_length=255)
+    args = JSONField(_("arguments"), default=list, blank=True)
+    kwargs = JSONField(_("keyword arguments"), default=dict, blank=True)
+    queue = models.CharField(_("queue"), max_length=64, blank=True, null=True)
+    state = models.CharField(
+        _("state"), max_length=50, default=states.PENDING, choices=JOB_STATE_CHOICES
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    finished_at = models.DateTimeField(_("finished at"), null=True, blank=True)
     metadata = JSONField(_("metadata"), default=dict, blank=True)
     error = models.TextField(_("error"), blank=True, null=True)
-    estimated_duration = models.PositiveIntegerField(_('estimated duration'),
-                                                     blank=True,
-                                                     null=True)
-    internal_metadata = JSONField(_("internal metadata"),
-                                  default=dict,
-                                  blank=True)
+    estimated_duration = models.PositiveIntegerField(
+        _("estimated duration"), blank=True, null=True
+    )
+    internal_metadata = JSONField(_("internal metadata"), default=dict, blank=True)
 
     def __str__(self):
-        return f'{self.name}({self.args}, {self.kwargs})'
+        return f"{self.name}({self.args}, {self.kwargs})"
 
     @property
     def status(self):
-        return self.metadata.get('status')
+        return self.metadata.get("status")
 
     @property
     def duration(self):
@@ -72,10 +69,10 @@ class Job(models.Model):
                 method = self._get_function_from_string(self.name)
                 method(self.pk, sync=True)
             else:
-                queue = django_rq.get_queue(self.queue or 'default')
+                queue = django_rq.get_queue(self.queue or "default")
                 queue.enqueue(self.name, self.pk)
             self.state = states.STARTED
-            self.save(update_fields=['state', 'updated_at'])
+            self.save(update_fields=["state", "updated_at"])
             signals.job_started.send(sender=self.__class__, job=self)
             return True
         return False
@@ -85,7 +82,7 @@ class Job(models.Model):
             raise RuntimeError("Cannot retry a job that has not failed")
         self.state = states.PENDING
         self.traceback = None
-        self.save(update_fields=['state', 'traceback', 'updated_at'])
+        self.save(update_fields=["state", "traceback", "updated_at"])
         self.start()
 
     def cancel(self):
@@ -116,8 +113,8 @@ class Job(models.Model):
     def update_status(self, status):
         if self.metadata is None:
             self.metadata = {}
-        self.metadata['status'] = str(status)
-        self.save(update_fields=['metadata', 'updated_at'])
+        self.metadata["status"] = str(status)
+        self.save(update_fields=["metadata", "updated_at"])
 
     def mark_as_finished(self, finished_at=None):
         self._mark_as(states.FINISHED, finished_at=finished_at)
@@ -130,22 +127,22 @@ class Job(models.Model):
     def mark_as_failed(self, reason=None, finished_at=None):
         self._mark_as(states.FAILED, finished_at=finished_at)
         self.error = reason
-        self.save(update_fields=['error', 'updated_at'])
+        self.save(update_fields=["error", "updated_at"])
         signals.job_failed.send(sender=self.__class__, job=self)
 
     def _mark_as(self, state, finished_at=None):
         """Mark a Job as stopped with a state (FINISHED, FAILED, CANCELED)"""
         self.state = state
         self.finished_at = finished_at or timezone.now()
-        self.save(update_fields=['state', 'finished_at', 'updated_at'])
+        self.save(update_fields=["state", "finished_at", "updated_at"])
 
     @staticmethod
     def _get_function_from_string(s):
         import importlib
 
         # First import module
-        parts = s.split('.')
-        module_s = '.'.join(parts[:-1])
+        parts = s.split(".")
+        module_s = ".".join(parts[:-1])
         mod = importlib.import_module(module_s)
 
         # Return method by fetching attribute from module
@@ -159,5 +156,5 @@ class JobLogEntry(models.Model):
     log = JSONField()
 
     class Meta:
-        verbose_name = _('job log entry')
-        verbose_name_plural = _('job log entries')
+        verbose_name = _("job log entry")
+        verbose_name_plural = _("job log entries")

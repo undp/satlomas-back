@@ -10,10 +10,7 @@ from .managers import MeasurementManager, PredictionManager
 
 
 class Place(models.Model):
-    parent = models.ForeignKey('self',
-                               on_delete=models.CASCADE,
-                               null=True,
-                               blank=True)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255)
     geom = models.PolygonField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -21,8 +18,7 @@ class Place(models.Model):
 
     def __str__(self):
         if self.parent_id:
-            return '{parent} / {self}'.format(parent=self.parent,
-                                              self=self.name)
+            return "{parent} / {self}".format(parent=self.parent, self=self.name)
         else:
             return self.name
 
@@ -30,10 +26,7 @@ class Place(models.Model):
 class Station(models.Model):
     code = models.CharField(max_length=30, blank=True)
     name = models.CharField(max_length=255, blank=True)
-    place = models.ForeignKey(Place,
-                              on_delete=models.PROTECT,
-                              blank=True,
-                              null=True)
+    place = models.ForeignKey(Place, on_delete=models.PROTECT, blank=True, null=True)
     lat = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     lon = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     geom = models.PointField()
@@ -42,7 +35,7 @@ class Station(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def place_name(self):
-        return self.place.name if self.place else ''
+        return self.place.name if self.place else ""
 
     def save(self, *args, **kwargs):
         if not self.geom:
@@ -50,9 +43,9 @@ class Station(models.Model):
         super(Station, self).save(*args, **kwargs)
 
     def __str__(self):
-        return '{name} ({code}) - {place}'.format(code=self.code,
-                                                  name=self.name,
-                                                  place=self.place)
+        return "{name} ({code}) - {place}".format(
+            code=self.code, name=self.name, place=self.place
+        )
 
 
 class Measurement(models.Model):
@@ -66,10 +59,11 @@ class Measurement(models.Model):
         managed = False
 
     def __str__(self):
-        return '{datetime} {station} :: {attributes}'.format(
+        return "{datetime} {station} :: {attributes}".format(
             datetime=str(self.datetime),
             station=self.station,
-            attributes=self.attributes)
+            attributes=self.attributes,
+        )
 
 
 class Prediction(models.Model):
@@ -83,10 +77,11 @@ class Prediction(models.Model):
         managed = False
 
     def __str__(self):
-        return '{datetime} {station} :: {attributes}'.format(
+        return "{datetime} {station} :: {attributes}".format(
             datetime=str(self.datetime),
             station=self.station,
-            attributes=self.attributes)
+            attributes=self.attributes,
+        )
 
 
 auditlog.register(Place)

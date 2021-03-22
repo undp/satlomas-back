@@ -4,8 +4,7 @@ from django.db.models import JSONField
 
 
 def raster_path(instance, filename):
-    return 'rasters/{path}/{filename}'.format(path=instance.path(),
-                                              filename=filename)
+    return "rasters/{path}/{filename}".format(path=instance.path(), filename=filename)
 
 
 class Period(models.Model):
@@ -13,10 +12,10 @@ class Period(models.Model):
     date_to = models.DateField()
 
     class Meta:
-        unique_together = (('date_from', 'date_to'), )
+        unique_together = (("date_from", "date_to"),)
 
     def __str__(self):
-        return '{} - {}'.format(self.date_from, self.date_to)
+        return "{} - {}".format(self.date_from, self.date_to)
 
 
 class Raster(models.Model):
@@ -30,18 +29,18 @@ class Raster(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (('slug', 'period'), )
+        unique_together = (("slug", "period"),)
 
     def __str__(self):
-        return f'{self.period} {self.name}'
+        return f"{self.period} {self.name}"
 
     def tiles_url(self):
-        return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
+        return f"{settings.TILE_SERVER_URL}{self.path()}" + "{z}/{x}/{y}.png"
 
     def path(self):
-        date_from = self.period.date_from.strftime('%Y%m%d')
-        date_to = self.period.date_to.strftime('%Y%m%d')
-        return f'{self.slug}/{date_from}-{date_to}/'
+        date_from = self.period.date_from.strftime("%Y%m%d")
+        date_to = self.period.date_to.strftime("%Y%m%d")
+        return f"{self.slug}/{date_from}-{date_to}/"
 
 
 class Mask(models.Model):
@@ -52,34 +51,37 @@ class Mask(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (('period', 'mask_type'), )
+        unique_together = (("period", "mask_type"),)
 
     def __str__(self):
-        return f'{self.period} {self.mask_type}'
+        return f"{self.period} {self.mask_type}"
 
 
 class CoverageMeasurement(models.Model):
     date_from = models.DateField()
     date_to = models.DateField()
-    scope = models.ForeignKey('scopes.Scope',
-                              related_name="%(app_label)s_%(class)s_related",
-                              on_delete=models.SET_NULL,
-                              null=True)
+    scope = models.ForeignKey(
+        "scopes.Scope",
+        related_name="%(app_label)s_%(class)s_related",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
     area = models.FloatField()
     perc_area = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['date_from', 'date_to', 'scope']
+        unique_together = ["date_from", "date_to", "scope"]
 
     def __str__(self):
-        return '{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)'.format(
+        return "{dfrom}-{dto} :: {scope} :: {area}km2 ({perc_area}%)".format(
             dfrom=self.date_from,
             dto=self.date_to,
             scope=self.scope and self.scope.name,
             area=self.area_km2(),
-            perc_area=self.perc_area_100())
+            perc_area=self.perc_area_100(),
+        )
 
     def area_km2(self):
         return round(self.area / 1000000, 2)

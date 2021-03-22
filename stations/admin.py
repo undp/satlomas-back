@@ -7,16 +7,13 @@ from .models import Place, Station
 
 
 class PlaceAdmin(LeafletGeoAdmin):
-    list_display = ('name', 'parent', 'created_at', 'updated_at')
+    list_display = ("name", "parent", "created_at", "updated_at")
 
 
 class StationAdmin(LeafletGeoAdmin):
-    list_display = ('code', 'name', 'place', 'lat', 'lon', 'created_at',
-                    'updated_at')
+    list_display = ("code", "name", "place", "lat", "lon", "created_at", "updated_at")
     formfield_overrides = {
-        JSONField: {
-            'widget': JSONEditor
-        },
+        JSONField: {"widget": JSONEditor},
     }
 
 

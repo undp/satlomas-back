@@ -5,8 +5,7 @@ from django.db.models import JSONField
 
 
 def raster_path(instance, filename):
-    return 'rasters/{path}/{filename}'.format(path=instance.path(),
-                                              filename=filename)
+    return "rasters/{path}/{filename}".format(path=instance.path(), filename=filename)
 
 
 class Raster(models.Model):
@@ -20,17 +19,17 @@ class Raster(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (('slug', 'date'), )
+        unique_together = (("slug", "date"),)
 
     def __str__(self):
-        return f'{self.date} {self.name}'
+        return f"{self.date} {self.name}"
 
     def tiles_url(self):
-        return f'{settings.TILE_SERVER_URL}{self.path()}' + '{z}/{x}/{y}.png'
+        return f"{settings.TILE_SERVER_URL}{self.path()}" + "{z}/{x}/{y}.png"
 
     def path(self):
-        date_str = self.date.strftime('%Y%m%d')
-        return f'{self.slug}/{date_str}/'
+        date_str = self.date.strftime("%Y%m%d")
+        return f"{self.slug}/{date_str}/"
 
 
 class CoverageRaster(models.Model):
@@ -42,10 +41,12 @@ class CoverageRaster(models.Model):
 
 class CoverageMeasurement(models.Model):
     date = models.DateField()
-    scope = models.ForeignKey('scopes.Scope',
-                              related_name="%(app_label)s_%(class)s_related",
-                              on_delete=models.SET_NULL,
-                              null=True)
+    scope = models.ForeignKey(
+        "scopes.Scope",
+        related_name="%(app_label)s_%(class)s_related",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
     kind = models.CharField(max_length=2)
     area = models.FloatField()
     perc_area = models.FloatField()
@@ -53,14 +54,15 @@ class CoverageMeasurement(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['date', 'scope', 'kind']
+        unique_together = ["date", "scope", "kind"]
 
     def __str__(self):
-        return '{date} :: {scope} :: {area}km2 ({perc_area}%)'.format(
+        return "{date} :: {scope} :: {area}km2 ({perc_area}%)".format(
             date=self.date,
             scope=self.scope and self.scope.name,
             area=self.area_km2(),
-            perc_area=self.perc_area_100())
+            perc_area=self.perc_area_100(),
+        )
 
     def area_km2(self):
         return round(self.area / 1000000, 2)
