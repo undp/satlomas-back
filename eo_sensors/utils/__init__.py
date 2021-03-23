@@ -24,7 +24,7 @@ from .models import CoverageMeasurement, CoverageRaster, Raster
 # Configure logger
 logger = logging.getLogger(__name__)
 out_handler = logging.StreamHandler(sys.stdout)
-out_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 out_handler.setLevel(logging.INFO)
 logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
@@ -57,25 +57,24 @@ def write_rgb_raster(bands=[], *, src_path, dst_path, in_range):
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with rasterio.open(src_path) as src:
         profile = src.profile.copy()
-        profile.update(count=3,
-                       dtype=np.uint8,
-                       compress='deflate',
-                       tiled=True,
-                       nodata=0)
+        profile.update(
+            count=3, dtype=np.uint8, compress="deflate", tiled=True, nodata=0
+        )
         height, width = src.shape[0], src.shape[1]
         if not bands:
             bands = range(1, src.count + 1)
-        with rasterio.open(dst_path, 'w', **profile) as dst:
+        with rasterio.open(dst_path, "w", **profile) as dst:
             windows = list(sliding_windows(1000, width, height))
             for window in tqdm(windows):
                 img = np.dstack([src.read(b, window=window) for b in bands])
-                new_img = np.dstack([
-                    exposure.rescale_intensity(img[:, :, i],
-                                               in_range=in_range[i],
-                                               out_range=(1, 255)).astype(
-                                                   np.uint8)
-                    for i in range(img.shape[2])
-                ])
+                new_img = np.dstack(
+                    [
+                        exposure.rescale_intensity(
+                            img[:, :, i], in_range=in_range[i], out_range=(1, 255)
+                        ).astype(np.uint8)
+                        for i in range(img.shape[2])
+                    ]
+                )
                 for i in range(3):
                     dst.write(new_img[:, :, i], i + 1, window=window)
 
@@ -87,9 +86,9 @@ def clip(src, dst, *, aoi):
         os.unlink(dst)
 
     logger.info("Clip raster %s to %s using %s as cutline", src, dst, aoi)
-    gdalwarp_bin = f'{settings.GDAL_BIN_PATH}/gdalwarp'
+    gdalwarp_bin = f"{settings.GDAL_BIN_PATH}/gdalwarp"
     run_subprocess(
-        f'{gdalwarp_bin} -of GTiff -co COMPRESS=DEFLATE -co TILED=YES -cutline {aoi} -crop_to_cutline {src} {dst}'
+        f"{gdalwarp_bin} -of GTiff -co COMPRESS=DEFLATE -co TILED=YES -cutline {aoi} -crop_to_cutline {src} {dst}"
     )
 
 
@@ -99,52 +98,48 @@ def rescale_byte(src, dst, *, in_range):
     if os.path.exists(dst):
         os.unlink(dst)
 
-    logger.info("Rescale raster %s to %s with input range %s", src, dst,
-                in_range)
-    gdal_translate_bin = f'{settings.GDAL_BIN_PATH}/gdal_translate'
-    run_subprocess(f"{gdal_translate_bin} -of GTiff -ot Byte " \
-        f"-scale {' '.join(str(v) for v in in_range)} 1 255 -a_nodata 0 " \
-        f"-co COMPRESS=DEFLATE -co TILED=YES " \
-        f"{src} {dst}")
+    logger.info("Rescale raster %s to %s with input range %s", src, dst, in_range)
+    gdal_translate_bin = f"{settings.GDAL_BIN_PATH}/gdal_translate"
+    run_subprocess(
+        f"{gdal_translate_bin} -of GTiff -ot Byte "
+        f"-scale {' '.join(str(v) for v in in_range)} 1 255 -a_nodata 0 "
+        f"-co COMPRESS=DEFLATE -co TILED=YES "
+        f"{src} {dst}"
+    )
 
 
-def create_raster(rgb_raster_path,
-                  cov_raster_path=None,
-                  *,
-                  slug,
-                  date,
-                  name,
-                  zoom_range):
-    raster, _ = Raster.objects.update_or_create(date=date,
-                                                slug=slug,
-                                                defaults=dict(name=name))
+def create_raster(
+    rgb_raster_path, cov_raster_path=None, *, slug, date, name, zoom_range
+):
+    raster, _ = Raster.objects.update_or_create(
+        date=date, slug=slug, defaults=dict(name=name)
+    )
 
     # Validate RGB raster
     with rasterio.open(rgb_raster_path) as src:
         if src.count != 4:
             raise RuntimeError(
-                "Must have 4 bands (RGB + alpha band), but has %d" %
-                (src.count))
-        if src.crs != 'epsg:32718':
-            raise RuntimeError("CRS must be epsg:32718, but was %s" %
-                               (src.crs))
+                "Must have 4 bands (RGB + alpha band), but has %d" % (src.count)
+            )
+        if src.crs != "epsg:32718":
+            raise RuntimeError("CRS must be epsg:32718, but was %s" % (src.crs))
         if any(np.dtype(dt) != rasterio.uint8 for dt in src.dtypes):
-            raise RuntimeError("dtype should be uint8, but was %s" %
-                               (src.profile['dtype']))
+            raise RuntimeError(
+                "dtype should be uint8, but was %s" % (src.profile["dtype"])
+            )
 
     # If raster already has a file, delete it
     if raster.file:
         raster.file.delete()
 
     # Store RGB raster on `file` field
-    with open(rgb_raster_path, 'rb') as f:
-        raster.file.save(f'{slug}.tif', File(f, name=f'{slug}.tif'))
+    with open(rgb_raster_path, "rb") as f:
+        raster.file.save(f"{slug}.tif", File(f, name=f"{slug}.tif"))
 
     # Create a related CoverageRaster, if `cov_raster_path` was provided
     if cov_raster_path:
         cov_rast = GDALRaster(cov_raster_path, write=True)
-        CoverageRaster.objects.update_or_create(cov_rast=cov_rast,
-                                                raster=raster)
+        CoverageRaster.objects.update_or_create(cov_rast=cov_rast, raster=raster)
 
     # Generate tiles for map view
     generate_raster_tiles(raster, zoom_range=zoom_range)
@@ -162,9 +157,9 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
     mask = (img != 0).astype(np.uint8) * 255
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    profile.update(count=4, dtype='uint8', compress='deflate', tiled=True)
-    del profile['nodata']
-    with rasterio.open(dst_path, 'w', **profile) as dst:
+    profile.update(count=4, dtype="uint8", compress="deflate", tiled=True)
+    del profile["nodata"]
+    with rasterio.open(dst_path, "w", **profile) as dst:
         for i in range(new_img.shape[2]):
             dst.write(new_img[:, :, i], i + 1)
         # Write alpha band
@@ -172,8 +167,9 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
 
 
 def hex_to_dec_string(value):
-    return np.array([int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]],
-                    np.uint8)
+    return np.array(
+        [int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]], np.uint8
+    )
 
 
 def select_sql(query, *params):
@@ -218,7 +214,11 @@ def generate_measurements(*, date, raster_type, kinds_per_value):
                 )
                 SELECT value_count.value, value_count.count / total, scope_area
                 FROM clipped_raster, count_agg, value_count, area_scope
-            """, scope.geom.wkt, raster_type, date)
+            """,
+                scope.geom.wkt,
+                raster_type,
+                date,
+            )
 
             if res:
                 for value, ratio, scope_area in res:
@@ -228,7 +228,8 @@ def generate_measurements(*, date, raster_type, kinds_per_value):
                         date=date,
                         scope=scope,
                         kind=kind,
-                        defaults=dict(area=area, perc_area=ratio))
+                        defaults=dict(area=area, perc_area=ratio),
+                    )
                     if created:
                         logger.info(f"New measurement: {measurement}")
 
@@ -246,14 +247,14 @@ def generate_raster_tiles(raster, zoom_range=(4, 18)):
         src = tmpfile.name
 
         from_zoom, to_zoom = zoom_range
-        zoom_range = '{}-{}'.format(from_zoom, to_zoom)
+        zoom_range = "{}-{}".format(from_zoom, to_zoom)
 
         # Create destination directory
         tiles_dir = os.path.join(settings.TILES_DIR, raster.path)
         os.makedirs(tiles_dir, exist_ok=True)
 
         # Use gdal2tiles to generate raster tiles
-        cmd = '{gdal2tiles} -e -w none -n -z {zoom_range} {src} {dst}'.format(
+        cmd = "{gdal2tiles} -e -w none -n -z {zoom_range} {src} {dst}".format(
             gdal2tiles=settings.GDAL2TILES_BIN_PATH,
             zoom_range=zoom_range,
             src=tmpfile.name,

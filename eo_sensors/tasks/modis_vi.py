@@ -90,19 +90,6 @@ def process_period(job):
     # create_masks(date_from, date_to)
     # generate_measurements(date_from, date_to)
 
-    # tci_path = download_and_build_composite(date_from, date_to)
-    # create_raster(tci_path,
-    #               slug='s2-rgb',
-    #               date=date_to,
-    #               name='Sentinel-2 (RGB, 10m)', zoom_range=(6, 14)))
-    # chips_dir = extract_chips_from_scene([tci_path])
-    # predict_chips_dir = predict_scene(chips_dir)
-    # result_path = postprocess_scene(predict_chips_dir)
-    # create_masks_raster(result_path, date=date_to)
-    # generate_measurements(date=date_to,
-    #                       raster_type='s2-loss',
-    #                       kinds_per_value=CLASSES_PER_VALUE)
-
 
 def download_and_process(date_from, date_to):
     year = date_to.year
