@@ -8,16 +8,23 @@ from django.http import FileResponse
 from jobs.utils import enqueue_job
 from paramiko.ssh_exception import AuthenticationException
 from rest_framework import permissions, status, viewsets
-from rest_framework.exceptions import (APIException, AuthenticationFailed,
-                                       NotFound, PermissionDenied)
+from rest_framework.exceptions import (
+    APIException,
+    AuthenticationFailed,
+    NotFound,
+    PermissionDenied,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from satlomas.renderers import BinaryFileRenderer
 
 from .clients import SFTPClient
-from .models import CoverageRaster, Raster
-from .serializers import (ImportSFTPListSerializer, ImportSFTPSerializer,
-                          RasterSerializer)
+from .models import CoverageMask, Raster
+from .serializers import (
+    ImportSFTPListSerializer,
+    ImportSFTPSerializer,
+    RasterSerializer,
+)
 
 # def intersection_area_sql(scope_geom, period):
 #     mask = Mask.objects.filter(period=period, mask_type='loss').first()
@@ -106,44 +113,44 @@ class AvailableDates(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        rasters = CoverageRaster.objects.all().order_by('date')
+        masks = CoverageMask.objects.all().order_by("date")
 
-        types = request.query_params.get('type', None)
+        types = request.query_params.get("type", None)
         if types:
-            rasters = rasters.filter(raster__slug__in=types.split(','))
+            masks = masks.filter(raster__slug__in=types.split(","))
 
-        if rasters.count() > 0:
+        if masks.count() > 0:
             response = dict(
-                first_date=rasters.first().date,
-                last_date=rasters.last().date,
-                availables=[dict(id=r.id, date=r.date) for r in rasters])
+                first_date=masks.first().date,
+                last_date=masks.last().date,
+                availables=[dict(id=m.id, date=m.date) for m in masks],
+            )
             return Response(response)
         else:
-            return Response(
-                dict(first_date=None, last_date=None, availables=[]))
+            return Response(dict(first_date=None, last_date=None, availables=[]))
 
 
 class RasterViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Raster.objects.all().order_by('-created_at')
+    queryset = Raster.objects.all().order_by("-created_at")
     serializer_class = RasterSerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         queryset = self.queryset
-        date_from = self.request.query_params.get('from', None)
-        date_to = self.request.query_params.get('to', None)
+        date_from = self.request.query_params.get("from", None)
+        date_to = self.request.query_params.get("to", None)
         if date_from is not None and date_to is not None:
             queryset = queryset.filter(
-                Q(period__date_from=date_from)
-                | Q(period__date_to=date_to))
-        slug = self.request.query_params.get('slug', None)
+                Q(period__date_from=date_from) | Q(period__date_to=date_to)
+            )
+        slug = self.request.query_params.get("slug", None)
         if slug:
             queryset = queryset.filter(slug=slug)
         return queryset
 
 
 class RasterDownloadView(APIView):
-    renderer_classes = (BinaryFileRenderer, )
+    renderer_classes = (BinaryFileRenderer,)
 
     def get(self, request, pk):
         file = Raster.objects.filter(pk=int(pk)).first()
@@ -161,7 +168,7 @@ class RasterDownloadView(APIView):
 
         try:
             # Reopen temporary file as binary for streaming download
-            stream_file = open(tmp.name, 'rb')
+            stream_file = open(tmp.name, "rb")
 
             # Monkey patch .close method so that file is removed after closing it
             # i.e. when response finishes
@@ -173,9 +180,7 @@ class RasterDownloadView(APIView):
 
             stream_file.close = new_close
 
-            return FileResponse(stream_file,
-                                as_attachment=True,
-                                filename=file.name)
+            return FileResponse(stream_file, as_attachment=True, filename=file.name)
         except Exception as err:
             # Make sure to remove temp file
             os.remove(tmp.name)
@@ -186,19 +191,19 @@ class ImportSFTPListView(APIView):
     def post(self, request):
         serializer = ImportSFTPListSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         params = serializer.data
-        path = params['path'] or '/'
-        client = SFTPClient(hostname=params['hostname'],
-                            port=params['port'],
-                            username=params['username'],
-                            password=params['password'])
+        path = params["path"] or "/"
+        client = SFTPClient(
+            hostname=params["hostname"],
+            port=params["port"],
+            username=params["username"],
+            password=params["password"],
+        )
         try:
             files = client.listdir(path)
         except PermissionError:
-            raise PermissionDenied(
-                detail=f'Listing {path} not allowed for user')
+            raise PermissionDenied(detail=f"Listing {path} not allowed for user")
         except AuthenticationException:
             raise AuthenticationFailed()
         return Response(dict(values=files))
@@ -208,21 +213,22 @@ class ImportSFTPView(APIView):
     def post(self, request):
         serializer = ImportSFTPSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         params = serializer.data
 
         sftp_conn_info = {
-            'hostname': params['hostname'],
-            'port': params['port'],
-            'username': params['username'],
-            'password': params['password']
+            "hostname": params["hostname"],
+            "port": params["port"],
+            "username": params["username"],
+            "password": params["password"],
         }
 
-        for file in params['files']:
-            enqueue_job('eo_sensors.tasks.perusat1.import_scene_from_sftp',
-                        sftp_conn_info=sftp_conn_info,
-                        file=file,
-                        queue='processing')
+        for file in params["files"]:
+            enqueue_job(
+                "eo_sensors.tasks.perusat1.import_scene_from_sftp",
+                sftp_conn_info=sftp_conn_info,
+                file=file,
+                queue="processing",
+            )
 
         return Response({}, status=status.HTTP_204_NO_CONTENT)
