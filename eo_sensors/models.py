@@ -39,6 +39,26 @@ class Raster(models.Model):
         return f"{self.slug}/{date_str}/"
 
 
+class CoverageMask(models.Model):
+    date = models.DateField(null=True)
+    source = models.CharField(max_length=2, choices=Sources.choices, blank=True)
+    kind = models.CharField(max_length=2, blank=True, null=True)
+    raster = models.ForeignKey(Raster, on_delete=models.CASCADE)
+    geom = models.MultiPolygonField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ["date", "source", "kind"]
+
+    def __str__(self):
+        return "{date} :: {source}:{kind}".format(
+            source=self.source,
+            date=self.date,
+            kind=self.kind,
+        )
+
+
 class CoverageRaster(models.Model):
     raster = models.ForeignKey(Raster, on_delete=models.CASCADE)
     cov_rast = models.RasterField(srid=32718)
