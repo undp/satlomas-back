@@ -139,3 +139,5 @@ data/eo_sensors/
 /static/
 /data/dem/*.omd
 /media/
+
+/data/eo_sensors/
