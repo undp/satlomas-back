@@ -99,6 +99,7 @@ def process_period(job):
         create_rgb_rasters(date_from, date_to)
         create_masks(date_from, date_to)
         generate_measurements(date_to)
+        clean_temp_files()
 
 
 def download_and_process(date_from, date_to):
@@ -252,7 +253,7 @@ def download_and_process(date_from, date_to):
     clip_with_aoi(cloud_mask_path)
     clip_with_aoi(veg_cloud_mask_path)
 
-    clean_temp_files()
+    return True
 
 
 def clip_srtm_to_extent():
