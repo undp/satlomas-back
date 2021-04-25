@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from datetime import datetime
 
 from django.db import connection
 from django.db.models import Q
@@ -26,94 +27,103 @@ from .serializers import (
     RasterSerializer,
 )
 
-# def intersection_area_sql(scope_geom, period):
-#     mask = Mask.objects.filter(period=period, mask_type='loss').first()
-#     query = """SELECT ST_Area(a.int) AS area
-#                FROM (
-#                    SELECT ST_Intersection(
-#                        ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
-#                        ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
-#             """.format(wkt_scope=scope_geom.wkt, wkt_mask=mask.geom.wkt)
-#     with connection.cursor() as cursor:
-#         cursor.execute(query)
-#         return cursor.fetchall()[0][0]
 
-# def select_mask_areas_by_scope(**params):
-#     query = """
-#         SELECT m.id, m.date_to, ST_Area(ST_Transform(
-#             ST_Intersection(m.geom, s.geom), %(srid)s)) AS area
-#         FROM (
-#             SELECT m.id, m.geom, p.date_to
-#             FROM eo_sensors_mask AS m
-#             INNER JOIN eo_sensors_period AS p ON m.period_id = p.id
-#             WHERE p.date_to BETWEEN %(date_from)s AND %(date_to)s AND m.mask_type = %(mask_type)s
-#         ) AS m
-#         CROSS JOIN (SELECT geom FROM scopes_scope AS s WHERE s.id = %(scope_id)s) AS s
-#         """
-#     with connection.cursor() as cursor:
-#         cursor.execute(query, dict(srid=32718, mask_type='loss', **params))
-#         return [
-#             dict(id=id, date=date, area=area)
-#             for (id, date, area) in cursor.fetchall()
-#         ]
-
-# def select_mask_areas_by_geom(**params):
-#     query = """
-#         SELECT m.id, m.date_to, ST_Area(ST_Transform(
-#             ST_Intersection(m.geom, ST_GeomFromText(%(geom_wkt)s, 4326)), %(srid)s)) AS area
-#         FROM eo_sensors_mask AS m
-#         INNER JOIN eo_sensors_period AS p ON m.period_id = p.id
-#         WHERE p.date_to BETWEEN %(date_from)s AND %(date_to)s AND m.mask_type = %(mask_type)s
-#         """
-#     with connection.cursor() as cursor:
-#         cursor.execute(query, dict(srid=32718, mask_type='loss', **params))
-#         return [
-#             dict(id=id, date=date, area=area)
-#             for (id, date, area) in cursor.fetchall()
-#         ]
-
-# class TimeSeries(APIView):
-#     permission_classes = [permissions.AllowAny]
-
-#     @method_decorator(cache_page(60 * 60 * 24))  # 1 day
-#     @method_decorator(vary_on_cookie)
-#     def get(self, request):
-#         params = request.query_params
-#         data = {
-#             k: params.get(k)
-#             for k in ('scope', 'geom', 'date_from', 'date_to') if k in params
-#         }
-
-#         scope_id = int(data['scope']) if 'scope' in data else None
-#         custom_geom = data['geom'] if 'geom' in data else None
-
-#         if scope_id is None and custom_geom is None:
-#             raise APIException(
-#                 "Either 'scope' or 'geom' parameters are missing")
-
-#         date_from = datetime.strptime(data['date_from'], "%Y-%m-%d")
-#         date_to = datetime.strptime(data['date_to'], "%Y-%m-%d")
-
-#         values = []
-#         if custom_geom:
-#             geom = shapely.wkt.loads(custom_geom)
-#             values = select_mask_areas_by_geom(geom_wkt=geom.wkt,
-#                                                date_from=date_from,
-#                                                date_to=date_to)
-#         else:
-#             values = select_mask_areas_by_scope(scope_id=scope_id,
-#                                                 date_from=date_from,
-#                                                 date_to=date_to)
-
-#         values = None
-#         return Response(dict(values=values))
+def intersection_area_sql(scope_geom, period):
+    mask = Mask.objects.filter(period=period, mask_type="loss").first()
+    query = """SELECT ST_Area(a.int) AS area
+               FROM (
+                   SELECT ST_Intersection(
+                       ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                       ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+            """.format(
+        wkt_scope=scope_geom.wkt, wkt_mask=mask.geom.wkt
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        return cursor.fetchall()[0][0]
 
 
-class AvailableDates(APIView):
+def select_mask_areas_by_scope(**params):
+    query = """
+        SELECT m.id, m.date_to, ST_Area(ST_Transform(
+            ST_Intersection(m.geom, s.geom), %(srid)s)) AS area
+        FROM (
+            SELECT m.id, m.geom, p.date_to
+            FROM eo_sensors_mask AS m
+            INNER JOIN eo_sensors_period AS p ON m.period_id = p.id
+            WHERE p.date_to BETWEEN %(date_from)s AND %(date_to)s AND m.mask_type = %(mask_type)s
+        ) AS m
+        CROSS JOIN (SELECT geom FROM scopes_scope AS s WHERE s.id = %(scope_id)s) AS s
+        """
+    with connection.cursor() as cursor:
+        cursor.execute(query, dict(srid=32718, mask_type="loss", **params))
+        return [
+            dict(id=id, date=date, area=area) for (id, date, area) in cursor.fetchall()
+        ]
+
+
+def select_mask_areas_by_geom(**params):
+    query = """
+        SELECT m.id, m.date_to, ST_Area(ST_Transform(
+            ST_Intersection(m.geom, ST_GeomFromText(%(geom_wkt)s, 4326)), %(srid)s)) AS area
+        FROM eo_sensors_mask AS m
+        INNER JOIN eo_sensors_period AS p ON m.period_id = p.id
+        WHERE p.date_to BETWEEN %(date_from)s AND %(date_to)s AND m.mask_type = %(mask_type)s
+        """
+    with connection.cursor() as cursor:
+        cursor.execute(query, dict(srid=32718, mask_type="loss", **params))
+        return [
+            dict(id=id, date=date, area=area) for (id, date, area) in cursor.fetchall()
+        ]
+
+
+class CoverageView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    # TODO: Cache results?
+    # @method_decorator(cache_page(60 * 60 * 24))  # 1 day
+    # @method_decorator(vary_on_cookie)
+    def get(self, request):
+        params = request.query_params
+        data = {
+            k: params.get(k)
+            for k in ("scope", "geom", "date_from", "date_to")
+            if k in params
+        }
+
+        scope_id = int(data["scope"]) if "scope" in data else None
+        custom_geom = data["geom"] if "geom" in data else None
+
+        if scope_id is None and custom_geom is None:
+            raise APIException("Either 'scope' or 'geom' parameters are missing")
+
+        date_from = datetime.strptime(data["date_from"], "%Y-%m-%d")
+        date_to = datetime.strptime(data["date_to"], "%Y-%m-%d")
+
+        values = []
+        if custom_geom:
+            geom = shapely.wkt.loads(custom_geom)
+            values = select_mask_areas_by_geom(
+                geom_wkt=geom.wkt, date_from=date_from, date_to=date_to
+            )
+        else:
+            values = select_mask_areas_by_scope(
+                scope_id=scope_id, date_from=date_from, date_to=date_to
+            )
+
+        values = None
+        return Response(dict(values=values))
+
+
+class AvailableDatesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        masks = CoverageMask.objects.all().order_by("date")
+        masks = CoverageMask.objects.all()
+
+        source = request.query_params.get("source", None)
+        if source:
+            masks = masks.filter(source__in=source.split(",")).order_by("date")
 
         types = request.query_params.get("type", None)
         if types:
@@ -123,7 +133,7 @@ class AvailableDates(APIView):
             response = dict(
                 first_date=masks.first().date,
                 last_date=masks.last().date,
-                availables=[dict(id=m.id, date=m.date) for m in masks],
+                availables=list(set([m.date for m in masks])),
             )
             return Response(response)
         else:
@@ -140,9 +150,7 @@ class RasterViewSet(viewsets.ReadOnlyModelViewSet):
         date_from = self.request.query_params.get("from", None)
         date_to = self.request.query_params.get("to", None)
         if date_from is not None and date_to is not None:
-            queryset = queryset.filter(
-                Q(period__date_from=date_from) | Q(period__date_to=date_to)
-            )
+            queryset = queryset.filter(Q(date__gte=date_from) & Q(date__lte=date_to))
         slug = self.request.query_params.get("slug", None)
         if slug:
             queryset = queryset.filter(slug=slug)
