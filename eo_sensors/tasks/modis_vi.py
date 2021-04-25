@@ -314,7 +314,7 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB vegetation mask raster")
     write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        sources=Sources.MODIS_VI,
+        source=Sources.MODIS_VI,
         date=date_to,
         slug="vegetation",
         defaults=dict(name="Vegetation mask"),
@@ -329,7 +329,7 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB cloud mask raster")
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        sources=Sources.MODIS_VI,
+        source=Sources.MODIS_VI,
         date=date_to,
         slug="cloud",
         defaults=dict(name="Cloud mask"),
@@ -344,7 +344,7 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB vegetation+cloud mask raster")
     write_vegetation_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        sources=Sources.MODIS_VI,
+        source=Sources.MODIS_VI,
         date=date_to,
         slug="vegatation-cloud",
         defaults=dict(name="Vegetation + Cloud mask"),
