@@ -378,7 +378,7 @@ def write_rgb_raster(func):
             profile = src.profile.copy()
         new_img = func(img)
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        profile.update(count=3, dtype=np.uint8)
+        profile.update(count=new_img.shape[2], dtype=np.uint8)
         with rasterio.open(dst_path, "w", **profile) as dst:
             for i in range(new_img.shape[2]):
                 dst.write(new_img[:, :, i], i + 1)
@@ -411,7 +411,9 @@ def write_ndvi_rgb_raster(img):
         .reshape((1, img.shape[0], img.shape[1]))
     )
     rgb_img, _ = apply_cmap(rescaled_img, cmap)
-    return np.dstack(rgb_img)
+    mask = ((img != 0) * 255).astype(np.uint8)
+    res = np.dstack([rgb_img[0], rgb_img[1], rgb_img[2], mask])
+    return res
 
 
 @write_rgb_raster
