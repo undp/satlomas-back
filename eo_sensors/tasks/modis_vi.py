@@ -308,6 +308,7 @@ def create_rgb_rasters(date_from, date_to):
         if raster.file:
             raster.file.delete()
         raster.file.save(f"ndvi.tif", File(f, name="ndvi.tif"))
+    create_raster_tiles(raster, levels=(6, 13))
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_mask.tif")
@@ -323,6 +324,7 @@ def create_rgb_rasters(date_from, date_to):
         if raster.file:
             raster.file.delete()
         raster.file.save(f"vegetation.tif", File(f))
+    create_raster_tiles(raster, levels=(6, 13))
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_cloud_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_cloud_mask.tif")
@@ -338,6 +340,7 @@ def create_rgb_rasters(date_from, date_to):
         if raster.file:
             raster.file.delete()
         raster.file.save(f"cloud.tif", File(f))
+    create_raster_tiles(raster, levels=(6, 13))
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation_cloud_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_cloud_mask.tif")
@@ -353,6 +356,19 @@ def create_rgb_rasters(date_from, date_to):
         if raster.file:
             raster.file.delete()
         raster.file.save(f"cloud.tif", File(f))
+
+
+def create_raster_tiles(raster, *, levels):
+    media_dir = os.path.join(settings.MEDIA_ROOT)
+    rasters_dir = os.path.join(media_dir, "rasters")
+    tiles_dir = os.path.join(media_dir, "tiles")
+
+    src = raster.file.path
+    dst = os.path.join(tiles_dir, raster.path())
+    levels_str = f"{levels[0]}-{levels[1]}"
+    cmd = f"{settings.BASE_DIR}/script/gdal2tilesp.py -e -w leaflet -n -z {levels_str} {src} {dst}"
+
+    run_command(cmd)
 
 
 def write_rgb_raster(func):
