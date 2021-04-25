@@ -61,7 +61,7 @@ MVI_TIF_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "tif")
 MVI_CLIP_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "clip")
 MVI_MASK_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "masks")
 MVI_RESULTS_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "results")
-# MVI_RGB_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, 'rgb')
+MVI_RGB_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "rgb")
 
 LOMAS_MIN = 200
 LOMAS_MAX = 1800
@@ -82,7 +82,7 @@ def process_period(job):
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
 
     download_and_process(date_from, date_to)
-    # create_rgb_rasters(date_from, date_to)
+    create_rgb_rasters(date_from, date_to)
     # create_masks(date_from, date_to)
     # generate_measurements(date_from, date_to)
 
@@ -169,11 +169,13 @@ def download_and_process(date_from, date_to):
     verde[verde_mask] = 1
     verde = verde.astype(dtype=np.uint8)
 
-    # logger.info("Write vegetation mask")
-    # os.makedirs(MVI_MASK_DIR, exist_ok=True)
-    # dst_name = os.path.join(MVI_MASK_DIR, "{}_vegetation_mask.tif".format(period_s))
-    # with rasterio.open(dst_name, "w", **modis_meta) as dst:
-    #     dst.write(verde, 1)
+    logger.info("Write vegetation mask raster")
+    os.makedirs(MVI_MASK_DIR, exist_ok=True)
+    vegetation_mask_path = os.path.join(
+        MVI_MASK_DIR, "{}_vegetation_mask.tif".format(period_s)
+    )
+    with rasterio.open(vegetation_mask_path, "w", **modis_meta) as dst:
+        dst.write(verde, 1)
 
     # Cloud mask
     logger.info("Clip pixel reliability raster to extent")
@@ -211,6 +213,7 @@ def download_and_process(date_from, date_to):
     cloud_mask[(clouds != 2) & (clouds != 3)] = 0
     cloud_mask = cloud_mask.astype(np.uint8)
 
+    logger.info("Write cloud mask raster")
     cloud_mask_path = os.path.join(MVI_MASK_DIR, "{}_cloud_mask.tif".format(period_s))
     with rasterio.open(cloud_mask_path, "w", **modis_meta) as dst:
         dst.write(cloud_mask, 1)
@@ -221,7 +224,7 @@ def download_and_process(date_from, date_to):
     # with rasterio.open(vegetation_range_path, "w", **modis_meta) as dst:
     #     dst.write(verde_rango, 1)
 
-    logger.info("Create a mask with data from vegetation and clouds")
+    logger.info("Create a mask with both vegetation and clouds")
     verde[cloud_mask == 1] = 2
     veg_cloud_mask_path = os.path.join(
         MVI_MASK_DIR, "{}_vegetation_cloud_mask.tif".format(period_s)
@@ -229,8 +232,10 @@ def download_and_process(date_from, date_to):
     with rasterio.open(veg_cloud_mask_path, "w", **modis_meta) as dst:
         dst.write(verde, 1)
 
-    # Clip to AOI both vegetation_cloud_mask and vegetation_path into RESULTS_DIR
+    # Clip to AOI all rasters into RESULTS_DIR
     clip_with_aoi(vegetation_path)
+    clip_with_aoi(vegetation_mask_path)
+    clip_with_aoi(cloud_mask_path)
     clip_with_aoi(veg_cloud_mask_path)
 
     clean_temp_files()
@@ -272,41 +277,39 @@ def clip_with_aoi(src):
         )
 
 
-def create_rgb_rasters(period):
-    period_s = "{dfrom}-{dto}".format(
-        dfrom=period.date_from.strftime("%Y%m"), dto=period.date_to.strftime("%Y%m")
-    )
+def create_rgb_rasters(date_from, date_to):
+    period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
 
-    src_path = os.path.join(MVI_MASK_DIR, f"{period_s}_vegetation_range.tif")
-    dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_range.tif")
-    logger.info("Build RGB vegetation raster")
-    write_vegetation_range_rgb_raster(src_path=src_path, dst_path=dst_path)
-    raster, _ = Raster.objects.update_or_create(
-        period=period, slug="ndvi", defaults=dict(name="NDVI")
-    )
-    with open(dst_path, "rb") as f:
-        if raster.file:
-            raster.file.delete()
-        raster.file.save(f"ndvi.tif", File(f, name="ndvi.tif"))
+    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation.tif")
+    dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation.tif")
+    logger.info("Create RGB vegetation raster")
+    # write_vegetation_rgb_raster(src_path=src_path, dst_path=dst_path)
+    # raster, _ = Raster.objects.update_or_create(
+    #     date=date_to, slug="ndvi", defaults=dict(name="NDVI")
+    # )
+    # with open(dst_path, "rb") as f:
+    #     if raster.file:
+    #         raster.file.delete()
+    #     raster.file.save(f"ndvi.tif", File(f, name="ndvi.tif"))
 
-    src_path = os.path.join(MVI_MASK_DIR, f"{period_s}_vegetation_mask.tif")
+    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_mask.tif")
-    logger.info("Build RGB vegetation mask raster")
+    logger.info("Create RGB vegetation mask raster")
     write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        period=period, slug="vegetation", defaults=dict(name="Vegetation mask")
+        date=date_to, slug="vegetation", defaults=dict(name="Vegetation mask")
     )
     with open(dst_path, "rb") as f:
         if raster.file:
             raster.file.delete()
         raster.file.save(f"vegetation.tif", File(f))
 
-    src_path = os.path.join(MVI_MASK_DIR, f"{period_s}_cloud_mask.tif")
+    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_cloud_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_cloud_mask.tif")
-    logger.info("Build RGB cloud mask raster")
+    logger.info("Create RGB cloud mask raster")
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        period=period, slug="cloud", defaults=dict(name="Cloud mask")
+        date=date_to, slug="cloud", defaults=dict(name="Cloud mask")
     )
     with open(dst_path, "rb") as f:
         if raster.file:
@@ -335,13 +338,19 @@ def hex_to_dec_string(value):
     )
 
 
+# @write_rgb_raster
+# def write_vegetation_range_rgb_raster(img):
+#     colormap = ["1F6873", "1FA188", "70CF57", "FDE725"]
+#     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+#     for i in range(len(colormap)):
+#         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+#     return new_img
+
+
 @write_rgb_raster
-def write_vegetation_range_rgb_raster(img):
-    colormap = ["1F6873", "1FA188", "70CF57", "FDE725"]
-    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    for i in range(len(colormap)):
-        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
-    return new_img
+def write_vegetation_rgb_raster(img):
+    # TODO: Use colormap, check nutrien code
+    pass
 
 
 @write_rgb_raster
@@ -407,7 +416,7 @@ def create_vegetation_masks(geojson_path, period):
 
     Mask.objects.update_or_create(
         period=period,
-        mask_type="ndvi",
+        mask_type="vegetation",
         defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt)),
     )
     Mask.objects.update_or_create(
