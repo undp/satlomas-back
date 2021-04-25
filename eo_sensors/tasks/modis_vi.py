@@ -409,7 +409,7 @@ def write_cloud_mask_rgb_raster(img):
 
 @write_rgb_raster
 def write_vegetation_mask_rgb_raster(img):
-    colormap = ["149c00"]
+    colormap = ["149c01"]
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
@@ -418,7 +418,7 @@ def write_vegetation_mask_rgb_raster(img):
 
 @write_rgb_raster
 def write_vegetation_cloud_mask_rgb_raster(img):
-    colormap = ["149c00", "30a7ff"]
+    colormap = ["149c01", "30a7ff"]
     new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     for i in range(len(colormap)):
         new_img[img == i + 1] = hex_to_dec_string(colormap[i])
