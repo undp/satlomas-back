@@ -18,7 +18,7 @@ from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files import File
 from django.db import DatabaseError, connection
-from eo_sensors.models import CoverageMeasurement, Raster
+from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 from eo_sensors.utils.colormap import apply_cmap, rescale_to_byte
 from jobs.utils import job
@@ -95,10 +95,10 @@ def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
 
-    download_and_process(date_from, date_to)
+    # download_and_process(date_from, date_to)
     create_rgb_rasters(date_from, date_to)
-    # create_masks(date_from, date_to)
-    # generate_measurements(date_from, date_to)
+    create_masks(date_from, date_to)
+    generate_measurements(date_to)
 
 
 def download_and_process(date_from, date_to):
@@ -299,7 +299,10 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB NDVI raster")
     write_ndvi_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        date=date_to, slug="ndvi", defaults=dict(name="NDVI")
+        source=Sources.MODIS_VI,
+        date=date_to,
+        slug="ndvi",
+        defaults=dict(name="NDVI"),
     )
     with open(dst_path, "rb") as f:
         if raster.file:
@@ -311,7 +314,10 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB vegetation mask raster")
     write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        date=date_to, slug="vegetation", defaults=dict(name="Vegetation mask")
+        sources=Sources.MODIS_VI,
+        date=date_to,
+        slug="vegetation",
+        defaults=dict(name="Vegetation mask"),
     )
     with open(dst_path, "rb") as f:
         if raster.file:
@@ -323,7 +329,25 @@ def create_rgb_rasters(date_from, date_to):
     logger.info("Create RGB cloud mask raster")
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
-        date=date_to, slug="cloud", defaults=dict(name="Cloud mask")
+        sources=Sources.MODIS_VI,
+        date=date_to,
+        slug="cloud",
+        defaults=dict(name="Cloud mask"),
+    )
+    with open(dst_path, "rb") as f:
+        if raster.file:
+            raster.file.delete()
+        raster.file.save(f"cloud.tif", File(f))
+
+    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation_cloud_mask.tif")
+    dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_cloud_mask.tif")
+    logger.info("Create RGB vegetation+cloud mask raster")
+    write_vegetation_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
+    raster, _ = Raster.objects.update_or_create(
+        sources=Sources.MODIS_VI,
+        date=date_to,
+        slug="vegatation-cloud",
+        defaults=dict(name="Vegetation + Cloud mask"),
     )
     with open(dst_path, "rb") as f:
         if raster.file:
@@ -392,15 +416,24 @@ def write_vegetation_mask_rgb_raster(img):
     return new_img
 
 
+@write_rgb_raster
+def write_vegetation_cloud_mask_rgb_raster(img):
+    colormap = ["149c00", "30a7ff"]
+    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colormap)):
+        new_img[img == i + 1] = hex_to_dec_string(colormap[i])
+    return new_img
+
+
 def create_masks(date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
 
     logger.info("Polygonize mask")
     src_path = os.path.join(
-        MVI_MASK_DIR, "{}_vegetation_cloud_mask.tif".format(period_s)
+        MVI_RESULTS_DIR, "{}_vegetation_cloud_mask.tif".format(period_s)
     )
     dst_path = os.path.join(
-        MVI_MASK_DIR, "{}_vegetation_cloud_mask.geojson".format(period_s)
+        MVI_RESULTS_DIR, "{}_vegetation_cloud_mask.geojson".format(period_s)
     )
     run_command(
         '{gdal_bin_path}/gdal_polygonize.py {src} {dst} -b 1 -f "GeoJSON" DN'.format(
@@ -415,10 +448,10 @@ def create_masks(date_from, date_to):
     data_proj.to_file(dst_path)
 
     logger.info("Load vegetation mask to DB")
-    create_vegetation_masks(dst_path, period)
+    create_vegetation_masks(dst_path, date_to)
 
 
-def create_vegetation_masks(geojson_path, period):
+def create_vegetation_masks(geojson_path, date):
     ds = DataSource(geojson_path)
     vegetation_polys = []
     clouds_polys = []
@@ -433,55 +466,66 @@ def create_vegetation_masks(geojson_path, period):
     vegetation_mp = unary_union(vegetation_polys)
     clouds_mp = unary_union(clouds_polys)
 
-    Mask.objects.update_or_create(
-        period=period,
-        mask_type="vegetation",
-        defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt)),
+    raster = Raster.objects.get(
+        source=Sources.MODIS_VI, date=date, slug="vegatation-cloud"
     )
-    Mask.objects.update_or_create(
-        period=period,
-        mask_type="cloud",
-        defaults=dict(geom=GEOSGeometry(clouds_mp.wkt)),
+    CoverageMask.objects.update_or_create(
+        date=date,
+        source=Sources.MODIS_VI,
+        kind="V",
+        defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt), raster=raster),
+    )
+    CoverageMask.objects.update_or_create(
+        date=date,
+        source=Sources.MODIS_VI,
+        kind="C",
+        defaults=dict(geom=GEOSGeometry(clouds_mp.wkt), raster=raster),
     )
 
 
-def generate_measurements(period):
+def generate_measurements(date):
     logger.info("Generate measurements for each scope")
 
     for scope in Scope.objects.all():
-        mask = Mask.objects.filter(period=period, mask_type="ndvi").first()
+        for kind in ["V", "C"]:
+            mask = CoverageMask.objects.filter(
+                date=date,
+                source=Sources.MODIS_VI,
+                kind=kind,
+            ).first()
 
-        # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
-        query = """
-            SELECT ST_Area(a.int) AS area,
-                   ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
-            FROM (
-                SELECT ST_Intersection(
-                    ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
-                    ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
-            """.format(
-            wkt_scope=scope.geom.wkt, wkt_mask=mask.geom.wkt, srid=32718
-        )
-
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query)
-                res = cursor.fetchall()
-                area, scope_area = res[0]
-
-            measurement, created = CoverageMeasurement.objects.update_or_create(
-                date_from=period.date_from,
-                date_to=period.date_to,
-                scope=scope,
-                defaults=dict(area=area, perc_area=area / scope_area),
+            # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
+            query = """
+                SELECT ST_Area(a.int) AS area,
+                    ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
+                FROM (
+                    SELECT ST_Intersection(
+                        ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                        ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+                """.format(
+                wkt_scope=scope.geom.wkt, wkt_mask=mask.geom.wkt, srid=32718
             )
-            if created:
-                logger.info(f"New measurement: {measurement}")
-        except DatabaseError as err:
-            logger.error(err)
-            logger.info(
-                f"An error occurred! Skipping measurement for scope {scope.id}..."
-            )
+
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(query)
+                    res = cursor.fetchall()
+                    area, scope_area = res[0]
+
+                measurement, created = CoverageMeasurement.objects.update_or_create(
+                    date=date,
+                    kind=kind,
+                    source=Sources.MODIS_VI,
+                    scope=scope,
+                    defaults=dict(area=area, perc_area=area / scope_area),
+                )
+                if created:
+                    logger.info(f"New measurement: {measurement}")
+            except DatabaseError as err:
+                logger.error(err)
+                logger.info(
+                    f"An error occurred! Skipping measurement for scope {scope.id}..."
+                )
 
 
 def clean_temp_files():

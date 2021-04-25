@@ -88,6 +88,7 @@ class CoverageMeasurement(models.Model):
         return (
             "{date} :: {scope} :: {source}:{kind} :: {area}km2 ({perc_area}%)".format(
                 source=self.source,
+                kind=self.kind,
                 date=self.date,
                 scope=self.scope and self.scope.name,
                 area=self.area_km2(),
