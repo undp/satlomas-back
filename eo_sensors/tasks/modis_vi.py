@@ -25,16 +25,26 @@ from jobs.utils import job
 from scopes.models import Scope
 from shapely.ops import unary_union
 
-from satlomasproc.modis_vi import get_modisfiles, extract_subdatasets_as_gtiffs
+from satlomasproc.modis_vi import (
+    download_modis_vi_images,
+    extract_subdatasets_as_gtiffs,
+)
+from satlomasproc.utils import run_command
 
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Configure loggers
 out_handler = logging.StreamHandler(sys.stdout)
 out_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 out_handler.setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
+
+satlomasproc_logger = logging.getLogger("satlomasproc")
+satlomasproc_logger.addHandler(out_handler)
+satlomasproc_logger.setLevel(level=logging.INFO)
+
 
 # Base directories
 MODIS_VI_DATA_DIR = os.path.join(APP_DATA_DIR, "modis_vi")
@@ -52,15 +62,6 @@ MVI_CLIP_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "clip")
 MVI_MASK_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "masks")
 MVI_RESULTS_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "results")
 # MVI_RGB_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, 'rgb')
-
-# MODIS
-HEADERS = {"User-Agent": "get_modis Python 3"}
-CHUNKS = 65536
-
-MODIS_PLATFORM = "MOLA"
-MODIS_PRODUCT = "MYD13Q1.006"
-H_PERU = "10"
-V_PERU = "10"
 
 LOMAS_MIN = 200
 LOMAS_MAX = 1800
@@ -87,29 +88,15 @@ def process_period(job):
 
 
 def download_and_process(date_from, date_to):
-    year = date_to.year
-    doy_begin = date_from.timetuple().tm_yday
-    doy_end = date_to.timetuple().tm_yday
-
     os.makedirs(MVI_RAW_DIR, exist_ok=True)
     os.makedirs(MVI_TIF_DIR, exist_ok=True)
 
-    logger.info("Download MODIS hdf files")
-    tile = "h{}v{}".format(H_PERU, V_PERU)
-    modis_filenames = get_modisfiles(
-        settings.MODIS_USER,
-        settings.MODIS_PASS,
-        MODIS_PLATFORM,
-        MODIS_PRODUCT,
-        year,
-        tile,
-        proxy=None,
-        doy_start=doy_begin,
-        doy_end=doy_end,
-        out_dir=MVI_RAW_DIR,
-        verbose=True,
-        ruff=False,
-        get_xml=False,
+    modis_filenames = download_modis_vi_images(
+        date_from=date_from,
+        date_to=date_to,
+        output_dir=MVI_RAW_DIR,
+        username=settings.MODIS_USER,
+        password=settings.MODIS_PASS,
     )
 
     if not modis_filenames:
@@ -118,22 +105,8 @@ def download_and_process(date_from, date_to):
 
     extract_subdatasets_as_gtiffs(modis_filenames, MVI_TIF_DIR)
 
-    logger.info("Clip SRTM to extent")
-    srtm_clipped_path = os.path.join(MODIS_VI_TASKS_DATA_DIR, "srtm_dem_clipped.tif")
-    if not os.path.exists(srtm_clipped_path):
-        run_command(
-            "{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}".format(
-                gdal_bin_path=settings.GDAL_BIN_PATH,
-                aoi=EXTENT_PATH,
-                src=SRTM_DEM_PATH,
-                dst=srtm_clipped_path,
-            )
-        )
-
-    logger.info("Calculate SRTM mask")
-    with rasterio.open(srtm_clipped_path) as srtm_src:
-        srtm = srtm_src.read(1)
-        lomas_mask = (srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX)
+    srtm_clipped_path = clip_srtm_to_extent()
+    lomas_mask = calculate_srtm_mask(srtm_clipped_path)
 
     logger.info("Clip NDVI to extent")
     os.makedirs(MVI_CLIP_DIR, exist_ok=True)
@@ -183,16 +156,24 @@ def download_and_process(date_from, date_to):
     verde_rango[verde < 0] = 0
     verde_rango = verde_rango.astype(dtype=np.uint8)
 
+    period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
+
+    logger.info("Write masked VI raster")
+    os.makedirs(MVI_MASK_DIR, exist_ok=True)
+    vegetation_path = os.path.join(MVI_MASK_DIR, "{}_vegetation.tif".format(period_s))
+    meta = modis_meta.copy()
+    meta.update(dtype=verde.dtype)
+    with rasterio.open(vegetation_path, "w", **meta) as dst:
+        dst.write(verde, 1)
+
     verde[verde_mask] = 1
     verde = verde.astype(dtype=np.uint8)
 
-    period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
-
-    logger.info("Write vegetation mask")
-    os.makedirs(MVI_MASK_DIR, exist_ok=True)
-    dst_name = os.path.join(MVI_MASK_DIR, "{}_vegetation_mask.tif".format(period_s))
-    with rasterio.open(dst_name, "w", **modis_meta) as dst:
-        dst.write(verde, 1)
+    # logger.info("Write vegetation mask")
+    # os.makedirs(MVI_MASK_DIR, exist_ok=True)
+    # dst_name = os.path.join(MVI_MASK_DIR, "{}_vegetation_mask.tif".format(period_s))
+    # with rasterio.open(dst_name, "w", **modis_meta) as dst:
+    #     dst.write(verde, 1)
 
     # Cloud mask
     logger.info("Clip pixel reliability raster to extent")
@@ -234,11 +215,11 @@ def download_and_process(date_from, date_to):
     with rasterio.open(cloud_mask_path, "w", **modis_meta) as dst:
         dst.write(cloud_mask, 1)
 
-    vegetation_range_path = os.path.join(
-        MVI_MASK_DIR, "{}_vegetation_range.tif".format(period_s)
-    )
-    with rasterio.open(vegetation_range_path, "w", **modis_meta) as dst:
-        dst.write(verde_rango, 1)
+    # vegetation_range_path = os.path.join(
+    #     MVI_MASK_DIR, "{}_vegetation_range.tif".format(period_s)
+    # )
+    # with rasterio.open(vegetation_range_path, "w", **modis_meta) as dst:
+    #     dst.write(verde_rango, 1)
 
     logger.info("Create a mask with data from vegetation and clouds")
     verde[cloud_mask == 1] = 2
@@ -248,11 +229,34 @@ def download_and_process(date_from, date_to):
     with rasterio.open(veg_cloud_mask_path, "w", **modis_meta) as dst:
         dst.write(verde, 1)
 
-    # Clip to AOI both vegetation_cloud_mask and vegetaion_range into RESULTS_DIR
+    # Clip to AOI both vegetation_cloud_mask and vegetation_path into RESULTS_DIR
+    clip_with_aoi(vegetation_path)
     clip_with_aoi(veg_cloud_mask_path)
-    clip_with_aoi(vegetation_range_path)
 
     clean_temp_files()
+
+
+def clip_srtm_to_extent():
+    logger.info("Clip SRTM to extent")
+    srtm_clipped_path = os.path.join(MODIS_VI_TASKS_DATA_DIR, "srtm_dem_clipped.tif")
+    if not os.path.exists(srtm_clipped_path):
+        run_command(
+            "{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}".format(
+                gdal_bin_path=settings.GDAL_BIN_PATH,
+                aoi=EXTENT_PATH,
+                src=SRTM_DEM_PATH,
+                dst=srtm_clipped_path,
+            )
+        )
+    return srtm_clipped_path
+
+
+def calculate_srtm_mask(srtm_path):
+    logger.info("Calculate SRTM mask")
+    with rasterio.open(srtm_path) as srtm_src:
+        srtm = srtm_src.read(1)
+        lomas_mask = (srtm >= LOMAS_MIN) & (srtm <= LOMAS_MAX)
+        return lomas_mask
 
 
 def clip_with_aoi(src):
@@ -262,7 +266,7 @@ def clip_with_aoi(src):
     os.makedirs(MVI_RESULTS_DIR, exist_ok=True)
     if not os.path.exists(dst):
         run_command(
-            "{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}".format(
+            "{gdal_bin_path}/gdalwarp -co COMPRESS=DEFLATE -co TILED=YES -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}".format(
                 gdal_bin_path=settings.GDAL_BIN_PATH, aoi=AOI_PATH, src=src, dst=dst
             )
         )
