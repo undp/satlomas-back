@@ -95,7 +95,7 @@ def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
 
-    # download_and_process(date_from, date_to)
+    download_and_process(date_from, date_to)
     create_rgb_rasters(date_from, date_to)
     # create_masks(date_from, date_to)
     # generate_measurements(date_from, date_to)
@@ -172,12 +172,12 @@ def download_and_process(date_from, date_to):
 
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
 
-    logger.info("Write masked VI raster")
+    logger.info("Write masked NDVI raster")
     os.makedirs(MVI_MASK_DIR, exist_ok=True)
-    vegetation_path = os.path.join(MVI_MASK_DIR, "{}_vegetation.tif".format(period_s))
+    ndvi_path = os.path.join(MVI_MASK_DIR, "{}_ndvi.tif".format(period_s))
     meta = modis_meta.copy()
     meta.update(dtype=verde.dtype)
-    with rasterio.open(vegetation_path, "w", **meta) as dst:
+    with rasterio.open(ndvi_path, "w", **meta) as dst:
         dst.write(verde, 1)
 
     verde[verde_mask] = 1
@@ -247,7 +247,7 @@ def download_and_process(date_from, date_to):
         dst.write(verde, 1)
 
     # Clip to AOI all rasters into RESULTS_DIR
-    clip_with_aoi(vegetation_path)
+    clip_with_aoi(ndvi_path)
     clip_with_aoi(vegetation_mask_path)
     clip_with_aoi(cloud_mask_path)
     clip_with_aoi(veg_cloud_mask_path)
@@ -294,10 +294,10 @@ def clip_with_aoi(src):
 def create_rgb_rasters(date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
 
-    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation.tif")
-    dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation.tif")
-    logger.info("Create RGB vegetation raster")
-    write_vegetation_rgb_raster(src_path=src_path, dst_path=dst_path)
+    src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_ndvi.tif")
+    dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_ndvi.tif")
+    logger.info("Create RGB NDVI raster")
+    write_ndvi_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         date=date_to, slug="ndvi", defaults=dict(name="NDVI")
     )
@@ -362,7 +362,7 @@ def hex_to_dec_string(value):
 
 
 @write_rgb_raster
-def write_vegetation_rgb_raster(img):
+def write_ndvi_rgb_raster(img):
     cmap = CMAPS["ndvi"]
     min_v, max_v = (cmap[0][0], cmap[-1][0])
     rescaled_img = (
@@ -392,10 +392,8 @@ def write_vegetation_mask_rgb_raster(img):
     return new_img
 
 
-def create_masks(period):
-    period_s = "{dfrom}-{dto}".format(
-        dfrom=period.date_from.strftime("%Y%m"), dto=period.date_to.strftime("%Y%m")
-    )
+def create_masks(date_from, date_to):
+    period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
 
     logger.info("Polygonize mask")
     src_path = os.path.join(
