@@ -20,17 +20,16 @@ from django.core.files import File
 from django.db import DatabaseError, connection
 from eo_sensors.models import CoverageMeasurement, Raster
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
+from eo_sensors.utils.colormap import apply_cmap, rescale_to_byte
 from jobs.utils import job
-
-from scopes.models import Scope
-from shapely.ops import unary_union
-
 from satlomasproc.modis_vi import (
     download_modis_vi_images,
     extract_subdatasets_as_gtiffs,
 )
 from satlomasproc.utils import run_command
-
+from scopes.models import Scope
+from shapely.ops import unary_union
+from skimage import exposure
 
 # Configure loggers
 out_handler = logging.StreamHandler(sys.stdout)
@@ -69,11 +68,26 @@ FACTOR_ESCALA = 0.0001
 UMBRAL_NDVI = 0.2
 THRESHOLD = UMBRAL_NDVI / FACTOR_ESCALA
 
-# def process_all(period):
-#     download_and_process(period)
-#     create_rgb_rasters(period)
-#     create_masks(period)
-#     generate_measurements(period)
+CMAPS = {
+    "ndvi": [
+        (0, "#000000"),
+        (2000, "#1f6873"),
+        (2055.5555, "#23898e"),
+        (2106.884, "#20928c"),
+        (2146.739, "#1e9c89"),
+        (2183.575, "#21a585"),
+        (2208.3335, "#28ae80"),
+        (2256.0385, "#46c06f"),
+        (2288.0435, "#5ac864"),
+        (2333.3335, "#70cf57"),
+        (2368.9615, "#89d548"),
+        (2399.1545, "#a2da37"),
+        (2434.1785, "#bddf26"),
+        (2460.7845, "#cae11f"),
+        (2480.392, "#e5e419"),
+        (2500, "#fde725"),
+    ]
+}
 
 
 @job("processing")
@@ -81,7 +95,7 @@ def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
 
-    download_and_process(date_from, date_to)
+    # download_and_process(date_from, date_to)
     create_rgb_rasters(date_from, date_to)
     # create_masks(date_from, date_to)
     # generate_measurements(date_from, date_to)
@@ -283,14 +297,14 @@ def create_rgb_rasters(date_from, date_to):
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation.tif")
     logger.info("Create RGB vegetation raster")
-    # write_vegetation_rgb_raster(src_path=src_path, dst_path=dst_path)
-    # raster, _ = Raster.objects.update_or_create(
-    #     date=date_to, slug="ndvi", defaults=dict(name="NDVI")
-    # )
-    # with open(dst_path, "rb") as f:
-    #     if raster.file:
-    #         raster.file.delete()
-    #     raster.file.save(f"ndvi.tif", File(f, name="ndvi.tif"))
+    write_vegetation_rgb_raster(src_path=src_path, dst_path=dst_path)
+    raster, _ = Raster.objects.update_or_create(
+        date=date_to, slug="ndvi", defaults=dict(name="NDVI")
+    )
+    with open(dst_path, "rb") as f:
+        if raster.file:
+            raster.file.delete()
+        raster.file.save(f"ndvi.tif", File(f, name="ndvi.tif"))
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_vegetation_mask.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_vegetation_mask.tif")
@@ -349,8 +363,21 @@ def hex_to_dec_string(value):
 
 @write_rgb_raster
 def write_vegetation_rgb_raster(img):
-    # TODO: Use colormap, check nutrien code
-    pass
+    cmap = CMAPS["ndvi"]
+    min_v, max_v = (cmap[0][0], cmap[-1][0])
+
+    rescaled_img = (
+        exposure.rescale_intensity(img, in_range=(min_v, max_v), out_range=(1, 255))
+        .astype(np.uint8)
+        .reshape((1, img.shape[0], img.shape[1]))
+    )
+    rgb_img, _ = apply_cmap(rescaled_img, cmap)
+    return np.dstack(rgb_img)
+
+    # rescaled_img = rescale_to_byte(img, min_value=min_v, max_value=max_v)
+    # rescaled_img = rescaled_img.reshape((1, img.shape[0], img.shape[1]))
+    # rgb_img, _ = apply_cmap(rescaled_img, cmap)
+    # return np.dstack(rgb_img)
 
 
 @write_rgb_raster

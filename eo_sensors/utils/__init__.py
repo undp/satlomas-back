@@ -13,13 +13,12 @@ from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files import File
 from django.db import DatabaseError, connection, transaction
+from eo_sensors.models import CoverageMeasurement, CoverageRaster, Raster
 from rasterio.windows import Window
 from scopes.models import Scope
 from shapely.geometry import box
 from skimage import exposure
 from tqdm import tqdm
-
-from .models import CoverageMeasurement, CoverageRaster, Raster
 
 # Configure logger
 logger = logging.getLogger(__name__)
