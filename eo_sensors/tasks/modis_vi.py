@@ -365,7 +365,6 @@ def hex_to_dec_string(value):
 def write_vegetation_rgb_raster(img):
     cmap = CMAPS["ndvi"]
     min_v, max_v = (cmap[0][0], cmap[-1][0])
-
     rescaled_img = (
         exposure.rescale_intensity(img, in_range=(min_v, max_v), out_range=(1, 255))
         .astype(np.uint8)
@@ -373,11 +372,6 @@ def write_vegetation_rgb_raster(img):
     )
     rgb_img, _ = apply_cmap(rescaled_img, cmap)
     return np.dstack(rgb_img)
-
-    # rescaled_img = rescale_to_byte(img, min_value=min_v, max_value=max_v)
-    # rescaled_img = rescaled_img.reshape((1, img.shape[0], img.shape[1]))
-    # rgb_img, _ = apply_cmap(rescaled_img, cmap)
-    # return np.dstack(rgb_img)
 
 
 @write_rgb_raster
@@ -497,4 +491,5 @@ def clean_temp_files():
     shutil.rmtree(MVI_CLIP_DIR)
     shutil.rmtree(MVI_TIF_DIR)
     shutil.rmtree(MVI_MASK_DIR)
+    shutil.rmtree(MVI_RGB_DIR)
     # shutil.rmtree(MVI_RAW_DIR)
