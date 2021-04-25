@@ -95,10 +95,10 @@ def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
 
-    download_and_process(date_from, date_to)
-    create_rgb_rasters(date_from, date_to)
-    create_masks(date_from, date_to)
-    generate_measurements(date_to)
+    if download_and_process(date_from, date_to):
+        create_rgb_rasters(date_from, date_to)
+        create_masks(date_from, date_to)
+        generate_measurements(date_to)
 
 
 def download_and_process(date_from, date_to):
