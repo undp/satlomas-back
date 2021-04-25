@@ -26,7 +26,7 @@ class Raster(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (("slug", "date"),)
+        unique_together = (("date", "source", "slug"),)
 
     def __str__(self):
         return f"[{self.source}] {self.date} {self.name}"
@@ -36,7 +36,7 @@ class Raster(models.Model):
 
     def path(self):
         date_str = self.date.strftime("%Y%m%d")
-        return f"{self.slug}/{date_str}/"
+        return f"{self.source}/{self.slug}/{date_str}/"
 
 
 class CoverageMask(models.Model):
