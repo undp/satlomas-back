@@ -7,25 +7,25 @@ tiles_dir=$uploads_dir/tiles
 
 ## VI
 function vi_ndvi {
-	for p in $(ls $rasters_dir/ndvi/); do
-		src=$rasters_dir/ndvi/$p/ndvi.tif
-		dst=$tiles_dir/ndvi/$p/
+	for p in $(ls $rasters_dir/MV/ndvi/); do
+		src=$rasters_dir/MV/ndvi/$p/ndvi.tif
+		dst=$tiles_dir/MV/ndvi/$p/
 		script/gdal2tilesp.py -e -w leaflet -n -z 6-13 $(pwd)/$src $(pwd)/$dst
 	done
 }
 
 function vi_vegetation {
-	for p in $(ls $rasters_dir/vegetation/); do
-		src=$rasters_dir/vegetation/$p/vegetation.tif
-		dst=$tiles_dir/vegetation/$p/
+	for p in $(ls $rasters_dir/MV/vegetation/); do
+		src=$rasters_dir/MV/vegetation/$p/vegetation.tif
+		dst=$tiles_dir/MV/vegetation/$p/
 		script/gdal2tilesp.py -e -w leaflet -n -z 6-13 $(pwd)/$src $(pwd)/$dst
 	done
 }
 
 function vi_cloud {
-	for p in $(ls $rasters_dir/cloud/); do
-		src=$rasters_dir/cloud/$p/cloud.tif
-		dst=$tiles_dir/cloud/$p/
+	for p in $(ls $rasters_dir/MV/cloud/); do
+		src=$rasters_dir/MV/cloud/$p/cloud.tif
+		dst=$tiles_dir/MV/cloud/$p/
 		script/gdal2tilesp.py -e -w leaflet -n -z 6-13 $(pwd)/$src $(pwd)/$dst
 	done
 }
@@ -59,6 +59,10 @@ function loss {
 	done
 }
 
+vi_ndvi
+vi_vegetation
+vi_cloud
+
 #s2
 #s1
-loss
+#loss
