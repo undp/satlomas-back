@@ -367,7 +367,10 @@ def create_raster_tiles(raster, *, levels):
     src = raster.file.path
     dst = os.path.join(tiles_dir, raster.path())
     levels_str = f"{levels[0]}-{levels[1]}"
-    cmd = f"{settings.BASE_DIR}/script/gdal2tilesp.py -e -w leaflet -n -z {levels_str} {src} {dst}"
+    cmd = f"{settings.BASE_DIR}/script/gdal2tilesp.py -w none -n -z {levels_str} {src} {dst}"
+
+    # Make sure output directory does not exist
+    shutil.rmtree(dst)
 
     run_command(cmd)
 
