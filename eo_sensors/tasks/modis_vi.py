@@ -370,7 +370,8 @@ def create_raster_tiles(raster, *, levels):
     cmd = f"{settings.BASE_DIR}/script/gdal2tilesp.py -w none -n -z {levels_str} {src} {dst}"
 
     # Make sure output directory does not exist
-    shutil.rmtree(dst)
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
 
     run_command(cmd)
 
