@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 from satlomas.renderers import BinaryFileRenderer
 
 from .clients import SFTPClient
-from .models import CoverageMask, Raster
+from .models import CoverageMask, CoverageMeasurement, Raster
 from .serializers import (
     ImportSFTPListSerializer,
     ImportSFTPSerializer,
@@ -28,21 +28,7 @@ from .serializers import (
 )
 
 
-def intersection_area_sql(scope_geom, period):
-    mask = Mask.objects.filter(period=period, mask_type="loss").first()
-    query = """SELECT ST_Area(a.int) AS area
-               FROM (
-                   SELECT ST_Intersection(
-                       ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
-                       ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
-            """.format(
-        wkt_scope=scope_geom.wkt, wkt_mask=mask.geom.wkt
-    )
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        return cursor.fetchall()[0][0]
-
-
+# @deprecated
 def select_mask_areas_by_scope(**params):
     query = """
         SELECT m.id, m.kind, m.date, ST_Area(ST_Transform(
@@ -112,12 +98,15 @@ class CoverageView(APIView):
                 date_to=date_to,
             )
         else:
-            values = select_mask_areas_by_scope(
-                scope_id=scope_id,
-                source=source,
-                kind=kind,
-                date_from=date_from,
-                date_to=date_to,
+            values = (
+                CoverageMeasurement.objects.filter(
+                    source=source,
+                    kind=kind,
+                    date__range=(date_from, date_to),
+                    scope_id=scope_id,
+                )
+                .order_by("date")
+                .values("id", "date", "area", "perc_area")
             )
 
         return Response(dict(values=values))
