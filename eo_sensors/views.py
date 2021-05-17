@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 from datetime import datetime
+import shapely
 
 from django.db import connection
 from django.db.models import Q
