@@ -53,7 +53,7 @@ def select_mask_areas_by_geom(**params):
         SELECT m.id, m.kind, m.date, ST_Area(ST_Transform(
             ST_Intersection(m.geom, ST_GeomFromText(%(geom_wkt)s, 4326)), %(srid)s)) AS area
         FROM eo_sensors_coveragemask AS m
-        WHERE m.date BETWEEN %(date_from)s AND %(date_to)s AND m.kind = %(kind)s
+        WHERE m.date BETWEEN %(date_from)s AND %(date_to)s
         """
     with connection.cursor() as cursor:
         cursor.execute(query, dict(srid=32718, **params))
@@ -77,12 +77,11 @@ class CoverageView(APIView):
             if k in params
         }
 
-        if any(k not in data for k in ["source", "kind", "scope"]):
-            raise APIException("Some parameters are missing (source, kind, scope)")
+        if any(k not in data for k in ["source", "scope"]):
+            raise APIException("Some parameters are missing (source or scope)")
 
         scope_id = int(data["scope"])
         source = data["source"]
-        kind = data["kind"]
         custom_geom = data["geom"] if "geom" in data else None
         date_from = datetime.strptime(data["date_from"], "%Y-%m-%d")
         date_to = datetime.strptime(data["date_to"], "%Y-%m-%d")
@@ -93,20 +92,16 @@ class CoverageView(APIView):
             values = select_mask_areas_by_geom(
                 geom_wkt=geom.wkt,
                 source=source,
-                kind=kind,
                 date_from=date_from,
                 date_to=date_to,
             )
         else:
             values = (
                 CoverageMeasurement.objects.filter(
-                    source=source,
-                    kind=kind,
-                    date__range=(date_from, date_to),
-                    scope_id=scope_id,
+                    source=source, date__range=(date_from, date_to), scope_id=scope_id
                 )
                 .order_by("date")
-                .values("id", "date", "area", "perc_area")
+                .values("id", "kind", "date", "area")
             )
 
         return Response(dict(values=values))
