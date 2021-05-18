@@ -350,7 +350,7 @@ def create_rgb_rasters(date_from, date_to):
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
         date=date_to,
-        slug="vegatation-cloud",
+        slug="vegetation-cloud",
         defaults=dict(name="Vegetation + Cloud mask"),
     )
     with open(dst_path, "rb") as f:
@@ -490,7 +490,7 @@ def create_vegetation_masks(geojson_path, date):
     clouds_mp = unary_union(clouds_polys)
 
     raster = Raster.objects.get(
-        source=Sources.MODIS_VI, date=date, slug="vegatation-cloud"
+        source=Sources.MODIS_VI, date=date, slug="vegetation-cloud"
     )
     CoverageMask.objects.update_or_create(
         date=date,
