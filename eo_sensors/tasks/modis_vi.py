@@ -356,7 +356,7 @@ def create_rgb_rasters(date_from, date_to):
     with open(dst_path, "rb") as f:
         if raster.file:
             raster.file.delete()
-        raster.file.save(f"cloud.tif", File(f))
+        raster.file.save(f"vegetation-cloud.tif", File(f))
     create_raster_tiles(raster, levels=(6, 13))
 
 
