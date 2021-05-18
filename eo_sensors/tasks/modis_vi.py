@@ -361,14 +361,17 @@ def create_rgb_rasters(date_from, date_to):
 
 
 def create_raster_tiles(raster, *, levels):
-    media_dir = os.path.join(settings.MEDIA_ROOT)
+    gdal2tiles = settings.GDAL2TILES_BIN_PATH
+    n_jobs = settings.GDAL2TILES_NUM_JOBS
+    media_dir = settings.MEDIA_ROOT
     rasters_dir = os.path.join(media_dir, "rasters")
     tiles_dir = os.path.join(media_dir, "tiles")
 
     src = raster.file.path
     dst = os.path.join(tiles_dir, raster.path())
-    levels_str = f"{levels[0]}-{levels[1]}"
-    cmd = f"{settings.BASE_DIR}/script/gdal2tilesp.py -w none -n -z {levels_str} {src} {dst}"
+    zoom_range = f"{levels[0]}-{levels[1]}"
+
+    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}"
 
     # Make sure output directory does not exist
     if os.path.exists(dst):

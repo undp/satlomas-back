@@ -253,8 +253,9 @@ def generate_raster_tiles(raster, zoom_range=(4, 18)):
         os.makedirs(tiles_dir, exist_ok=True)
 
         # Use gdal2tiles to generate raster tiles
-        cmd = "{gdal2tiles} -e -w none -n -z {zoom_range} {src} {dst}".format(
+        cmd = "{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}".format(
             gdal2tiles=settings.GDAL2TILES_BIN_PATH,
+            n_jobs = settings.GDAL2TILES_NUM_JOBS,
             zoom_range=zoom_range,
             src=tmpfile.name,
             dst=tiles_dir,
