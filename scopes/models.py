@@ -3,18 +3,20 @@ from django.contrib.gis.db import models
 
 
 class Scope(models.Model):
-    CORREDORES = 'CE'
-    ACR = 'AC'
-    DISTRITOS = 'DI'
-    ECOSISTEMAS = 'EF'
-    ARQUEOLOGICOS = 'SA'
+    CORREDORES = "CE"
+    ACR = "AC"
+    DISTRITOS = "DI"
+    ECOSISTEMAS = "EF"
+    ARQUEOLOGICOS = "SA"
+    USER_DEFINED = "UD"
 
     SCOPE_TYPE = [
-        (CORREDORES, 'Corredores Ecologicos'),
-        (ACR, 'ACR'),
-        (DISTRITOS, 'Distritos'),
-        (ECOSISTEMAS, 'Ecosistemas fragiles'),
-        (ARQUEOLOGICOS, 'Sitios arqueologicos'),
+        (CORREDORES, "Corredores Ecologicos"),
+        (ACR, "ACR"),
+        (DISTRITOS, "Distritos"),
+        (ECOSISTEMAS, "Ecosistemas fragiles"),
+        (ARQUEOLOGICOS, "Sitios arqueologicos"),
+        (USER_DEFINED, "Definido por usuario"),
     ]
 
     scope_type = models.CharField(
