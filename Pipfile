@@ -10,7 +10,7 @@ rope = "*"
 
 [packages]
 dateutils = "*"
-django = "==3.1.8"
+django = "==3.1.9"
 django-anymail = {extras = ["mailgun"], version = "*"}
 django-auditlog = {git = "https://github.com/dymaxionlabs/django-auditlog.git"}
 django-cors-headers = "*"
