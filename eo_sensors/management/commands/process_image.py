@@ -30,7 +30,7 @@ class Command(BaseCommand):
             queue="processing",
         )
 
-        # enqueue_job('eo_sensors.tasks.modis_vi.download_scene', **kwargs)
+        enqueue_job("eo_sensors.tasks.modis_vi.process_period", **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel1.download_scene', **kwargs)
         # enqueue_job('eo_sensors.tasks.sentinel2.download_scene', **kwargs)
-        run_job("eo_sensors.tasks.modis_vi.process_period", **kwargs)
+        # run_job("eo_sensors.tasks.modis_vi.process_period", **kwargs)
