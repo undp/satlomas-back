@@ -1,0 +1,1 @@
+0 * * * * /bin/bash -c 'cd /home/satlomas/satlomas-back/ && tools/shutdown-if-idle.sh 2>&1 >> /home/satlomas/logs/shutdown-if-idle.log'
