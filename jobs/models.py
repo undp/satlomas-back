@@ -23,6 +23,7 @@ class Job(models.Model):
     finished_at = models.DateTimeField(_("finished at"), null=True, blank=True)
     metadata = JSONField(_("metadata"), default=dict, blank=True)
     error = models.TextField(_("error"), blank=True, null=True)
+    traceback = models.TextField(_("traceback"), blank=True, null=True)
     estimated_duration = models.PositiveIntegerField(
         _("estimated duration"), blank=True, null=True
     )
@@ -82,7 +83,8 @@ class Job(models.Model):
             raise RuntimeError("Cannot retry a job that has not failed")
         self.state = states.PENDING
         self.error = None
-        self.save(update_fields=["state", "error", "updated_at"])
+        self.traceback = None
+        self.save(update_fields=["state", "error", "traceback", "updated_at"])
         self.start()
 
     def cancel(self):
@@ -124,10 +126,11 @@ class Job(models.Model):
         self._mark_as(states.CANCELED, finished_at=finished_at)
         signals.job_canceled.send(sender=self.__class__, job=self)
 
-    def mark_as_failed(self, reason=None, finished_at=None):
+    def mark_as_failed(self, reason=None, traceback=None, finished_at=None):
         self._mark_as(states.FAILED, finished_at=finished_at)
         self.error = reason
-        self.save(update_fields=["error", "updated_at"])
+        self.traceback = traceback
+        self.save(update_fields=["error", "traceback", "updated_at"])
         signals.job_failed.send(sender=self.__class__, job=self)
 
     def _mark_as(self, state, finished_at=None):
