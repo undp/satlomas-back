@@ -81,8 +81,8 @@ class Job(models.Model):
         if not self.state == states.FAILED:
             raise RuntimeError("Cannot retry a job that has not failed")
         self.state = states.PENDING
-        self.traceback = None
-        self.save(update_fields=["state", "traceback", "updated_at"])
+        self.error = None
+        self.save(update_fields=["state", "error", "updated_at"])
         self.start()
 
     def cancel(self):
