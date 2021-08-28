@@ -13,7 +13,7 @@ class Station(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return "{code} {name}".format(code=self.code, name=self.name)
+        return self.code
 
 
 class Site(models.Model):
