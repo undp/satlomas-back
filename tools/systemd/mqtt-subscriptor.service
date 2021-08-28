@@ -3,6 +3,10 @@ Description=SatLomas mqtt subscriptor
 After=network.target
 
 [Service]
+Environment=MQTT_URL=
+Environment=MQTT_CLIENT_ID=
+Environment=MQTT_LOG_FILE=
+Environment=MQTT_SUBSCRIPTION_PATH=
 User=ubuntu
 Group=www-data
 WorkingDirectory=/home/ubuntu/satlomas-back
