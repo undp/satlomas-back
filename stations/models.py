@@ -30,6 +30,7 @@ class Site(models.Model):
 class Measurement(models.Model):
     datetime = models.DateTimeField()
     station = models.ForeignKey(Station, on_delete=models.PROTECT)
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, blank=True, null=True)
     attributes = JSONField(blank=True)
 
     objects = MeasurementManager()
