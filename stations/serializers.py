@@ -22,7 +22,7 @@ class MeasurementSerializer(serializers.ModelSerializer):
 
 
 class MeasurementSummarySerializer(serializers.Serializer):
-    station = serializers.IntegerField()
+    site = serializers.IntegerField()
     parameter = serializers.CharField()
     start = serializers.DateTimeField()
     end = serializers.DateTimeField()
