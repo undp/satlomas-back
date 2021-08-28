@@ -34,6 +34,15 @@ def run_command(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
+def run_otb_command(cmd):
+    otb_env_path = settings.OTB_ENV_PATH
+    if otb_env_path:
+        fullcmd = f"{otb_env_path} && {cmd}"
+    else:
+        fullcmd = cmd
+    run_command(fullcmd)
+
+
 def unzip(zip_name, extract_folder=None, delete_zip=True):
     if extract_folder is None:
         extract_folder = os.path.dirname(zip_name)
