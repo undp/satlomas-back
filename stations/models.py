@@ -1,6 +1,7 @@
 from auditlog.registry import auditlog
 from django.contrib.gis.db import models
 from django.db.models import JSONField
+from django.contrib.postgres.fields import HStoreField
 from django.utils.translation import gettext as _
 
 from .managers import MeasurementManager, PredictionManager
@@ -22,7 +23,7 @@ class Site(models.Model):
     station = models.ForeignKey(
         Station, on_delete=models.SET_NULL, null=True, blank=True
     )
-    attributes = JSONField(null=True, blank=True)
+    attributes = HStoreField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
