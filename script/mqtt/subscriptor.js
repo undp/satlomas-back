@@ -46,7 +46,7 @@ const pgClient = new Client();
     const query = `
       SELECT stations.id as station, sites.id as site
       FROM stations_station stations
-      LEFT JOIN stations_site sites ON stations.id = sites.station
+      LEFT JOIN stations_site sites ON stations.id = sites.station_id
       WHERE code = $1
     `;
     try {
