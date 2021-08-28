@@ -44,14 +44,22 @@ class Hour(Func):
     output_field = models.DateTimeField()
 
 
+class Minute(Func):
+    function = "DATE_TRUNC"
+    template = "%(function)s('minute', %(expressions)s)"
+    output_field = models.DateTimeField()
+
+
 class MeasurementManager(models.Manager):
-    grouping_intervals = dict(hour=Hour, day=Day, week=Week, month=Month, year=Year)
+    grouping_intervals = dict(
+        minute=Minute, hour=Hour, day=Day, week=Week, month=Month, year=Year
+    )
     aggregation_funcs = dict(avg=Avg, count=Count, max=Max, min=Min, sum=Sum)
 
     def with_prev_attributes(self):
         prev_attributes = Window(
             expression=Lag("attributes"),
-            partition_by=F("station"),
+            partition_by=F("site"),
             order_by=F("datetime").asc(),
         )
         return self.annotate(prev_attributes=prev_attributes)
