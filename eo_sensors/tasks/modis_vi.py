@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from glob import glob
 
 import geopandas as gpd
@@ -293,6 +293,7 @@ def clip_with_aoi(src):
 
 def create_rgb_rasters(date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
+    date = date_to - timedelta(days=1)
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_ndvi.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_ndvi.tif")
@@ -300,7 +301,7 @@ def create_rgb_rasters(date_from, date_to):
     write_ndvi_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date_to,
+        date=date,
         slug="ndvi",
         defaults=dict(name="NDVI"),
     )
@@ -316,7 +317,7 @@ def create_rgb_rasters(date_from, date_to):
     write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date_to,
+        date=date,
         slug="vegetation",
         defaults=dict(name="Vegetation mask"),
     )
@@ -332,7 +333,7 @@ def create_rgb_rasters(date_from, date_to):
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date_to,
+        date=date,
         slug="cloud",
         defaults=dict(name="Cloud mask"),
     )
@@ -348,7 +349,7 @@ def create_rgb_rasters(date_from, date_to):
     write_vegetation_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date_to,
+        date=date,
         slug="vegetation-cloud",
         defaults=dict(name="Vegetation + Cloud mask"),
     )
