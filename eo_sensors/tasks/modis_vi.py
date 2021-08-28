@@ -95,11 +95,12 @@ CMAPS = {
 def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
+    date = date_to - timedelta(days=1)
 
     if download_and_process(date_from, date_to):
         create_rgb_rasters(date_from, date_to)
         create_masks(date_from, date_to)
-        generate_measurements(date_to)
+        generate_measurements(date)
         clean_temp_files()
 
 
@@ -454,6 +455,7 @@ def write_vegetation_cloud_mask_rgb_raster(img):
 
 def create_masks(date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
+    date = date_to - timedelta(days=1)
 
     logger.info("Polygonize mask")
     src_path = os.path.join(
@@ -475,7 +477,7 @@ def create_masks(date_from, date_to):
     data_proj.to_file(dst_path)
 
     logger.info("Load vegetation mask to DB")
-    create_vegetation_masks(dst_path, date_to)
+    create_vegetation_masks(dst_path, date)
 
 
 def create_vegetation_masks(geojson_path, date):
