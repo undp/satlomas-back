@@ -19,6 +19,9 @@ class Station(models.Model):
 class Site(models.Model):
     name = models.CharField(max_length=255)
     geom = models.PointField()
+    station = models.ForeignKey(
+        Station, on_delete=models.SET_NULL, null=True, blank=True
+    )
     attributes = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
