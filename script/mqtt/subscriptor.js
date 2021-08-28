@@ -10,6 +10,8 @@ const { Client } = require("pg");
 const mqttUrl = process.env.MQTT_URL;
 const clientId = process.env.MQTT_CLIENT_ID || "satlomas-sub";
 const logFile = process.env.MQTT_LOG_FILE || "measurements.log";
+const subscriptionPath =
+  processs.env.MQTT_SUBSCRIPTION_PATH || "/weather_station/";
 
 if (!mqttUrl) {
   console.error(
@@ -40,26 +42,38 @@ const pgClient = new Client();
     process.exit();
   });
 
-  const getStationIdFromCode = async (id) => {
-    const query = "SELECT id from stations_station WHERE code = $1";
+  const getStationSiteIds = async (code) => {
+    const query = `
+      SELECT stations.id as station, sites.id as site
+      FROM stations_station stations
+      LEFT JOIN stations_site sites ON stations.id = sites.station
+      WHERE code = $1
+    `;
     try {
-      const res = await pgClient.query(query, [id]);
-      return res.rows[0]["id"];
+      const res = await pgClient.query(query, [code]);
+      return res.rows[0];
     } catch (err) {
-      console.error("Failed to get ");
-      return null;
+      console.error(`Unknown station with code '${code}'`, err);
+      return;
     }
   };
 
   const insertMeasurement = async (attributes) => {
-    const stationId = await getStationIdFromCode(attributes["id"]);
+    const code = attributes["id"];
+    const ids = await getStationSiteIds(code);
 
-    const query =
-      "INSERT INTO stations_measurement(station_id, datetime, attributes) VALUES($1, $2, $3) RETURNING *";
+    if (!ids) {
+      console.warn(`Skip measurement of unknown station`);
+      return;
+    }
 
+    const query = `
+      INSERT INTO stations_measurement(station_id, site_id, datetime, attributes)
+      VALUES($1, $2, $3, $4) RETURNING *
+    `;
     const time = attributes["time"];
     delete attributes["time"];
-    const values = [stationId, time, attributes];
+    const values = [ids["station"], ids["site"], time, attributes];
 
     try {
       const res = await pgClient.query(query, values);
@@ -78,7 +92,7 @@ const pgClient = new Client();
     console.log(`Client '${clientId}' has connected`);
     // Subscribe to all stations topics
     // mqttClient.subscribe("/stations/+/");
-    mqttClient.subscribe("/weather_station/");
+    mqttClient.subscribe(subscriptionPath);
   });
 
   mqttClient.on("message", (topic, message) => {

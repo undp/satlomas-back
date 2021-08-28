@@ -1,0 +1,12 @@
+[Unit]
+Description=SatLomas mqtt subscriptor
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/satlomas-back
+ExecStart=node script/mqtt/subscriptor.js
+
+[Install]
+WantedBy=multi-user.target
