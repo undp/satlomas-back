@@ -23,16 +23,18 @@ client.on("connect", () => {
     const now = new Date(Date.now());
 
     const data = {
-      Altitude: randFloat(70, 85, 2),
-      Ambient_Temperature: randFloat(15, 25, 2),
-      Atmospheric_Pressure: randFloat(800, 1200, 2),
-      Internal_Temperature: randFloat(16, 28, 2),
+      altitude: randFloat(70, 85, 2),
+      ambient_temperature: randFloat(15, 25, 2),
+      atmospheric_pressure: randFloat(800, 1200, 2),
+      internal_temperature: randFloat(16, 28, 2),
       PM1_0: randInt(20, 40),
       PM2_5: randInt(20, 40),
       PM4_0: randInt(20, 40),
       PM10_0: randInt(20, 40),
-      Relative_Humidity: randFloat(0, 100, 2),
-      Tip_Counts: randInt(0, 3000),
+      relative_humidity: randFloat(0, 100, 2),
+      tip_count: randInt(0, 3000),
+      wind_speed: randFloat(0, 5, 1),
+      wind_direction: randInt(0, 360, 2),
       time: now.toISOString(),
       id: "pcb_radio_nebli",
     };
