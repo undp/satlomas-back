@@ -3,19 +3,14 @@ from django.db.models import JSONField
 from jsoneditor.forms import JSONEditor
 from leaflet.admin import LeafletGeoAdmin
 
-from .models import Place, Station
-
-
-class PlaceAdmin(LeafletGeoAdmin):
-    list_display = ("name", "parent", "created_at", "updated_at")
+from .models import Station
 
 
 class StationAdmin(LeafletGeoAdmin):
-    list_display = ("code", "name", "place", "lat", "lon", "created_at", "updated_at")
+    list_display = ("code", "name", "geom", "created_at", "updated_at")
     formfield_overrides = {
         JSONField: {"widget": JSONEditor},
     }
 
 
-admin.site.register(Place, PlaceAdmin)
 admin.site.register(Station, StationAdmin)

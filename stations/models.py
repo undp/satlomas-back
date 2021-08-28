@@ -1,51 +1,21 @@
-from datetime import datetime
 from auditlog.registry import auditlog
-
 from django.contrib.gis.db import models
-from django.contrib.gis.geos.point import Point
 from django.db.models import JSONField
 from django.utils.translation import gettext as _
 
 from .managers import MeasurementManager, PredictionManager
 
 
-class Place(models.Model):
-    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=255)
-    geom = models.PolygonField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        if self.parent_id:
-            return "{parent} / {self}".format(parent=self.parent, self=self.name)
-        else:
-            return self.name
-
-
 class Station(models.Model):
-    code = models.CharField(max_length=30, blank=True)
+    code = models.CharField(max_length=30)
     name = models.CharField(max_length=255, blank=True)
-    place = models.ForeignKey(Place, on_delete=models.PROTECT, blank=True, null=True)
-    lat = models.DecimalField(max_digits=10, decimal_places=6, null=True)
-    lon = models.DecimalField(max_digits=10, decimal_places=6, null=True)
     geom = models.PointField()
     metadata = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def place_name(self):
-        return self.place.name if self.place else ""
-
-    def save(self, *args, **kwargs):
-        if not self.geom:
-            self.geom = Point(self.lon, self.lat)
-        super(Station, self).save(*args, **kwargs)
-
     def __str__(self):
-        return "{name} ({code}) - {place}".format(
-            code=self.code, name=self.name, place=self.place
-        )
+        return "{code} {name}".format(code=self.code, name=self.name)
 
 
 class Measurement(models.Model):
@@ -84,5 +54,4 @@ class Prediction(models.Model):
         )
 
 
-auditlog.register(Place)
 auditlog.register(Station)

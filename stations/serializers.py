@@ -1,26 +1,18 @@
 from rest_framework import serializers
 
-from .models import Place, Station, Measurement
-
-
-class PlaceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Place
-        fields = '__all__'
+from .models import Station, Measurement
 
 
 class StationSerializer(serializers.ModelSerializer):
-    place_name = serializers.ReadOnlyField()
-
     class Meta:
         model = Station
-        fields = '__all__'
+        fields = "__all__"
 
 
 class MeasurementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Measurement
-        fields = '__all__'
+        fields = "__all__"
 
 
 class MeasurementSummarySerializer(serializers.Serializer):
@@ -29,6 +21,8 @@ class MeasurementSummarySerializer(serializers.Serializer):
     start = serializers.DateTimeField()
     end = serializers.DateTimeField()
     grouping_interval = serializers.ChoiceField(
-        choices=['hour', 'day', 'week', 'month', 'year'], default='day')
+        choices=["hour", "day", "week", "month", "year"], default="day"
+    )
     aggregation_func = serializers.ChoiceField(
-        choices=['avg', 'sum', 'count', 'min', 'max'], default='avg')
+        choices=["avg", "sum", "count", "min", "max"], default="avg"
+    )
