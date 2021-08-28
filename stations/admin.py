@@ -9,6 +9,9 @@ from .widgets import LatLongWidget
 
 class StationAdmin(admin.ModelAdmin):
     list_display = ("code", "created_at", "updated_at")
+    formfield_overrides = {
+        JSONField: {"widget": JSONEditor},
+    }
 
 
 class SiteAdmin(admin.ModelAdmin):
