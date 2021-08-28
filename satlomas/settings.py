@@ -221,7 +221,7 @@ S1_PROC_NUM_JOBS = int(os.getenv("S1_PROC_NUM_JOBS", 3))
 
 # OTB and GDAL tools
 OTB_BIN_PATH = os.getenv("OTB_BIN_PATH")
-OTB_ENV_PATH = os.getenv("OTB_ENV_PATH")
+OTB_PROFILE_PATH = os.getenv("OTB_PROFILE_PATH")
 GDAL_BIN_PATH = os.getenv("GDAL_BIN_PATH")
 GDAL2TILES_BIN_PATH = os.getenv(
     "GDAL2TILES_BIN_PATH", os.path.join(BASE_DIR, "script", "gdal2tilesp.py")

@@ -30,17 +30,17 @@ logger.setLevel(logging.INFO)
 
 
 def run_command(cmd):
-    logger.info("Run: %s", cmd)
+    logger.info("Run command: %s", cmd)
     subprocess.run(cmd, shell=True, check=True)
 
 
-def run_otb_command(cmd):
-    otb_env_path = settings.OTB_ENV_PATH
-    if otb_env_path:
-        fullcmd = f"{otb_env_path} && {cmd}"
-    else:
-        fullcmd = cmd
-    run_command(fullcmd)
+def run_otb_command(cmd, cwd=None):
+    logger.info("Run command: %s", cmd)
+    otb_profile_path = settings.OTB_PROFILE_PATH
+    if otb_profile_path:
+        logger.info("Use OTB profile environment at %s", otb_profile_path)
+        cmd = f"/bin/bash -c 'source {otb_profile_path}; {cmd}'"
+    subprocess.run(cmd, shell=True, check=True, cwd=cwd)
 
 
 def unzip(zip_name, extract_folder=None, delete_zip=True):
