@@ -2,7 +2,7 @@ import os
 import shutil
 
 from django.conf import settings
-from eo_sensors.utils import run_subprocess
+from eo_sensors.utils import run_command
 
 RESULTS_DIR = os.path.join(settings.BASE_DIR, 'data', 'images', 'results')
 RESULTS_SRC = os.path.join(RESULTS_DIR, 'src')
@@ -50,7 +50,7 @@ def predict(period):
 
 
 def superimpose(inm, inr):
-    run_subprocess(
+    run_command(
         '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'.
         format(otb_bin_path=settings.OTB_BIN_PATH,
                inr=os.path.join(RESULTS_SRC, "{}.tif".format(inr)),
@@ -59,7 +59,7 @@ def superimpose(inm, inr):
 
 
 def extract_local_stats(name, band):
-    run_subprocess(
+    run_command(
         '{otb_bin_path}/otbcli_LocalStatisticExtraction -in {input} -channel {band} -radius 3 -out {out}'
         .format(otb_bin_path=settings.OTB_BIN_PATH,
                 input=os.path.join(RESULTS_FEAT, "{}.tif".format(name)),
@@ -69,7 +69,7 @@ def extract_local_stats(name, band):
 
 
 def extract_haralick(name, band):
-    run_subprocess(
+    run_command(
         '{otb_bin_path}/otbcli_HaralickTextureExtraction -in {input} -channel {band} -texture simple -parameters.min 0 -parameters.max 0.3 -out {out}'
         .format(otb_bin_path=settings.OTB_BIN_PATH,
                 input=os.path.join(RESULTS_FEAT, "{}.tif".format(name)),
@@ -81,7 +81,7 @@ def extract_haralick(name, band):
 def concatenate_images():
     current_dir = os.getcwd()
     os.chdir(RESULTS_FEAT)
-    run_subprocess(
+    run_command(
         '{otb_bin_path}/otbcli_ConcatenateImages -il $(ls {il}) -out {out}'.
         format(otb_bin_path=settings.OTB_BIN_PATH,
                il=RESULTS_FEAT,
@@ -90,7 +90,7 @@ def concatenate_images():
 
 
 def classify_image():
-    run_subprocess(
+    run_command(
         '{otb_bin_path}/otbcli_ImageClassifier -in {input} -model {model} -out {out}'
         .format(otb_bin_path=settings.OTB_BIN_PATH,
                 input=os.path.join(RESULTS_DIR, 'features.tif'),

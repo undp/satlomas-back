@@ -12,7 +12,7 @@ import rasterio
 from django.conf import settings
 from django.core.files import File
 from eo_sensors.models import Raster
-from eo_sensors.utils import (run_subprocess, sliding_windows, unzip,
+from eo_sensors.utils import (run_command, sliding_windows, unzip,
                               write_rgb_raster)
 from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
@@ -123,14 +123,14 @@ def calibrate(product):
     src = os.path.join(S1_RAW_PATH, name, 'measurement', '*-vv-*.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_SARCalibration -in $(ls {src}) -out {dst}'.
             format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
     src = os.path.join(S1_RAW_PATH, name, 'measurement', '*-vh-*.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_SARCalibration -in $(ls {src}) -out {dst}'.
             format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
@@ -145,7 +145,7 @@ def orthorectify(product):
     src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vv.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
             .format(otb_bin_path=settings.OTB_BIN_PATH,
                     src=src,
@@ -156,7 +156,7 @@ def orthorectify(product):
     src = os.path.join(S1_RAW_PATH, 'proc', name, 'calib', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_OrthoRectification -io.in {src} -io.out {dst} -elev.geoid {geoid_path} -elev.dem {dem_path} -opt.gridspacing 50'
             .format(otb_bin_path=settings.OTB_BIN_PATH,
                     src=src,
@@ -175,14 +175,14 @@ def despeckle(product):
     src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vv.tiff')
     dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_Despeckle -in {src} -out {dst}'.format(
                 otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
     src = os.path.join(S1_RAW_PATH, 'proc', name, 'ortho', 'vh.tiff')
     dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_Despeckle -in {src} -out {dst}'.format(
                 otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
@@ -197,7 +197,7 @@ def clip(product):
     vv_src = os.path.join(S1_RAW_PATH, 'proc', name, 'despeck', 'vv.tiff')
     vv_dst = os.path.join(dst_folder, 'vv.tiff')
     if not os.path.exists(vv_dst):
-        run_subprocess(
+        run_command(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
                     aoi=AOI_PATH,
@@ -207,7 +207,7 @@ def clip(product):
     vh_src = os.path.join(S1_RAW_PATH, 'proc', name, 'despeck', 'vh.tiff')
     vh_dst = os.path.join(dst_folder, 'vh.tiff')
     if not os.path.exists(vh_dst):
-        run_subprocess(
+        run_command(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
                     aoi=AOI_PATH,
@@ -226,7 +226,7 @@ def concatenate(product):
     vh_src = os.path.join(S1_RAW_PATH, 'proc', name, 'clip', 'vh.tiff')
     dst = os.path.join(dst_folder, 'concatenate.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_ConcatenateImages -il {vv_src} {vh_src} -out {dst}'
             .format(otb_bin_path=settings.OTB_BIN_PATH,
                     vv_src=vv_src,
@@ -254,7 +254,7 @@ def superimpose(products):
         dst = os.path.join(S1_RAW_PATH, 'proc', name, 'concatenate',
                            'aligned.tiff')
         if not os.path.exists(dst):
-            run_subprocess(
+            run_command(
                 '{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}'
                 .format(otb_bin_path=settings.OTB_BIN_PATH,
                         inr=inr,
@@ -308,7 +308,7 @@ def generate_vvvh(period):
     src = os.path.join(S1_RES_PATH, str(period.pk), 'median.tiff')
     dst = os.path.join(S1_RES_PATH, str(period.pk), 'vv-vh.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_BandMath -il {src} -out {dst} -exp "im1b1 / im1b2"'
             .format(otb_bin_path=settings.OTB_BIN_PATH, src=src, dst=dst))
 
@@ -319,7 +319,7 @@ def concatenate_results(period):
     vv_vh = os.path.join(S1_RES_PATH, str(period.pk), 'vv-vh.tiff')
     dst = os.path.join(S1_RES_PATH, str(period.pk), 'concatenate.tiff')
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{otb_bin_path}/otbcli_ConcatenateImages -il {median} {vv_vh} -out {dst}'
             .format(otb_bin_path=settings.OTB_BIN_PATH,
                     median=median,
@@ -336,7 +336,7 @@ def clip_result(period):
         dto=period.date_to.strftime('%Y%m'))
     dst = os.path.join(RESULTS_PATH, dst_name)
     if not os.path.exists(dst):
-        run_subprocess(
+        run_command(
             '{gdal_bin_path}/gdalwarp -of GTiff -cutline {aoi} -crop_to_cutline {src} {dst}'
             .format(gdal_bin_path=settings.GDAL_BIN_PATH,
                     aoi=AOI_PATH,

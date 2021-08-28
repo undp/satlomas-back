@@ -29,7 +29,7 @@ logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
 
-def run_subprocess(cmd):
+def run_command(cmd):
     logger.info("Run: %s", cmd)
     subprocess.run(cmd, shell=True, check=True)
 
@@ -86,7 +86,7 @@ def clip(src, dst, *, aoi):
 
     logger.info("Clip raster %s to %s using %s as cutline", src, dst, aoi)
     gdalwarp_bin = f"{settings.GDAL_BIN_PATH}/gdalwarp"
-    run_subprocess(
+    run_command(
         f"{gdalwarp_bin} -of GTiff -co COMPRESS=DEFLATE -co TILED=YES -cutline {aoi} -crop_to_cutline {src} {dst}"
     )
 
@@ -99,7 +99,7 @@ def rescale_byte(src, dst, *, in_range):
 
     logger.info("Rescale raster %s to %s with input range %s", src, dst, in_range)
     gdal_translate_bin = f"{settings.GDAL_BIN_PATH}/gdal_translate"
-    run_subprocess(
+    run_command(
         f"{gdal_translate_bin} -of GTiff -ot Byte "
         f"-scale {' '.join(str(v) for v in in_range)} 1 255 -a_nodata 0 "
         f"-co COMPRESS=DEFLATE -co TILED=YES "
@@ -255,9 +255,9 @@ def generate_raster_tiles(raster, zoom_range=(4, 18)):
         # Use gdal2tiles to generate raster tiles
         cmd = "{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}".format(
             gdal2tiles=settings.GDAL2TILES_BIN_PATH,
-            n_jobs = settings.GDAL2TILES_NUM_JOBS,
+            n_jobs=settings.GDAL2TILES_NUM_JOBS,
             zoom_range=zoom_range,
             src=tmpfile.name,
             dst=tiles_dir,
         )
-        run_subprocess(cmd)
+        run_command(cmd)

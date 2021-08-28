@@ -7,7 +7,7 @@ from glob import glob
 
 from django.conf import settings
 from eo_sensors.utils import (create_raster, generate_measurements,
-                              run_subprocess, write_paletted_rgb_raster)
+                              run_command, write_paletted_rgb_raster)
 from jobs.utils import job
 
 # Configure logger
@@ -145,7 +145,7 @@ def download_and_build_composite(date_from, date_to):
             f"-e 32718 -res 10 -v " \
             f"-p {settings.S2M_NUM_JOBS} " \
             f"-o {mosaic_dir} {raw_dir}"
-    run_subprocess(cmd)
+    run_command(cmd)
 
     # Get mosaic band rasters
     mosaic_rgb_paths = [
@@ -158,7 +158,7 @@ def download_and_build_composite(date_from, date_to):
     # Use gdalbuildvrt to concatenate RGB bands from mosaic
     vrt_path = os.path.join(mosaic_dir, 'tci.vrt')
     cmd = f"gdalbuildvrt -separate {vrt_path} {' '.join(mosaic_rgb_paths)}"
-    run_subprocess(cmd)
+    run_command(cmd)
 
     # Clip to extent and rescale virtual raster
     clipped_tci_path = os.path.join(mosaic_dir, 'tci.tif')
