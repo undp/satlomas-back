@@ -1,11 +1,17 @@
 from rest_framework import serializers
 
-from .models import Station, Measurement
+from .models import Station, Site, Measurement
 
 
 class StationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Station
+        fields = "__all__"
+
+
+class SiteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Site
         fields = "__all__"
 
 

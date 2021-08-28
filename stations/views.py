@@ -1,23 +1,33 @@
-from rest_framework import status, viewsets, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 from rest_framework_csv import renderers as r
 
-from .models import Measurement, Station
-from .serializers import (
-    MeasurementSummarySerializer,
-    StationSerializer,
-)
+from .models import Measurement, Site, Station
+from .serializers import MeasurementSummarySerializer, SiteSerializer, StationSerializer
 
 
 class StationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
-    queryset = Station.objects.all().order_by("-name")
+    queryset = Station.objects.all().order_by("code")
     serializer_class = StationSerializer
 
     def get_queryset(self):
         queryset = Station.objects.all()
+        code = self.request.query_params.get("code", None)
+        if code is not None:
+            queryset = queryset.filter(code__icontains=code)
+        return queryset
+
+
+class SiteViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Site.objects.all().order_by("name")
+    serializer_class = SiteSerializer
+
+    def get_queryset(self):
+        queryset = Site.objects.all()
         name = self.request.query_params.get("name", None)
         if name is not None:
             queryset = queryset.filter(name__icontains=name)

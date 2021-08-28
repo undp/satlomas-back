@@ -8,14 +8,23 @@ from .managers import MeasurementManager, PredictionManager
 
 class Station(models.Model):
     code = models.CharField(max_length=30)
-    name = models.CharField(max_length=255, blank=True)
-    geom = models.PointField()
     metadata = JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return "{code} {name}".format(code=self.code, name=self.name)
+
+
+class Site(models.Model):
+    name = models.CharField(max_length=255)
+    geom = models.PointField()
+    attributes = JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Measurement(models.Model):

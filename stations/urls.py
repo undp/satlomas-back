@@ -6,6 +6,7 @@ from stations import views
 
 router = SimpleRouter()
 router.register(r"stations", views.StationViewSet)
+router.register(r"sites", views.SiteViewSet)
 
 urlpatterns = [
     url(r"^", include(router.urls)),
