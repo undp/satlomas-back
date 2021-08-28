@@ -20,6 +20,7 @@ from django.core.files import File
 from django.db import DatabaseError, connection
 from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
+from eo_sensors.utils import run_otb_command
 from eo_sensors.utils.colormap import apply_cmap, rescale_to_byte
 from jobs.utils import job
 from satlomasproc.modis_vi import (
@@ -140,9 +141,8 @@ def download_and_process(date_from, date_to):
     )
 
     logger.info("Superimpose clipped SRTM and NDVI rasters to align them")
-    run_command(
-        "{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
-            otb_bin_path=settings.OTB_BIN_PATH,
+    run_otb_command(
+        "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
             inm=ndvi_clipped_path,
             out=ndvi_clipped_path,
@@ -209,9 +209,8 @@ def download_and_process(date_from, date_to):
     )
 
     logger.info("Superimpose pixel rel raster to SRTM raster")
-    run_command(
-        "{otb_bin_path}/otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
-            otb_bin_path=settings.OTB_BIN_PATH,
+    run_otb_command(
+        "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
             inm=pixelrel_clipped_path,
             out=pixelrel_clipped_path,
