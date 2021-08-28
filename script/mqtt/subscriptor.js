@@ -11,7 +11,7 @@ const mqttUrl = process.env.MQTT_URL;
 const clientId = process.env.MQTT_CLIENT_ID || "satlomas-sub";
 const logFile = process.env.MQTT_LOG_FILE || "measurements.log";
 const subscriptionPath =
-  processs.env.MQTT_SUBSCRIPTION_PATH || "/weather_station/";
+  process.env.MQTT_SUBSCRIPTION_PATH || "/weather_station/";
 
 if (!mqttUrl) {
   console.error(
