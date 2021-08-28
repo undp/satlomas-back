@@ -37,6 +37,7 @@ shapely = "*"
 django-redis-cache = "==2.1.1"
 django-jsonfield = "*"
 pysftp = "*"
+django-admin-hstore-widget = "*"
 
 [requires]
 python_version = "3"
