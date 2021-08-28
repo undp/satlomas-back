@@ -10,15 +10,14 @@ class StationSerializer(serializers.ModelSerializer):
 
 
 class SiteSerializer(serializers.ModelSerializer):
-    station_code = serializers.CharField(source="station.code")
+    station_code = serializers.SerializerMethodField()
+
+    def get_station_code(self, obj):
+        return obj.station.code if obj.station else None
 
     class Meta:
         model = Site
         fields = "__all__"
-        read_only_fields = (
-            "station",
-            "station_code",
-        )
 
 
 class MeasurementSerializer(serializers.ModelSerializer):
