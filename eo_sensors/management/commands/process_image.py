@@ -10,6 +10,7 @@ class Command(BaseCommand):
 
     date_to = datetime.now().replace(day=1)
     date_from = date_to - relativedelta(months=1)
+    tasks = ["modis_vi", "sentinel2"]
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -22,6 +23,19 @@ class Command(BaseCommand):
             type=lambda s: datetime.strptime(s, "%Y-%m-%d"),
             default=self.date_to,
         )
+        parser.add_argument(
+            "--sync",
+            action="store_true",
+            default=False,
+            help="run job synchronously instead of enqueing job",
+        )
+        parser.add_argument(
+            "--task",
+            "-t",
+            choices=self.tasks,
+            default=None,
+            help="task to process. If none, run all",
+        )
 
     def handle(self, *args, **options):
         kwargs = dict(
@@ -30,7 +44,14 @@ class Command(BaseCommand):
             queue="processing",
         )
 
-        enqueue_job("eo_sensors.tasks.modis_vi.process_period", **kwargs)
-        # enqueue_job('eo_sensors.tasks.sentinel1.download_scene', **kwargs)
-        # enqueue_job('eo_sensors.tasks.sentinel2.download_scene', **kwargs)
-        # run_job("eo_sensors.tasks.modis_vi.process_period", **kwargs)
+        if options["task"]:
+            tasks = [options["task"]]
+        else:
+            tasks = self.tasks
+
+        for task in tasks:
+            job_method = f"eo_sensors.tasks.{task}.process_period"
+            if options["sync"]:
+                run_job(job_method, **kwargs)
+            else:
+                enqueue_job(job_method, **kwargs)
