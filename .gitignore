@@ -141,3 +141,5 @@ data/eo_sensors/
 /media/
 
 /data/eo_sensors/
+/eo_sensors/data/s2/weights/
+/eo_sensors/data/ps1/weights/
