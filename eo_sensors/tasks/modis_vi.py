@@ -59,6 +59,7 @@ SRTM_DEM_PATH = os.path.join(MODIS_VI_DATA_DIR, "srtm_dem.tif")
 MVI_RAW_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "raw")
 MVI_TIF_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "tif")
 MVI_CLIP_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "clip")
+MVI_SUPERIMP_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "superimp")
 MVI_MASK_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "masks")
 MVI_RESULTS_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "results")
 MVI_RGB_DIR = os.path.join(MODIS_VI_TASKS_DATA_DIR, "rgb")
@@ -142,15 +143,17 @@ def download_and_process(date_from, date_to):
     )
 
     logger.info("Superimpose clipped SRTM and NDVI rasters to align them")
+    os.makedirs(MVI_SUPERIMP_DIR, exist_ok=True)
+    ndvi_superimp_path = os.path.join(MVI_SUPERIMP_DIR, os.path.basename(ndvi_clipped_path))
     run_otb_command(
         "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
             inm=ndvi_clipped_path,
-            out=ndvi_clipped_path,
+            out=ndvi_superimp_path,
         )
     )
 
-    with rasterio.open(ndvi_clipped_path) as src:
+    with rasterio.open(ndvi_superimp_path) as src:
         modis_ndvi = src.read(1)
         modis_meta = src.profile.copy()
 
@@ -210,16 +213,17 @@ def download_and_process(date_from, date_to):
     )
 
     logger.info("Superimpose pixel rel raster to SRTM raster")
+    pixelrel_superimp_path = os.path.join(MVI_SUPERIMP_DIR, os.path.basename(pixelrel_clipped_path))
     run_otb_command(
         "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
             inm=pixelrel_clipped_path,
-            out=pixelrel_clipped_path,
+            out=pixelrel_superimp_path,
         )
     )
 
     logger.info("Build cloud mask from pixel reliability raster")
-    with rasterio.open(pixelrel_clipped_path) as cloud_src:
+    with rasterio.open(pixelrel_superimp_path) as cloud_src:
         clouds = cloud_src.read(1)
 
     # In clouds 2 is snow/ice and 3 are clouds, and -1 is not processed data
@@ -560,6 +564,7 @@ def generate_measurements(date):
 def clean_temp_files():
     logger.info("Clean temporary files")
     shutil.rmtree(MVI_CLIP_DIR)
+    shutil.rmtree(MVI_SUPERIMP_DIR)
     shutil.rmtree(MVI_TIF_DIR)
     shutil.rmtree(MVI_MASK_DIR)
     shutil.rmtree(MVI_RGB_DIR)
