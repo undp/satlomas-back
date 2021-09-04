@@ -40,11 +40,11 @@ AOI_PATH = os.path.join(DATA_DIR, "aoi.gpkg")
 
 RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
 BANDS = (1, 2, 3)  # RGB
-CLASSES = ("C", "U", "D")
+CLASSES = ("C", "D", "N", "U", "V")
 SIZE = 320
 STEP_SIZE = 160
 BATCH_SIZE = 32
-MODEL_PATH = os.path.join(DATA_DIR, "weights", "lomas_ps1_v3.h5")
+MODEL_PATH = os.path.join(DATA_DIR, "weights", "lomas_ps1_v6.h5")
 BIN_THRESHOLD = 0.4
 
 
