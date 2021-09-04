@@ -11,40 +11,51 @@ from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
 from eo_sensors.clients import SFTPClient
 from eo_sensors.models import Mask, Object, Raster
+from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 from eo_sensors.utils import unzip
 from jobs.utils import enqueue_job, job
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Configure loggers
 out_handler = logging.StreamHandler(sys.stdout)
 out_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 out_handler.setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 logger.addHandler(out_handler)
 logger.setLevel(logging.INFO)
 
-# Base directory
-DATA_DIR = os.path.join(settings.DATA_DIR, "eo_sensors", "ps1")
+satlomasproc_logger = logging.getLogger("satlomasproc")
+satlomasproc_logger.addHandler(out_handler)
+satlomasproc_logger.setLevel(level=logging.INFO)
+
+# Base directories
+PS1_DATA_DIR = os.path.join(APP_DATA_DIR, "s2")
+PS1_TASKS_DATA_DIR = os.path.join(TASKS_DATA_DIR, "s2")
+
+# Files needed for tasks
+AOI_PATH = os.path.join(PS1_DATA_DIR, "aoi.geojson")
+MODEL_PATH = os.path.join(PS1_DATA_DIR, "lomas_ps1_v6.h5")
+
+# Directories used in the processing pipeline
 # "raw" directory contains uncompressed Level-1 PeruSat-1 scenes
-RAW_DIR = os.path.join(DATA_DIR, "raw")
+RAW_DIR = os.path.join(PS1_TASKS_DATA_DIR, "raw")
 # "proc" directory contains pansharpened scenes (result of perusatproc)
-PROC_DIR = os.path.join(DATA_DIR, "proc")
+PROC_DIR = os.path.join(PS1_TASKS_DATA_DIR, "proc")
 # "chips" dreictory contains all image chips for prediction
-CHIPS_DIR = os.path.join(DATA_DIR, "chips")
+CHIPS_DIR = os.path.join(PS1_TASKS_DATA_DIR, "chips")
 # "predict" directory contains result chips from prediction
-PREDICT_DIR = os.path.join(DATA_DIR, "predict")
+PREDICT_DIR = os.path.join(PS1_TASKS_DATA_DIR, "predict")
 # "results" directory contains final classification result as RGB raster
 # (using a colormap).
-RESULTS_DIR = os.path.join(DATA_DIR, "results")
+RESULTS_DIR = os.path.join(PS1_TASKS_DATA_DIR, "results")
 
-AOI_PATH = os.path.join(DATA_DIR, "aoi.gpkg")
-
+# Constants
 RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
 BANDS = (1, 2, 3)  # RGB
 CLASSES = ("C", "D", "N", "U", "V")
 SIZE = 320
 STEP_SIZE = 160
 BATCH_SIZE = 32
-MODEL_PATH = os.path.join(DATA_DIR, "weights", "lomas_ps1_v6.h5")
 BIN_THRESHOLD = 0.4
 
 
