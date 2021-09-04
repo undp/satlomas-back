@@ -28,8 +28,8 @@ satlomasproc_logger.addHandler(out_handler)
 satlomasproc_logger.setLevel(level=logging.INFO)
 
 # Base directories
-PS1_DATA_DIR = os.path.join(APP_DATA_DIR, "s2")
-PS1_TASKS_DATA_DIR = os.path.join(TASKS_DATA_DIR, "s2")
+PS1_DATA_DIR = os.path.join(APP_DATA_DIR, "ps1")
+PS1_TASKS_DATA_DIR = os.path.join(TASKS_DATA_DIR, "ps1")
 
 # Files needed for tasks
 AOI_PATH = os.path.join(PS1_DATA_DIR, "aoi.geojson")
