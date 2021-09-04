@@ -6,11 +6,10 @@ import tempfile
 from datetime import datetime
 from glob import glob
 
-from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
 from eo_sensors.clients import SFTPClient
-from eo_sensors.models import Mask, Object, Raster
+from eo_sensors.models import Raster
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 from eo_sensors.utils import unzip
 from jobs.utils import enqueue_job, job
