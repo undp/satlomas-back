@@ -26,6 +26,7 @@ from jobs.utils import job
 from satlomasproc.modis_vi import (
     download_modis_vi_images,
     extract_subdatasets_as_gtiffs,
+    extract_date_from_modis_filename,
 )
 from satlomasproc.utils import run_command
 from scopes.models import Scope
@@ -98,10 +99,11 @@ def process_period(job):
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
     date = date_to - timedelta(days=1)
 
-    if download_and_process(date_from, date_to):
-        create_rgb_rasters(date_from, date_to)
-        create_masks(date_from, date_to)
-        generate_measurements(date)
+    found, scene_date = download_and_process(date_from, date_to)
+    if found:
+        create_rgb_rasters(scene_date, date_from, date_to)
+        create_masks(scene_date, date_from, date_to)
+        generate_measurements(scene_date)
         clean_temp_files()
 
 
@@ -119,16 +121,21 @@ def download_and_process(date_from, date_to):
 
     if not modis_filenames:
         logger.error("No MODIS files for this period!")
-        return
+        return False, None
 
     extract_subdatasets_as_gtiffs(modis_filenames, MVI_TIF_DIR)
 
+    last_scene = modis_filenames[-1]
+    scene_date = extract_date_from_modis_filename(last_scene)
+    logger.info(f"Going to use latest scene: {last_scene} ({scene_date})")
+
+    logger.info("Clip SRTM to extent")
     srtm_clipped_path = clip_srtm_to_extent()
     lomas_mask = calculate_srtm_mask(srtm_clipped_path)
 
     logger.info("Clip NDVI to extent")
     os.makedirs(MVI_CLIP_DIR, exist_ok=True)
-    name, _ = os.path.splitext(os.path.basename(modis_filenames[0]))
+    name, _ = os.path.splitext(os.path.basename(last_scene))
     ndvi_path = glob(os.path.join(MVI_TIF_DIR, f"{name}_ndvi.tif"))[0]
     ndvi_clipped_path = os.path.join(MVI_CLIP_DIR, os.path.basename(ndvi_path))
     if os.path.exists(ndvi_clipped_path):
@@ -144,7 +151,9 @@ def download_and_process(date_from, date_to):
 
     logger.info("Superimpose clipped SRTM and NDVI rasters to align them")
     os.makedirs(MVI_SUPERIMP_DIR, exist_ok=True)
-    ndvi_superimp_path = os.path.join(MVI_SUPERIMP_DIR, os.path.basename(ndvi_clipped_path))
+    ndvi_superimp_path = os.path.join(
+        MVI_SUPERIMP_DIR, os.path.basename(ndvi_clipped_path)
+    )
     run_otb_command(
         "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
@@ -213,7 +222,9 @@ def download_and_process(date_from, date_to):
     )
 
     logger.info("Superimpose pixel rel raster to SRTM raster")
-    pixelrel_superimp_path = os.path.join(MVI_SUPERIMP_DIR, os.path.basename(pixelrel_clipped_path))
+    pixelrel_superimp_path = os.path.join(
+        MVI_SUPERIMP_DIR, os.path.basename(pixelrel_clipped_path)
+    )
     run_otb_command(
         "otbcli_Superimpose -inr {inr} -inm {inm} -out {out}".format(
             inr=srtm_clipped_path,
@@ -257,7 +268,7 @@ def download_and_process(date_from, date_to):
     clip_with_aoi(cloud_mask_path)
     clip_with_aoi(veg_cloud_mask_path)
 
-    return True
+    return True, scene_date
 
 
 def clip_srtm_to_extent():
@@ -296,9 +307,8 @@ def clip_with_aoi(src):
         )
 
 
-def create_rgb_rasters(date_from, date_to):
+def create_rgb_rasters(scene_date, date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
-    date = date_to - timedelta(days=1)
 
     src_path = os.path.join(MVI_RESULTS_DIR, f"{period_s}_ndvi.tif")
     dst_path = os.path.join(MVI_RGB_DIR, f"{period_s}_ndvi.tif")
@@ -306,7 +316,7 @@ def create_rgb_rasters(date_from, date_to):
     write_ndvi_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date,
+        date=scene_date,
         slug="ndvi",
         defaults=dict(name="NDVI"),
     )
@@ -322,7 +332,7 @@ def create_rgb_rasters(date_from, date_to):
     write_vegetation_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date,
+        date=scene_date,
         slug="vegetation",
         defaults=dict(name="Vegetation mask"),
     )
@@ -338,7 +348,7 @@ def create_rgb_rasters(date_from, date_to):
     write_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date,
+        date=scene_date,
         slug="cloud",
         defaults=dict(name="Cloud mask"),
     )
@@ -354,7 +364,7 @@ def create_rgb_rasters(date_from, date_to):
     write_vegetation_cloud_mask_rgb_raster(src_path=src_path, dst_path=dst_path)
     raster, _ = Raster.objects.update_or_create(
         source=Sources.MODIS_VI,
-        date=date,
+        date=scene_date,
         slug="vegetation-cloud",
         defaults=dict(name="Vegetation + Cloud mask"),
     )
@@ -457,9 +467,8 @@ def write_vegetation_cloud_mask_rgb_raster(img):
     return new_img
 
 
-def create_masks(date_from, date_to):
+def create_masks(scene_date, date_from, date_to):
     period_s = f'{date_from.strftime("%Y%m")}-{date_to.strftime("%Y%m")}'
-    date = date_to - timedelta(days=1)
 
     logger.info("Polygonize mask")
     src_path = os.path.join(
@@ -481,7 +490,7 @@ def create_masks(date_from, date_to):
     data_proj.to_file(dst_path)
 
     logger.info("Load vegetation mask to DB")
-    create_vegetation_masks(dst_path, date)
+    create_vegetation_masks(dst_path, scene_date)
 
 
 def create_vegetation_masks(geojson_path, date):
