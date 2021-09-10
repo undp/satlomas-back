@@ -572,9 +572,9 @@ def generate_measurements(date):
 
 def clean_temp_files():
     logger.info("Clean temporary files")
-    shutil.rmtree(MVI_CLIP_DIR)
-    shutil.rmtree(MVI_SUPERIMP_DIR)
-    shutil.rmtree(MVI_TIF_DIR)
-    shutil.rmtree(MVI_MASK_DIR)
-    shutil.rmtree(MVI_RGB_DIR)
-    # shutil.rmtree(MVI_RAW_DIR)
+    shutil.rmtree(MVI_CLIP_DIR, ignore_errors=True)
+    shutil.rmtree(MVI_SUPERIMP_DIR, ignore_errors=True)
+    shutil.rmtree(MVI_TIF_DIR, ignore_errors=True)
+    shutil.rmtree(MVI_MASK_DIR, ignore_errors=True)
+    shutil.rmtree(MVI_RGB_DIR, ignore_errors=True)
+    # shutil.rmtree(MVI_RAW_DIR, ignore_errors=True)
