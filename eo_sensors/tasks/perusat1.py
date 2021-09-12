@@ -133,6 +133,7 @@ def extract_chips_from_scene(job):
         size=SIZE,
         step_size=STEP_SIZE,
         output_dir=chips_dir,
+        write_geojson=False,
     )
 
     enqueue_job(
