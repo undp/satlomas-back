@@ -32,8 +32,8 @@ PS1_DATA_DIR = os.path.join(APP_DATA_DIR, "ps1")
 PS1_TASKS_DATA_DIR = os.path.join(TASKS_DATA_DIR, "ps1")
 
 # Files needed for tasks
-AOI_PATH = os.path.join(PS1_DATA_DIR, "aoi.geojson")
-MODEL_PATH = os.path.join(PS1_DATA_DIR, "lomas_ps1_v6.h5")
+AOI_PATH = os.path.join(PS1_DATA_DIR, "aoi_utm.geojson")
+MODEL_PATH = os.path.join(PS1_DATA_DIR, "weights", "lomas_ps1_v6.h5")
 
 # Directories used in the processing pipeline
 # "raw" directory contains uncompressed Level-1 PeruSat-1 scenes

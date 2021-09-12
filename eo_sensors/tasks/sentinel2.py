@@ -38,7 +38,7 @@ EXTENT_UTM_PATH = os.path.join(S2_DATA_DIR, "extent_utm.geojson")
 AOI_PATH = os.path.join(S2_DATA_DIR, "aoi.geojson")
 AOI_UTM_PATH = os.path.join(S2_DATA_DIR, "aoi_utm.geojson")
 SRTM_DEM_PATH = os.path.join(S2_DATA_DIR, "srtm_dem.tif")
-MODEL_PATH = os.path.join(S2_DATA_DIR, "lomas_sen2_v10.h5")
+MODEL_PATH = os.path.join(S2_DATA_DIR, "weights", "lomas_sen2_v10.h5")
 
 # Directories used in the processing pipeline
 # "raw" directory contains uncompressed Sentinel-2 products
