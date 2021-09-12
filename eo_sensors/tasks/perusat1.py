@@ -136,7 +136,8 @@ def create_tci_rgb_rasters(job):
 
     # Merge TCI tifs into a single raster for uploading and further processing
     merged_path = os.path.join(tci_scene_dir, f'{basename}.tif')
-    run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co BIGTIFF=YES {' '.join(tif_paths)} {merged_path}")
+    if not os.path.exists(merged_path):
+        run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co BIGTIFF=YES {' '.join(tif_paths)} {merged_path}")
 
     raster = create_tci_raster_object(merged_path, scene_date=scene_date)
     create_raster_tiles(raster, levels=(6, 18), n_jobs=mp.cpu_count())
