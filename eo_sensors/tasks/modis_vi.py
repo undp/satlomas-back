@@ -20,7 +20,7 @@ from django.core.files import File
 from django.db import DatabaseError, connection
 from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
-from eo_sensors.utils import run_otb_command
+from eo_sensors.utils import run_otb_command, create_raster_tiles
 from eo_sensors.utils.colormap import apply_cmap, rescale_to_byte
 from jobs.utils import job
 from satlomasproc.modis_vi import (
@@ -97,7 +97,6 @@ CMAPS = {
 def process_period(job):
     date_from = datetime.strptime(job.kwargs["date_from"], "%Y-%m-%d")
     date_to = datetime.strptime(job.kwargs["date_to"], "%Y-%m-%d")
-    date = date_to - timedelta(days=1)
 
     found, scene_date = download_and_process(date_from, date_to)
     if found:
@@ -373,26 +372,6 @@ def create_rgb_rasters(scene_date, date_from, date_to):
             raster.file.delete()
         raster.file.save(f"vegetation-cloud.tif", File(f))
     create_raster_tiles(raster, levels=(6, 13))
-
-
-def create_raster_tiles(raster, *, levels):
-    gdal2tiles = settings.GDAL2TILES_BIN_PATH
-    n_jobs = settings.GDAL2TILES_NUM_JOBS
-    media_dir = settings.MEDIA_ROOT
-    rasters_dir = os.path.join(media_dir, "rasters")
-    tiles_dir = os.path.join(media_dir, "tiles")
-
-    src = raster.file.path
-    dst = os.path.join(tiles_dir, raster.path())
-    zoom_range = f"{levels[0]}-{levels[1]}"
-
-    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}"
-
-    # Make sure output directory does not exist
-    if os.path.exists(dst):
-        shutil.rmtree(dst)
-
-    run_command(cmd)
 
 
 def write_rgb_raster(func):
