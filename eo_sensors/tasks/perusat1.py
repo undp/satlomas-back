@@ -8,6 +8,7 @@ from glob import glob
 
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.files import File
 from eo_sensors.clients import SFTPClient
 from eo_sensors.models import Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
@@ -51,8 +52,7 @@ PREDICT_DIR = os.path.join(PS1_TASKS_DATA_DIR, "predict")
 RESULTS_DIR = os.path.join(PS1_TASKS_DATA_DIR, "results")
 
 # Constants
-READ_WIN_SIZE = (8192, 8192)
-RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
+RESCALE_RANGE = ((37, 179), (59, 185), (67, 175))
 BANDS = (1, 2, 3)  # RGB
 CLASSES = ("C", "D", "N", "U", "V")
 SIZE = 320
@@ -114,7 +114,7 @@ def pansharpen_scene(job):
 def create_tci_rgb_rasters(job):
     scene_dir = job.kwargs["scene_dir"]
 
-    from satlomasproc.utils import rescale_intensity, sliding_windows
+    from satlomasproc.chips.utils import rescale_intensity, sliding_windows
     import rasterio
     import numpy as np
 
@@ -127,25 +127,33 @@ def create_tci_rgb_rasters(job):
     # Extract scene date from basename
     # eg. "052_DS_PER1_201804111527270_PS1_W077S12_016945.vrt"
     #                 |YYYYmmdd|
+    logger.info("Basename: %s", basename)
     date_str = basename.split("_")[3][:8]
-    scene_date = datetime.datetime.strptime(date_str, "%Y%m%d")
+    scene_date = datetime.strptime(date_str, "%Y%m%d").date()
     logger.info("Scene date: %s", scene_date)
 
     for src_path in rasters:
         # Rescale all images to the same intensity range for true color images
         dst_path = os.path.join(tci_scene_dir, os.path.basename(src_path))
+        os.makedirs(tci_scene_dir, exist_ok=True)
         with rasterio.open(src_path) as src:
             profile = src.profile.copy()
-            profile.update(dtype=np.uint8, count=3)
+            profile.update(dtype=np.uint8, count=3, nodata=0, tiled=True, compress="deflate")
+            try:
+                os.remove(dst_path)
+            except OSError:
+                pass
             with rasterio.open(dst_path, "w", **profile) as dst:
-                for window in sliding_windows(
-                    READ_WIN_SIZE, READ_WIN_SIZE, src.width, src.height
-                ):
-                    img = src.read(window=window)
+                for _, window in src.block_windows(1):
+                    img = np.array([src.read(b, window=window) for b in BANDS]).astype(np.float)
+                    img[img == src.nodata] = np.nan
                     img = rescale_intensity(
                         img, rescale_mode="values", rescale_range=RESCALE_RANGE
                     )
-                    dst.write(img, window=window)
+                    img[img == src.nodata] = 0
+                    for b in BANDS:
+                        dst.write(img[b-1].astype(np.uint8), b, window=window)
+        logger.info("%s written", dst_path)
 
         # Create Raster object, upload file and generate tiles
         raster, _ = Raster.objects.update_or_create(
