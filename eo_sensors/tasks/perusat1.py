@@ -3,6 +3,8 @@ import os
 import shutil
 import sys
 import tempfile
+import multiprocessing as mp
+from functools import partial
 from datetime import datetime
 from glob import glob
 
@@ -12,7 +14,7 @@ from django.core.files import File
 from eo_sensors.clients import SFTPClient
 from eo_sensors.models import Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
-from eo_sensors.utils import unzip, create_raster_tiles
+from eo_sensors.utils import unzip, create_raster_tiles, run_command
 from jobs.utils import enqueue_job, job
 
 # Configure loggers
@@ -114,10 +116,6 @@ def pansharpen_scene(job):
 def create_tci_rgb_rasters(job):
     scene_dir = job.kwargs["scene_dir"]
 
-    from satlomasproc.chips.utils import rescale_intensity, sliding_windows
-    import rasterio
-    import numpy as np
-
     rasters = glob(os.path.join(scene_dir, "*.tif"))
     logger.info("Num. rasters: %i", len(rasters))
 
@@ -132,47 +130,69 @@ def create_tci_rgb_rasters(job):
     scene_date = datetime.strptime(date_str, "%Y%m%d").date()
     logger.info("Scene date: %s", scene_date)
 
-    for src_path in rasters:
-        # Rescale all images to the same intensity range for true color images
-        dst_path = os.path.join(tci_scene_dir, os.path.basename(src_path))
-        os.makedirs(tci_scene_dir, exist_ok=True)
-        with rasterio.open(src_path) as src:
-            profile = src.profile.copy()
-            profile.update(dtype=np.uint8, count=3, nodata=0, tiled=True, compress="deflate")
-            try:
-                os.remove(dst_path)
-            except OSError:
-                pass
-            with rasterio.open(dst_path, "w", **profile) as dst:
-                for _, window in src.block_windows(1):
-                    img = np.array([src.read(b, window=window) for b in BANDS]).astype(np.float)
-                    img[img == src.nodata] = np.nan
-                    img = rescale_intensity(
-                        img, rescale_mode="values", rescale_range=RESCALE_RANGE
-                    )
-                    img[img == src.nodata] = 0
-                    for b in BANDS:
-                        dst.write(img[b-1].astype(np.uint8), b, window=window)
-        logger.info("%s written", dst_path)
+    with mp.Pool(mp.cpu_count()) as pool:
+        worker = partial(create_tci_raster_geotiff, tci_scene_dir=tci_scene_dir, scene_date=scene_date)
+        tif_paths = pool.map(worker, rasters)
 
-        # Create Raster object, upload file and generate tiles
-        raster, _ = Raster.objects.update_or_create(
-            source=Sources.PS1,
-            date=scene_date,
-            slug="tci",
-            defaults=dict(name="True-color image (RGB)"),
-        )
-        with open(dst_path, "rb") as f:
-            if raster.file:
-                raster.file.delete()
-            raster.file.save(f"tci.tif", File(f, name="tci.tif"))
-        create_raster_tiles(raster, levels=(6, 18))
+    # Merge TCI tifs into a single raster for uploading and further processing
+    merged_path = os.path.join(tci_scene_dir, f'{basename}.tif')
+    run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co BIGTIFF=YES {' '.join(tif_paths)} {merged_path}")
+
+    raster = create_tci_raster_object(merged_path, scene_date=scene_date)
+    create_raster_tiles(raster, levels=(6, 18))
 
     enqueue_job(
         "eo_sensors.tasks.perusat1.extract_chips_from_scene",
         scene_dir=tci_scene_dir,
         queue="processing",
     )
+
+
+def create_tci_raster_geotiff(src_path, *, tci_scene_dir, scene_date):
+    from satlomasproc.chips.utils import rescale_intensity, sliding_windows
+    import rasterio
+    import numpy as np
+
+    # Rescale all images to the same intensity range for true color images
+    dst_path = os.path.join(tci_scene_dir, os.path.basename(src_path))
+    if os.path.exists(dst_path):
+        logger.warn("%s already exists", dst_path)
+        return dst_path
+    os.makedirs(tci_scene_dir, exist_ok=True)
+    with rasterio.open(src_path) as src:
+        profile = src.profile.copy()
+        profile.update(dtype=np.uint8, count=3, nodata=0, tiled=True)
+        try:
+            os.remove(dst_path)
+        except OSError:
+            pass
+        with rasterio.open(dst_path, "w", **profile) as dst:
+            for _, window in src.block_windows(1):
+                img = np.array([src.read(b, window=window) for b in BANDS]).astype(np.float)
+                img[img == src.nodata] = np.nan
+                img = rescale_intensity(
+                    img, rescale_mode="values", rescale_range=RESCALE_RANGE
+                )
+                img[img == src.nodata] = 0
+                for b in BANDS:
+                    dst.write(img[b-1].astype(np.uint8), b, window=window)
+    logger.info("%s written", dst_path)
+    return dst_path
+
+
+def create_tci_raster_object(tif_path, *, scene_date):
+    # Create Raster object, upload file and generate tiles
+    raster, _ = Raster.objects.update_or_create(
+        source=Sources.PS1,
+        date=scene_date,
+        slug=f"tci",
+        defaults=dict(name="True-color image (RGB)"),
+    )
+    with open(tif_path, "rb") as f:
+        if raster.file:
+            raster.file.delete()
+        raster.file.save(f"tci.tif", File(f, name="tci.tif"))
+    return raster
 
 
 @job("processing")
