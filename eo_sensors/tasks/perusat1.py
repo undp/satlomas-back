@@ -139,7 +139,7 @@ def create_tci_rgb_rasters(job):
     run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co BIGTIFF=YES {' '.join(tif_paths)} {merged_path}")
 
     raster = create_tci_raster_object(merged_path, scene_date=scene_date)
-    create_raster_tiles(raster, levels=(6, 18))
+    create_raster_tiles(raster, levels=(6, 18), n_jobs=mp.cpu_count())
 
     enqueue_job(
         "eo_sensors.tasks.perusat1.extract_chips_from_scene",
