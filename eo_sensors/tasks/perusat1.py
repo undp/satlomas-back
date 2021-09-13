@@ -169,12 +169,12 @@ def create_tci_raster_geotiff(src_path, *, tci_scene_dir, scene_date):
             pass
         with rasterio.open(dst_path, "w", **profile) as dst:
             for _, window in src.block_windows(1):
-                img = np.array([src.read(b, window=window) for b in BANDS]).astype(np.float)
-                img[img == src.nodata] = np.nan
+                img = np.array([src.read(b, window=window) for b in BANDS])
+                nodata_mask = (img == src.nodata)
                 img = rescale_intensity(
                     img, rescale_mode="values", rescale_range=RESCALE_RANGE
                 )
-                img[img == src.nodata] = 0
+                img[nodata_mask] = 0
                 for b in BANDS:
                     dst.write(img[b-1].astype(np.uint8), b, window=window)
     logger.info("%s written", dst_path)
