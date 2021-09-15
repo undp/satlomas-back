@@ -131,7 +131,7 @@ def create_tci_rgb_rasters(job):
     logger.info("Scene date: %s", scene_date)
 
     with mp.Pool(mp.cpu_count()) as pool:
-        worker = partial(create_tci_raster_geotiff, tci_scene_dir=tci_scene_dir, scene_date=scene_date)
+        worker = partial(create_tci_raster_geotiff, tci_scene_dir=tci_scene_dir)
         tif_paths = pool.map(worker, rasters)
 
     # Merge TCI tifs into a single raster for uploading and further processing
@@ -149,16 +149,22 @@ def create_tci_rgb_rasters(job):
     )
 
 
-def create_tci_raster_geotiff(src_path, *, tci_scene_dir, scene_date):
-    from satlomasproc.chips.utils import rescale_intensity, sliding_windows
+def create_tci_raster_geotiff(src_path, *, tci_scene_dir):
+    from satlomasproc.chips.utils import rescale_intensity, sliding_windows, calculate_raster_percentiles
     import rasterio
     import numpy as np
 
     # Rescale all images to the same intensity range for true color images
+
     dst_path = os.path.join(tci_scene_dir, os.path.basename(src_path))
     if os.path.exists(dst_path):
         logger.warn("%s already exists", dst_path)
         return dst_path
+
+    logger.info("Calculate raster percentiles (2, 98) from %s", src_path)
+    percentiles = calculate_raster_percentiles(src_path, lower_cut=2, upper_cut=98)
+
+    logger.info("Rescale image %s into %s", src_path, dst_path)
     os.makedirs(tci_scene_dir, exist_ok=True)
     with rasterio.open(src_path) as src:
         profile = src.profile.copy()
@@ -172,11 +178,12 @@ def create_tci_raster_geotiff(src_path, *, tci_scene_dir, scene_date):
                 img = np.array([src.read(b, window=window) for b in BANDS])
                 nodata_mask = (img == src.nodata)
                 img = rescale_intensity(
-                    img, rescale_mode="values", rescale_range=RESCALE_RANGE
+                    img, rescale_mode="values", rescale_range=percentiles
                 )
                 img[nodata_mask] = 0
                 for b in BANDS:
                     dst.write(img[b-1].astype(np.uint8), b, window=window)
+
     logger.info("%s written", dst_path)
     return dst_path
 
