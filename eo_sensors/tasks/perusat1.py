@@ -260,7 +260,12 @@ def predict_scene(job):
 def postprocess_scene(job):
     predict_chips_dir = job.kwargs["predict_chips_dir"]
 
-    from satlomasproc.unet.postprocess import clip, coalesce_and_binarize_all, merge_all
+    from satlomasproc.unet.postprocess import (
+        clip,
+        coalesce_and_binarize_all,
+        merge_all,
+        smooth_stitch,
+    )
 
     result_path = os.path.join(
         RESULTS_DIR, f"{os.path.basename(predict_chips_dir)}.tif"
@@ -268,10 +273,15 @@ def postprocess_scene(job):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         bin_path = os.path.join(tmpdir, "bin")
+        smooth_path = os.path.join(tmpdir, "smooth")
+
+        logger.info("Smooth stitch all in %s into %s")
+        smooth_stitch(bin_path, smooth_path)
+
         logger.info(
             "Coalesce and binarize all in %s into %s (with threshold %d)",
             predict_chips_dir,
-            bin_path,
+            smooth_path,
             BIN_THRESHOLD,
         )
         coalesce_and_binarize_all(
