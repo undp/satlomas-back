@@ -114,6 +114,8 @@ def pansharpen_scene(job):
 
 @job("processing")
 def create_tci_rgb_rasters(job):
+    from satlomasproc.chips.utils import calculate_raster_percentiles
+
     scene_dir = job.kwargs["scene_dir"]
 
     rasters = glob(os.path.join(scene_dir, "*.tif"))
@@ -130,14 +132,27 @@ def create_tci_rgb_rasters(job):
     scene_date = datetime.strptime(date_str, "%Y%m%d").date()
     logger.info("Scene date: %s", scene_date)
 
+    # Create virtual raster
+    vrt_path = os.path.join(tci_scene_dir, "tci.vrt")
+    logger.info("Generate virtual raster from TCI tiles into %s", vrt_path)
+    cmd = f"gdalbuildvrt {vrt_path} {' '.join(rasters)}"
+    run_command(cmd)
+    logger.info("%s written", vrt_path)
+
+    logger.info("Calculate raster percentiles (2, 98) from %s", vrt_path)
+    rescale_range = calculate_raster_percentiles(vrt_path, lower_cut=2, upper_cut=98)
+
+    logger.info("Rescale intensities of all TCI tiles")
     with mp.Pool(mp.cpu_count()) as pool:
-        worker = partial(create_tci_raster_geotiff, tci_scene_dir=tci_scene_dir)
+        worker = partial(create_tci_raster_geotiff, tci_scene_dir=tci_scene_dir, rescale_range=rescale_range)
         tif_paths = pool.map(worker, rasters)
 
     # Merge TCI tifs into a single raster for uploading and further processing
+    logger.info("Merge all rescaled tiles into a single JPEG compressed GeoTIFF")
     merged_path = os.path.join(tci_scene_dir, f'{basename}.tif')
     if not os.path.exists(merged_path):
-        run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co BIGTIFF=YES -dstalpha {' '.join(tif_paths)} {merged_path}")
+        run_command(f"gdalwarp -overwrite -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co BIGTIFF=YES {' '.join(tif_paths)} {merged_path}")
+    logger.info("%s written", merged_path)
 
     raster = create_tci_raster_object(merged_path, scene_date=scene_date)
     create_raster_tiles(raster, levels=(6, 17), n_jobs=mp.cpu_count())
@@ -149,8 +164,8 @@ def create_tci_rgb_rasters(job):
     )
 
 
-def create_tci_raster_geotiff(src_path, *, tci_scene_dir):
-    from satlomasproc.chips.utils import rescale_intensity, sliding_windows, calculate_raster_percentiles
+def create_tci_raster_geotiff(src_path, *, tci_scene_dir, rescale_range):
+    from satlomasproc.chips.utils import rescale_intensity, sliding_windows
     import rasterio
     import numpy as np
 
@@ -160,9 +175,6 @@ def create_tci_raster_geotiff(src_path, *, tci_scene_dir):
     if os.path.exists(dst_path):
         logger.warn("%s already exists", dst_path)
         return dst_path
-
-    logger.info("Calculate raster percentiles (2, 98) from %s", src_path)
-    percentiles = calculate_raster_percentiles(src_path, lower_cut=2, upper_cut=98)
 
     logger.info("Rescale image %s into %s", src_path, dst_path)
     os.makedirs(tci_scene_dir, exist_ok=True)
@@ -178,7 +190,7 @@ def create_tci_raster_geotiff(src_path, *, tci_scene_dir):
                 img = np.array([src.read(b, window=window) for b in BANDS])
                 nodata_mask = (img == src.nodata)
                 img = rescale_intensity(
-                    img, rescale_mode="values", rescale_range=percentiles
+                    img, rescale_mode="values", rescale_range=rescale_range
                 )
                 img[nodata_mask] = 0
                 for b in BANDS:
