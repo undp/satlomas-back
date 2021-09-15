@@ -280,18 +280,14 @@ def create_raster_tiles(raster, n_jobs=None, *, levels):
 
     media_dir = settings.MEDIA_ROOT
     tiles_dir = os.path.join(media_dir, "tiles")
-    dst = os.path.join(tiles_dir, raster.path())
 
     src = raster.file.path
-    tmpdst = os.path.join("/dev/shm/", raster.path())
+    dst = os.path.join(tiles_dir, raster.path())
     zoom_range = f"{levels[0]}-{levels[1]}"
 
-    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {tmpdst}"
+    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}"
 
     # Make sure output directory does not exist
     if os.path.exists(dst):
         shutil.rmtree(dst)
     run_command(cmd)
-
-    # Copy from temp dir to final destination dir
-    shutil.move(tmpdir, dst)
