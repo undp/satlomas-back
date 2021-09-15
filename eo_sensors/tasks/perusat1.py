@@ -281,9 +281,10 @@ def postprocess_scene(job):
 
     from satlomasproc.unet.postprocess import (
         clip,
-        coalesce_and_binarize_all,
-        merge_all,
         smooth_stitch,
+        coalesce_and_binarize_all,
+        remove_negative_class,
+        merge_all,
     )
 
     result_path = os.path.join(
@@ -291,20 +292,30 @@ def postprocess_scene(job):
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        bin_path = os.path.join(tmpdir, "bin")
         smooth_path = os.path.join(tmpdir, "smooth")
 
-        logger.info("Smooth stitch all in %s into %s")
-        smooth_stitch(bin_path, smooth_path)
+        logger.info("Smooth stitch all chips in %s into %s", predict_chips_dir, smooth_path)
+        smooth_stitch(predict_chips_dir, smooth_path)
 
+        bin_path = os.path.join(tmpdir, "bin")
         logger.info(
             "Coalesce and binarize all in %s into %s (with threshold %d)",
-            predict_chips_dir,
             smooth_path,
+            bin_path,
             BIN_THRESHOLD,
         )
         coalesce_and_binarize_all(
-            input_dir=predict_chips_dir, output_dir=bin_path, threshold=BIN_THRESHOLD
+            input_dir=smooth_path, output_dir=bin_path, threshold=BIN_THRESHOLD
+        )
+
+        neg_path = os.path.join(tmpdir, "neg")
+        neg_class_num = CLASSES.index("N") + 1
+        logger.info(
+            "Remove negative class (value = %d) from results from %s into %s",
+            neg_class_num, bin_path, neg_path
+        )
+        remove_negative_class(
+            input_dir=bin_path, output_dir=neg_path, num_class=neg_class_num
         )
 
         merged_path = os.path.join(tmpdir, "merged.tif")
@@ -319,8 +330,9 @@ def postprocess_scene(job):
         )
         clip(src=merged_path, dst=result_path, aoi=AOI_PATH)
 
-    logger.info("Delete predict chips")
-    shutil.rmtree(predict_chips_dir)
+    # TODO: Uncomment after testing
+    #logger.info("Delete predict chips")
+    #shutil.rmtree(predict_chips_dir)
 
 
 def load_data(period, product_id):
