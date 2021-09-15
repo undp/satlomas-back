@@ -54,7 +54,7 @@ PREDICT_DIR = os.path.join(PS1_TASKS_DATA_DIR, "predict")
 RESULTS_DIR = os.path.join(PS1_TASKS_DATA_DIR, "results")
 
 # Constants
-RESCALE_RANGE = ((100, 275), (110, 250), (120, 220))
+RESCALE_RANGE = ((85, 238), (102, 221), (113, 200))
 BANDS = (1, 2, 3)  # RGB
 CLASSES = ("C", "D", "N", "U", "V")
 SIZE = 320
