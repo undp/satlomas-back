@@ -1,14 +1,18 @@
 import logging
+import multiprocessing as mp
 import os
 import sys
 import tempfile
 from datetime import datetime
 from glob import glob
-from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 
 from django.conf import settings
+from django.core.files import File
+from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster, Sources
+from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 from eo_sensors.utils import (
     create_raster,
+    create_raster_tiles,
     generate_measurements,
     run_command,
     write_paletted_rgb_raster,
@@ -53,7 +57,6 @@ PREDICT_DIR = os.path.join(S2_TASKS_DATA_DIR, "predict")
 # (using a colormap).
 RESULTS_DIR = os.path.join(S2_TASKS_DATA_DIR, "results")
 
-
 MAX_CLOUD_PERC = 50
 
 # extract_chips
@@ -78,13 +81,7 @@ def process_period(job):
     ### Processing pipeline ###
 
     tci_path = download_and_build_composite(date_from, date_to)
-    create_raster(
-        tci_path,
-        slug="s2-rgb",
-        date=date_to,
-        name="Sentinel-2 (RGB, 10m)",
-        zoom_range=(6, 14),
-    )
+    create_tci_raster(tci_path, date=date_to)
     chips_dir = extract_chips_from_scene([tci_path])
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
@@ -196,6 +193,22 @@ def download_and_build_composite(date_from, date_to):
     rescale_byte(src=clipped_tci_path, dst=tci_path, in_range=(100, 3000))
 
     return tci_path
+
+
+def create_tci_raster(tif_path, *, date):
+    # Create Raster object, upload file and generate tiles
+    raster, _ = Raster.objects.update_or_create(
+        source=Sources.SEN2,
+        date=date,
+        slug=f"s2-tci",
+        defaults=dict(name="Sentinel-2 true-color image (RGB)"),
+    )
+    with open(tif_path, "rb") as f:
+        if raster.file:
+            raster.file.delete()
+        raster.file.save(f"tci.tif", File(f, name="tci.tif"))
+    create_raster_tiles(raster, levels=(6, 14), n_jobs=mp.cpu_count())
+    return raster
 
 
 def extract_chips_from_scene(rasters):
