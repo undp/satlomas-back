@@ -134,7 +134,7 @@ class AvailableDatesView(APIView):
 
 
 class RasterViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Raster.objects.all().order_by("-created_at")
+    queryset = Raster.objects.all().order_by("-date")
     serializer_class = RasterSerializer
     permission_classes = [permissions.AllowAny]
 
