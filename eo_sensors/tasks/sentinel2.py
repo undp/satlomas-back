@@ -228,6 +228,7 @@ def extract_chips_from_scene(rasters):
         size=SIZE,
         step_size=STEP_SIZE,
         output_dir=chips_dir,
+        write_geojson=False,
     )
 
     return chips_dir
