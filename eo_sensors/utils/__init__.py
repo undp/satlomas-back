@@ -6,6 +6,7 @@ import sys
 import tempfile
 import zipfile
 
+import multiprocessing as mp
 import numpy as np
 import rasterio
 from django.conf import settings
@@ -13,7 +14,7 @@ from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files import File
 from django.db import DatabaseError, connection, transaction
-from eo_sensors.models import CoverageMeasurement, CoverageRaster, Raster
+from eo_sensors.models import CoverageMeasurement, CoverageMask, Raster
 from rasterio.windows import Window
 from scopes.models import Scope
 from shapely.geometry import box
@@ -117,24 +118,11 @@ def rescale_byte(src, dst, *, in_range):
 
 
 def create_raster(
-    rgb_raster_path, cov_raster_path=None, *, slug, date, name, zoom_range
+    rgb_raster_path, cov_raster_path=None, kinds_per_value=None, *, source, slug, date, name, zoom_range
 ):
     raster, _ = Raster.objects.update_or_create(
-        date=date, slug=slug, defaults=dict(name=name)
+        source=source, date=date, slug=slug, defaults=dict(name=name)
     )
-
-    # Validate RGB raster
-    with rasterio.open(rgb_raster_path) as src:
-        if src.count != 4:
-            raise RuntimeError(
-                "Must have 4 bands (RGB + alpha band), but has %d" % (src.count)
-            )
-        if src.crs != "epsg:32718":
-            raise RuntimeError("CRS must be epsg:32718, but was %s" % (src.crs))
-        if any(np.dtype(dt) != rasterio.uint8 for dt in src.dtypes):
-            raise RuntimeError(
-                "dtype should be uint8, but was %s" % (src.profile["dtype"])
-            )
 
     # If raster already has a file, delete it
     if raster.file:
@@ -144,13 +132,14 @@ def create_raster(
     with open(rgb_raster_path, "rb") as f:
         raster.file.save(f"{slug}.tif", File(f, name=f"{slug}.tif"))
 
-    # Create a related CoverageRaster, if `cov_raster_path` was provided
-    if cov_raster_path:
-        cov_rast = GDALRaster(cov_raster_path, write=True)
-        CoverageRaster.objects.update_or_create(cov_rast=cov_rast, raster=raster)
-
     # Generate tiles for map view
-    generate_raster_tiles(raster, zoom_range=zoom_range)
+    create_raster_tiles(raster, levels=zoom_range, n_jobs=mp.cpu_count())
+
+    # Create related CoverageMasks, if `cov_raster_path` was provided
+    if cov_raster_path:
+        masks = create_coverage_masks(raster, cov_raster_path=cov_raster_path, kinds_per_value=kinds_per_value)
+        generate_measurements(masks)
+
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
@@ -174,6 +163,53 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
         dst.write(mask, 4)
 
 
+def create_coverage_masks(raster, *, cov_raster_path, kinds_per_value):
+    import geopandas as gpd
+    from shapely.ops import unary_union
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        logger.info("Polygonize mask")
+        geojson_path = os.path.join(tmpdir, 'mask.geojson')
+        run_command(
+            '{gdal_bin_path}/gdal_polygonize.py {src} {dst} -b 1 -f "GeoJSON" DN'.format(
+                gdal_bin_path=settings.GDAL_BIN_PATH,
+                src=cov_raster_path,
+                dst=geojson_path
+            )
+        )
+
+        logging.info("Reproject to epsg:4326")
+        gdf = gpd.read_file(geojson_path)
+        gdf["geometry"] = gdf["geometry"].to_crs(epsg=4326)
+
+        logging.info("Group all features by kind")
+        polys_per_kind = {}
+        for _, row in gdf.iterrows():
+            if not row['DN']:
+                continue
+            dn = int(row['DN'])
+            kind = kinds_per_value[dn]
+            if kind not in polys_per_kind:
+                polys_per_kind[kind] = []
+            polys_per_kind[kind].append(row['geometry'])
+
+        # Create a CoverageMask for each kind by merging all polygons into a
+        # single multipolygon
+        logging.info("Create CoverageMask for each kind")
+        masks = []
+        for kind, polys in polys_per_kind.items():
+            geom = unary_union(polys)
+            mask, _ = CoverageMask.objects.update_or_create(
+                date=raster.date,
+                source=raster.source,
+                kind=kind,
+                defaults=dict(geom=GEOSGeometry(geom.wkt), raster=raster),
+            )
+            masks.append(mask)
+
+        return masks
+
+
 def hex_to_dec_string(value):
     return np.array(
         [int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]], np.uint8
@@ -192,60 +228,43 @@ def select_sql(query, *params):
         return res
 
 
-def generate_measurements(*, date, raster_type, kinds_per_value):
-    logger.info("Generate measurements for raster '%s' at date %s")
+def generate_measurements(coverage_masks):
+    logger.info("Generate measurements for each scope")
 
     for scope in Scope.objects.all():
-        # coverage_raster = CoverageRaster.objects.filter(
-        #     date=date, raster__slug=raster_type).first()
+        for mask in coverage_masks:
+            # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
+            query = """
+                SELECT ST_Area(a.int) AS area,
+                    ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
+                FROM (
+                    SELECT ST_Intersection(
+                        ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
+                        ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
+                """.format(
+                wkt_scope=scope.geom.wkt, wkt_mask=mask.geom.wkt, srid=32718
+            )
 
-        # FIXME Join with scopes directly instead of passing scope geom as WKT
-        try:
-            res = select_sql(
-                """
-                WITH reprojected_scope AS (
-                    SELECT ST_Transform(ST_GeomFromText(%s, 4326), 32718) AS scope_geom
-                ), area_scope AS (
-                    SELECT ST_Area(scope_geom) AS scope_area
-                    FROM reprojected_scope
-                ), clipped_raster AS (
-                    SELECT ST_Clip(cr.cov_rast, 1, scope_geom, true) AS rast
-                    FROM reprojected_scope, eo_sensors_coverageraster cr
-                    INNER JOIN eo_sensors_raster r ON r.id = cr.raster_id
-                    WHERE r.slug = %s AND r.date = %s
-                ), count_agg AS (
-                    SELECT CAST(ST_CountAgg(rast, 1, false) AS double precision) AS total
-                    FROM clipped_raster
-                ), value_count AS (
-                    SELECT (ST_ValueCount(rast)).*
-                    FROM clipped_raster
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(query)
+                    res = cursor.fetchall()
+                    area, scope_area = res[0]
+
+                measurement, created = CoverageMeasurement.objects.update_or_create(
+                    date=mask.date,
+                    kind=mask.kind,
+                    source=mask.source,
+                    scope=scope,
+                    defaults=dict(area=area, perc_area=area / scope_area),
                 )
-                SELECT value_count.value, value_count.count / total, scope_area
-                FROM clipped_raster, count_agg, value_count, area_scope
-            """,
-                scope.geom.wkt,
-                raster_type,
-                date,
-            )
-
-            if res:
-                for value, ratio, scope_area in res:
-                    kind = kinds_per_value[value]
-                    area = scope_area * ratio
-                    measurement, created = CoverageMeasurement.objects.update_or_create(
-                        date=date,
-                        scope=scope,
-                        kind=kind,
-                        defaults=dict(area=area, perc_area=ratio),
-                    )
-                    if created:
-                        logger.info(f"New measurement: {measurement}")
-
-        except DatabaseError as err:
-            logger.error(err)
-            logger.info(
-                f"An error occurred! Skipping measurement for scope {scope.id}..."
-            )
+                if created:
+                    logger.info(f"New measurement: {measurement}")
+            except DatabaseError as err:
+                logger.error(err)
+                logger.info(
+                    f"An error occurred! Skipping measurement for scope {scope.id}..."
+                )
 
 
 # @deprecated?

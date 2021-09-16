@@ -86,9 +86,6 @@ def process_period(job):
     predict_chips_dir = predict_scene(chips_dir)
     result_path = postprocess_scene(predict_chips_dir)
     create_loss_raster(result_path, date=date_to)
-    generate_measurements(
-        date=date_to, raster_type="s2-loss", kinds_per_value=CLASSES_PER_VALUE
-    )
 
 
 def download_and_build_composite(date_from, date_to):
@@ -313,6 +310,8 @@ def create_loss_raster(result_path, *, date):
         create_raster(
             loss_rgb_path,
             cov_raster_path=result_path,
+            kinds_per_value=CLASSES_PER_VALUE,
+            source=Sources.SEN2,
             slug="s2-loss",
             date=date,
             name="Sentinel-2 Loss Mask",
