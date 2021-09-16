@@ -20,7 +20,7 @@ from django.core.files import File
 from django.db import DatabaseError, connection
 from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
-from eo_sensors.utils import run_otb_command, create_raster_tiles
+from eo_sensors.utils import run_otb_command, create_raster_tiles, write_rgb_raster, hex_to_dec_string
 from eo_sensors.utils.colormap import apply_cmap, rescale_to_byte
 from jobs.utils import job
 from satlomasproc.modis_vi import (
@@ -372,27 +372,6 @@ def create_rgb_rasters(scene_date, date_from, date_to):
             raster.file.delete()
         raster.file.save(f"vegetation-cloud.tif", File(f))
     create_raster_tiles(raster, levels=(6, 13))
-
-
-def write_rgb_raster(func):
-    def wrapper(*, src_path, dst_path):
-        with rasterio.open(src_path) as src:
-            img = src.read(1)
-            profile = src.profile.copy()
-        new_img = func(img)
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        profile.update(count=new_img.shape[2], dtype=np.uint8)
-        with rasterio.open(dst_path, "w", **profile) as dst:
-            for i in range(new_img.shape[2]):
-                dst.write(new_img[:, :, i], i + 1)
-
-    return wrapper
-
-
-def hex_to_dec_string(value):
-    return np.array(
-        [int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]], np.uint8
-    )
 
 
 # @write_rgb_raster

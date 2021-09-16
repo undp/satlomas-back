@@ -291,3 +291,24 @@ def create_raster_tiles(raster, n_jobs=None, *, levels):
     if os.path.exists(dst):
         shutil.rmtree(dst)
     run_command(cmd)
+
+
+def write_rgb_raster(func):
+    def wrapper(*, src_path, dst_path):
+        with rasterio.open(src_path) as src:
+            img = src.read(1)
+            profile = src.profile.copy()
+        new_img = func(img)
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        profile.update(count=new_img.shape[2], dtype=np.uint8)
+        with rasterio.open(dst_path, "w", **profile) as dst:
+            for i in range(new_img.shape[2]):
+                dst.write(new_img[:, :, i], i + 1)
+
+    return wrapper
+
+
+def hex_to_dec_string(value):
+    return np.array(
+        [int(value[i:j], 16) for i, j in [(0, 2), (2, 4), (4, 6)]], np.uint8
+    )
