@@ -5,7 +5,7 @@ from .models import CoverageMeasurement, Raster
 
 
 class RasterAdmin(admin.ModelAdmin):
-    list_display = ('slug', 'date', 'name', 'tiles_url')
+    list_display = ('source', 'slug', 'date', 'name', 'tiles_url')
     date_hierarchy = 'date'
     ordering = ('-date', )
 
