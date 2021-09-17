@@ -155,7 +155,7 @@ def create_tci_rgb_rasters(job):
         run_command(f"gdaladdo --config COMPRESS_OVERVIEW JPEG --config PHOTOMETRIC_OVERVIEW YCBCR --config INTERLEAVE_OVERVIEW PIXEL {merged_path} 2 4 8 16")
 
     raster = create_tci_raster_object(merged_path, scene_date=scene_date)
-    create_raster_tiles(raster, levels=(6, 17), n_jobs=mp.cpu_count())
+    create_raster_tiles(raster, levels=(6, 18), n_jobs=mp.cpu_count())
 
     enqueue_job(
         "eo_sensors.tasks.perusat1.extract_chips_from_scene",
@@ -363,7 +363,7 @@ def create_use_raster(result_path, *, date):
         slug="ps1-use",
         date=date,
         name="PeruSat-1 Land Use Mask",
-        zoom_range=(6, 17),
+        zoom_range=(6, 18),
     )
 
 
