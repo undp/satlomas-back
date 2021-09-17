@@ -141,26 +141,35 @@ def create_raster(
         generate_measurements(masks)
 
 
-
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
     with rasterio.open(src_path) as src:
-        img = src.read(1)
         profile = src.profile.copy()
+        profile.update(count=4, dtype="uint8", compress="deflate", tiled=True)
+        del profile["nodata"]
 
-    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    for i in range(len(colormap)):
-        color = hex_to_dec_string(colormap[i])
-        new_img[img == (i + 1), :] = color
-    mask = (img != 0).astype(np.uint8) * 255
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
 
-    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    profile.update(count=4, dtype="uint8", compress="deflate", tiled=True)
-    del profile["nodata"]
-    with rasterio.open(dst_path, "w", **profile) as dst:
-        for i in range(new_img.shape[2]):
-            dst.write(new_img[:, :, i], i + 1)
-        # Write alpha band
-        dst.write(mask, 4)
+        with rasterio.open(dst_path, "w", **profile) as dst:
+            for _, window in src.block_windows(1):
+                img = src.read(1, window=window)
+
+                new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+                for i in range(len(colormap)):
+                    if colormap[i]:
+                        color = hex_to_dec_string(colormap[i])
+                        new_img[img == (i + 1), :] = color
+                mask = (img != 0).astype(np.uint8) * 255
+
+                for i in range(new_img.shape[2]):
+                    dst.write(new_img[:, :, i], i + 1, window=window)
+                # Write alpha band
+                dst.write(mask, 4, window=window)
+    add_overviews(dst_path)
+
+
+def add_overviews(src_path):
+    logger.info("Add internal compressed overviews to %s", src_path)
+    run_command(f"gdaladdo --config COMPRESS_OVERVIEW JPEG --config INTERLEAVE_OVERVIEW PIXEL {src_path} 2 4 8 16")
 
 
 def create_coverage_masks(raster, *, cov_raster_path, kinds_per_value):

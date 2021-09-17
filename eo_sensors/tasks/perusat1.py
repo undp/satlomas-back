@@ -14,7 +14,7 @@ from django.core.files import File
 from eo_sensors.clients import SFTPClient
 from eo_sensors.models import Raster, Sources
 from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
-from eo_sensors.utils import unzip, create_raster_tiles, run_command, write_rgb_raster, hex_to_dec_string
+from eo_sensors.utils import unzip, create_raster_tiles, run_command, write_rgb_raster, hex_to_dec_string, write_paletted_rgb_raster, create_raster
 from jobs.utils import enqueue_job, job
 
 # Configure loggers
@@ -64,7 +64,8 @@ SIZE = 320
 STEP_SIZE = 160
 BATCH_SIZE = 32
 BIN_THRESHOLD = 0.2
-CMAP = ["c70039", "eddd53", None, "2a7b9b", "33a02c"]
+COLORMAP = ["c70039", "eddd53", None, "2a7b9b", "33a02c"]
+CLASSES_PER_VALUE = {1: "C", 2: "D", 3: "N", 4: "U", 5: "V"}
 
 
 @job("processing")
@@ -287,13 +288,12 @@ def postprocess_scene(job):
     )
 
     basename = os.path.basename(predict_chips_dir)
-
     postprocess_dir = os.path.join(POSTPROCESS_DIR, basename)
 
-    ##smooth_path = os.path.join(postprocess_dir, "smooth")
-    #smooth_path = predict_chips_dir
-    ##logger.info("Smooth stitch all chips in %s into %s", predict_chips_dir, smooth_path)
-    ##smooth_stitch(input_dir=predict_chips_dir, output_dir=smooth_path)
+    # NOTE: Smooth stitching disabled for now
+    #smooth_path = os.path.join(postprocess_dir, "smooth")
+    #logger.info("Smooth stitch all chips in %s into %s", predict_chips_dir, smooth_path)
+    #smooth_stitch(input_dir=predict_chips_dir, output_dir=smooth_path)
 
     bin_path = os.path.join(postprocess_dir, "bin")
     logger.info(
@@ -316,9 +316,12 @@ def postprocess_scene(job):
         input_dir=bin_path, output_dir=neg_path, num_class=neg_class_num
     )
 
-    merged_path = os.path.join(postprocess_dir, "merged.tif")
-    logger.info("Merge all binarized chips on %s into %s", neg_path, merged_path)
-    merge_all(input_dir=neg_path, output=merged_path)
+    shm_temp_dir = f"/dev/shm/{basename}/merge"
+    tmp_merged_path = os.path.join(shm_temp_dir, "merged.tif")
+    logger.info("Merge all binarized chips on %s into %s", neg_path, tmp_merged_path)
+    merge_all(input_dir=neg_path, output=tmp_merged_path, temp_dir=os.path.join(shm_temp_dir, "_merge"))
+    shutil.move(tmp_merged_path, merged_path)
+    shutil.rmtree(shm_temp_dir)
 
     results_path = os.path.join(RESULTS_DIR, basename, "mask.tif")
     logger.info(
@@ -329,153 +332,39 @@ def postprocess_scene(job):
     )
     clip(src=merged_path, dst=results_path, aoi=AOI_PATH)
 
-    # TODO: Uncomment after testing
-    #logger.info("Delete predict chips")
-    #shutil.rmtree(predict_chips_dir)
-    #shutil.rmtree(postprocess_dir)
-
-    # TODO: Uncomment after testing
-    #enqueue_job(
-    #    "eo_sensors.tasks.perusat1.load_results",
-    #    results_path=results_path,
-    #    queue="processing",
-    #)
+    enqueue_job(
+        "eo_sensors.tasks.perusat1.load_results",
+        results_path=results_path,
+        queue="processing",
+    )
 
 
 @job("processing")
 def load_results(job):
-    results_path = job.kwargs["results_path"]
+    result_path = job.kwargs["results_path"]
 
-    name = os.path.basename(os.path.dirname(results_path))
+    name = os.path.basename(os.path.dirname(result_path))
     scene_date = _extract_from_ps1_id(name)
 
-    create_rgb_mask_raster(results_path, scene_date)
-    create_masks(results_path, scene_date)
-    generate_measurements(scene_date)
-    #clean_temp_files()
+    create_use_raster(result_path, date=scene_date)
+    clean_temp_files()
 
 
-def create_rgb_mask_raster(mask_path, scene_date):
-    rgb_mask_path = os.path.join(os.path.dirname(mask_path), "rgb_mask.tif")
-    logger.info("Create RGB land use mask raster")
-    write_use_mask_rgb_raster(src_path=mask_path, dst_path=rgb_mask_path)
-    raster, _ = Raster.objects.update_or_create(
+def create_use_raster(result_path, *, date):
+    loss_rgb_path = os.path.join(os.path.dirname(result_path), "ps1-use-rgb.tif")
+    if not os.path.exists(loss_rgb_path):
+        logger.info("Write paletted RGB raster %s into %s", result_path, loss_rgb_path)
+        write_paletted_rgb_raster(result_path, loss_rgb_path, colormap=COLORMAP)
+    create_raster(
+        loss_rgb_path,
+        cov_raster_path=result_path,
+        kinds_per_value=CLASSES_PER_VALUE,
         source=Sources.PS1,
-        date=scene_date,
-        slug="mask",
-        defaults=dict(name="Land use mask"),
+        slug="ps1-use",
+        date=date,
+        name="PeruSat-1 Land Use Mask",
+        zoom_range=(6, 17),
     )
-    with open(dst_path, "rb") as f:
-        if raster.file:
-            raster.file.delete()
-        raster.file.save(f"mask.tif", File(f))
-    create_raster_tiles(raster, levels=(6, 17), n_jobs=mp.cpu_count())
-
-
-@write_rgb_raster
-def write_use_mask_rgb_raster(img):
-    new_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    for i in range(len(CMAP)):
-        if colormap[i]:
-            new_img[img == i + 1] = hex_to_dec_string(colormap[i])
-    return new_img
-
-
-def create_masks(mask_path, scene_date):
-    logger.info("Polygonize mask")
-    mask_geojson_path = os.path.join(os.path.dirname(mask_path), "mask.geojson")
-    run_command(
-        '{gdal_bin_path}/gdal_polygonize.py {src} {dst} -b 1 -f "GeoJSON" DN'.format(
-            gdal_bin_path=settings.GDAL_BIN_PATH, src=src_path, dst=dst_path
-        )
-    )
-
-    logging.info("Reproject to epsg:4326")
-    data = gpd.read_file(dst_path)
-    data_proj = data.copy()
-    data_proj["geometry"] = data_proj["geometry"].to_crs(epsg=4326)
-    data_proj.to_file(dst_path)
-
-    logger.info("Load land use mask to DB")
-    create_use_masks(dst_path, scene_date)
-
-
-def create_use_masks(geojson_path, scene_date):
-    pass
-    # TODO: Use Geopandas to read geojson and partition all polygons into class
-    # buckets
-    #ds = DataSource(geojson_path)
-    #for x in range(0, len(ds[0]) - 1):
-    #    geom = shapely.wkt.loads(ds[0][x].geom.wkt)
-    #    if str(ds[0][x]["DN"]) == "1":
-    #        vegetation_polys.append(geom)
-    #    elif str(ds[0][x]["DN"]) == "2":
-    #        clouds_polys.append(geom)
-    #    else:
-    #        pass
-#
-    # TODO: Join all polygons on each class
-    #vegetation_mp = unary_union(vegetation_polys)
-    #clouds_mp = unary_union(clouds_polys)
-
-    raster = Raster.objects.get(
-        source=Sources.PS1, date=scene_date, slug="mask"
-    )
-    # TODO: For each class
-    #CoverageMask.objects.update_or_create(
-    #    date=date,
-    #    source=Sources.PS1,
-    #    kind="V",
-    #    defaults=dict(geom=GEOSGeometry(vegetation_mp.wkt), raster=raster),
-    #)
-
-
-def generate_measurements(date):
-    logger.info("Generate measurements for each scope")
-
-    for scope in Scope.objects.all():
-        for kind in CLASSES:
-            if kind == "N":
-                continue
-
-            mask = CoverageMask.objects.filter(
-                date=date,
-                source=Sources.PS1,
-                kind=kind,
-            ).first()
-
-            # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
-            query = """
-                SELECT ST_Area(a.int) AS area,
-                    ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
-                FROM (
-                    SELECT ST_Intersection(
-                        ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
-                        ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
-                """.format(
-                wkt_scope=scope.geom.wkt, wkt_mask=mask.geom.wkt, srid=32718
-            )
-
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(query)
-                    res = cursor.fetchall()
-                    area, scope_area = res[0]
-
-                measurement, created = CoverageMeasurement.objects.update_or_create(
-                    date=date,
-                    kind=kind,
-                    source=Sources.MODIS_VI,
-                    scope=scope,
-                    defaults=dict(area=area, perc_area=area / scope_area),
-                )
-                if created:
-                    logger.info(f"New measurement: {measurement}")
-            except DatabaseError as err:
-                logger.error(err)
-                logger.info(
-                    f"An error occurred! Skipping measurement for scope {scope.id}..."
-                )
 
 
 def _extract_from_ps1_id(basename):
@@ -487,51 +376,7 @@ def _extract_from_ps1_id(basename):
     logger.info("Scene date: %s (basename: %s)", scene_date, basename)
     return scene_date
 
-##
-# DEPRECATED
-#
 
-def load_data(period, product_id):
-    # create_rgb_rasters(period, product_id)
-    load_raster(period, product_id)
-    load_mask_and_objects(period, product_id)
-
-
-def load_raster(period, product_id):
-    logger.info(f"Load {product_id} raster")
-    Raster.objects.update_or_create(
-        period=period, slug="ps1", defaults=dict(name=product_id)
-    )
-
-
-def load_mask_and_objects(period, product_id):
-    import geopandas as gpd
-    import shapely.wkt
-    from shapely.ops import unary_union
-
-    logging.info("Reproject to epsg:4326")
-    src_path = os.path.join(RESULTS_DIR, product_id, "objects.geojson")
-    dst_path = os.path.join(RESULTS_DIR, product_id, "objects_4326.geojson")
-    data = gpd.read_file(src_path)
-    data_proj = data.copy()
-    data_proj["geometry"] = data_proj["geometry"].to_crs(epsg=4326)
-    data_proj.to_file(dst_path)
-
-    logger.info("Load roofs mask to DB")
-    ds = DataSource(dst_path)
-    polys = []
-    for x in range(0, len(ds[0]) - 1):
-        geom = shapely.wkt.loads(ds[0][x].geom.wkt)
-        polys.append(geom)
-    multipoly = unary_union(polys)
-    Mask.objects.update_or_create(
-        period=period,
-        mask_type="roofs",
-        defaults=dict(geom=GEOSGeometry(multipoly.wkt)),
-    )
-
-    Object.objects.filter(period=period).delete()
-    for poly in polys:
-        Object.objects.create(
-            period=period, object_type="roof", geom=GEOSGeometry(poly.wkt)
-        )
+def clean_temp_files():
+    # TODO:
+    pass
