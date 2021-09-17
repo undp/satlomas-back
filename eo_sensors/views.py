@@ -82,7 +82,7 @@ class CoverageView(APIView):
             raise APIException("Some parameters are missing (source or scope)")
 
         scope_id = int(data["scope"])
-        source = data["source"]
+        source = data["source"].split(",")
         custom_geom = data["geom"] if "geom" in data else None
         date_from = datetime.strptime(data["date_from"], "%Y-%m-%d")
         date_to = datetime.strptime(data["date_to"], "%Y-%m-%d")
@@ -99,7 +99,9 @@ class CoverageView(APIView):
         else:
             values = (
                 CoverageMeasurement.objects.filter(
-                    source=source, date__range=(date_from, date_to), scope_id=scope_id
+                    source__in=source,
+                    date__range=(date_from, date_to),
+                    scope_id=scope_id,
                 )
                 .order_by("date")
                 .values("id", "kind", "date", "area")
