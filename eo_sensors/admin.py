@@ -5,9 +5,15 @@ from .models import CoverageMeasurement, Raster
 
 
 class RasterAdmin(admin.ModelAdmin):
-    list_display = ('source', 'slug', 'date', 'name', 'tiles_url')
-    date_hierarchy = 'date'
-    ordering = ('-date', )
+    list_display = ("source", "slug", "date", "name", "tiles_url", "file")
+    date_hierarchy = "date"
+    list_filter = (
+        "source",
+        "slug",
+        "date",
+        "name",
+    )
+    ordering = ("-date", "source", "slug")
 
 
 class CoverageMeasurementAdmin(admin.ModelAdmin):
