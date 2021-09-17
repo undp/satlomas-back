@@ -44,7 +44,7 @@ class Job(models.Model):
         If the job is still running or pending, returns None.
 
         """
-        if self.has_stopped():
+        if self.has_stopped() and self.finished_at:
             return abs(self.finished_at - self.created_at).seconds
 
     @property
