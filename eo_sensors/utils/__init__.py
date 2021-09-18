@@ -123,6 +123,7 @@ def create_raster(
     rgb_raster_path,
     cov_raster_path=None,
     kinds_per_value=None,
+    simplify=None,
     *,
     source,
     slug,
@@ -150,7 +151,7 @@ def create_raster(
         masks = create_coverage_masks(
             raster, cov_raster_path=cov_raster_path, kinds_per_value=kinds_per_value
         )
-        generate_measurements(masks)
+        generate_measurements(masks, simplify=simplify)
 
 
 def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
@@ -251,24 +252,27 @@ def select_sql(query, *params):
         return res
 
 
-def generate_measurements(coverage_masks):
+def generate_measurements(coverage_masks, simplify=None):
     logger.info("Generate measurements for each scope")
 
     scopes = Scope.objects.all()
     with mp.Pool(mp.cpu_count()) as pool:
-        worker = partial(_generate_measurements, coverage_masks=coverage_masks)
+        worker = partial(_generate_measurements, coverage_masks=coverage_masks, simplify=simplify)
         pool.map(worker, scopes)
 
 
-def _generate_measurements(scope, *, coverage_masks):
+def _generate_measurements(scope, simplify=None, *, coverage_masks):
     logger.info(f"Scope: %s", scope)
     scope.geom.transform(32718)
     scope_area = scope.geom.area
 
     for mask in coverage_masks:
         mask.geom.transform(32718)
+        mask_geom = mask.geom
+        if simplify:
+            mask_geom = mask_geom.simplify(3.0, preserve_topology=False)
 
-        inter_geom = scope.geom.intersection(mask.geom)
+        inter_geom = scope.geom.intersection(mask_geom)
         area = inter_geom.area
 
         measurement, created = CoverageMeasurement.objects.update_or_create(
@@ -280,6 +284,7 @@ def _generate_measurements(scope, *, coverage_masks):
         )
         if created:
             logger.info(f"New measurement: {measurement}")
+
 
 # @deprecated?
 def generate_raster_tiles(raster, zoom_range=(4, 18)):
