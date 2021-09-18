@@ -1,4 +1,5 @@
 import logging
+import multiprocessing as mp
 import os
 import shutil
 import subprocess
@@ -6,7 +7,7 @@ import sys
 import tempfile
 import zipfile
 
-import multiprocessing as mp
+from functools import partial
 import numpy as np
 import rasterio
 from django.conf import settings
@@ -14,8 +15,9 @@ from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files import File
 from django.db import DatabaseError, connection, transaction
-from eo_sensors.models import CoverageMeasurement, CoverageMask, Raster
+from eo_sensors.models import CoverageMask, CoverageMeasurement, Raster
 from rasterio.windows import Window
+from satlomasproc.chips.utils import reproject_shape
 from scopes.models import Scope
 from shapely.geometry import box
 from skimage import exposure
@@ -118,7 +120,15 @@ def rescale_byte(src, dst, *, in_range):
 
 
 def create_raster(
-    rgb_raster_path, cov_raster_path=None, kinds_per_value=None, *, source, slug, date, name, zoom_range
+    rgb_raster_path,
+    cov_raster_path=None,
+    kinds_per_value=None,
+    *,
+    source,
+    slug,
+    date,
+    name,
+    zoom_range,
 ):
     raster, _ = Raster.objects.update_or_create(
         source=source, date=date, slug=slug, defaults=dict(name=name)
@@ -137,7 +147,9 @@ def create_raster(
 
     # Create related CoverageMasks, if `cov_raster_path` was provided
     if cov_raster_path:
-        masks = create_coverage_masks(raster, cov_raster_path=cov_raster_path, kinds_per_value=kinds_per_value)
+        masks = create_coverage_masks(
+            raster, cov_raster_path=cov_raster_path, kinds_per_value=kinds_per_value
+        )
         generate_measurements(masks)
 
 
@@ -169,7 +181,9 @@ def write_paletted_rgb_raster(src_path, dst_path, *, colormap):
 
 def add_overviews(src_path):
     logger.info("Add internal compressed overviews to %s", src_path)
-    run_command(f"gdaladdo --config COMPRESS_OVERVIEW JPEG --config INTERLEAVE_OVERVIEW PIXEL {src_path} 2 4 8 16")
+    run_command(
+        f"gdaladdo --config COMPRESS_OVERVIEW JPEG --config INTERLEAVE_OVERVIEW PIXEL {src_path} 2 4 8 16"
+    )
 
 
 def create_coverage_masks(raster, *, cov_raster_path, kinds_per_value):
@@ -178,12 +192,12 @@ def create_coverage_masks(raster, *, cov_raster_path, kinds_per_value):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         logger.info("Polygonize mask")
-        geojson_path = os.path.join(tmpdir, 'mask.geojson')
+        geojson_path = os.path.join(tmpdir, "mask.geojson")
         run_command(
             '{gdal_bin_path}/gdal_polygonize.py {src} {dst} -b 1 -f "GeoJSON" DN'.format(
                 gdal_bin_path=settings.GDAL_BIN_PATH,
                 src=cov_raster_path,
-                dst=geojson_path
+                dst=geojson_path,
             )
         )
 
@@ -194,13 +208,13 @@ def create_coverage_masks(raster, *, cov_raster_path, kinds_per_value):
         logging.info("Group all features by kind")
         polys_per_kind = {}
         for _, row in gdf.iterrows():
-            if not row['DN']:
+            if not row["DN"]:
                 continue
-            dn = int(row['DN'])
+            dn = int(row["DN"])
             kind = kinds_per_value[dn]
             if kind not in polys_per_kind:
                 polys_per_kind[kind] = []
-            polys_per_kind[kind].append(row['geometry'])
+            polys_per_kind[kind].append(row["geometry"])
 
         # Create a CoverageMask for each kind by merging all polygons into a
         # single multipolygon
@@ -240,41 +254,32 @@ def select_sql(query, *params):
 def generate_measurements(coverage_masks):
     logger.info("Generate measurements for each scope")
 
-    for scope in Scope.objects.all():
-        for mask in coverage_masks:
-            # TODO Optimize: use JOINs with Scope and Mask instead of building the shape WKT
-            query = """
-                SELECT ST_Area(a.int) AS area,
-                    ST_Area(ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid})) as scope_area
-                FROM (
-                    SELECT ST_Intersection(
-                        ST_Transform(ST_GeomFromText('{wkt_scope}', 4326), {srid}),
-                        ST_Transform(ST_GeomFromText('{wkt_mask}', 4326), {srid})) AS int) a;
-                """.format(
-                wkt_scope=scope.geom.wkt, wkt_mask=mask.geom.wkt, srid=32718
-            )
+    scopes = Scope.objects.all()
+    with mp.Pool(mp.cpu_count()) as pool:
+        worker = partial(_generate_measurements, coverage_masks=coverage_masks)
+        pool.map(worker, scopes)
 
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(query)
-                    res = cursor.fetchall()
-                    area, scope_area = res[0]
 
-                measurement, created = CoverageMeasurement.objects.update_or_create(
-                    date=mask.date,
-                    kind=mask.kind,
-                    source=mask.source,
-                    scope=scope,
-                    defaults=dict(area=area, perc_area=area / scope_area),
-                )
-                if created:
-                    logger.info(f"New measurement: {measurement}")
-            except DatabaseError as err:
-                logger.error(err)
-                logger.info(
-                    f"An error occurred! Skipping measurement for scope {scope.id}..."
-                )
+def _generate_measurements(scope, *, coverage_masks):
+    logger.info(f"Scope: %s", scope)
+    scope.geom.transform(32718)
+    scope_area = scope.geom.area
 
+    for mask in coverage_masks:
+        mask.geom.transform(32718)
+
+        inter_geom = scope.geom.intersection(mask.geom)
+        area = inter_geom.area
+
+        measurement, created = CoverageMeasurement.objects.update_or_create(
+            date=mask.date,
+            kind=mask.kind,
+            source=mask.source,
+            scope=scope,
+            defaults=dict(area=area, perc_area=area / scope_area),
+        )
+        if created:
+            logger.info(f"New measurement: {measurement}")
 
 # @deprecated?
 def generate_raster_tiles(raster, zoom_range=(4, 18)):
