@@ -101,7 +101,7 @@ def pansharpen_scene(job):
 
     from perusatproc.console.process import process_product
 
-    basename = os.path.basename(raw_scene_dir)
+    basename = os.path.basename(os.path.dirname(raw_scene_dir))
     proc_scene_dir = os.path.join(PROC_DIR, basename)
 
     logger.info("Process %s into %s", raw_scene_dir, proc_scene_dir)
@@ -126,13 +126,14 @@ def create_tci_rgb_rasters(job):
     rasters = glob(os.path.join(scene_dir, "*.tif"))
     logger.info("Num. rasters: %i", len(rasters))
 
-    basename = os.path.basename(scene_dir)
+    basename = os.path.basename(os.path.dirname(scene_dir))
     tci_scene_dir = os.path.join(TCI_DIR, basename)
 
     scene_date = _extract_from_ps1_id(basename)
 
     # Create virtual raster
     vrt_path = os.path.join(tci_scene_dir, "tci.vrt")
+    os.makedirs(os.path.dirname(vrt_path), exist_ok=True)
     logger.info("Generate virtual raster from TCI tiles into %s", vrt_path)
     cmd = f"gdalbuildvrt {vrt_path} {' '.join(rasters)}"
     run_command(cmd)
@@ -372,6 +373,7 @@ def _extract_from_ps1_id(basename):
     """Extract scene date from basename"""
     # eg. "052_DS_PER1_201804111527270_PS1_W077S12_016945.vrt"
     #                 |YYYYmmdd|
+    logger.info("Basename: %s", basename)
     date_str = basename.split("_")[3][:8]
     scene_date = datetime.strptime(date_str, "%Y%m%d").date()
     logger.info("Scene date: %s (basename: %s)", scene_date, basename)
