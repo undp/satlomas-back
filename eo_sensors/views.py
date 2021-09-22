@@ -82,32 +82,34 @@ class CoverageView(APIView):
             raise APIException("Some parameters are missing (source or scope)")
 
         scope_id = int(data["scope"])
-        source = data["source"].split(",")
+        sources = data["source"].split(",")
         custom_geom = data["geom"] if "geom" in data else None
         date_from = datetime.strptime(data["date_from"], "%Y-%m-%d")
         date_to = datetime.strptime(data["date_to"], "%Y-%m-%d")
 
-        values = []
-        if custom_geom:
-            geom = shapely.wkt.loads(custom_geom)
-            values = select_mask_areas_by_geom(
-                geom_wkt=geom.wkt,
-                source=source,
-                date_from=date_from,
-                date_to=date_to,
-            )
-        else:
-            values = (
-                CoverageMeasurement.objects.filter(
-                    source__in=source,
-                    date__range=(date_from, date_to),
-                    scope_id=scope_id,
+        values_by_source = {}
+        for source in sources:
+            if custom_geom:
+                geom = shapely.wkt.loads(custom_geom)
+                values = select_mask_areas_by_geom(
+                    geom_wkt=geom.wkt,
+                    source=source,
+                    date_from=date_from,
+                    date_to=date_to,
                 )
-                .order_by("date")
-                .values("id", "kind", "date", "area")
-            )
+            else:
+                values = (
+                    CoverageMeasurement.objects.filter(
+                        source=source,
+                        date__range=(date_from, date_to),
+                        scope_id=scope_id,
+                    )
+                    .order_by("date")
+                    .values("id", "kind", "date", "area")
+                )
+            values_by_source[source] = values
 
-        return Response(dict(values=values))
+        return Response(dict(values=values_by_source))
 
 
 class AvailableDatesView(APIView):
