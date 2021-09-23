@@ -108,7 +108,7 @@ def pansharpen_scene(job):
     process_product(raw_scene_dir, proc_scene_dir)
 
     logger.info("Delete raw scene directory")
-    shutil.rmtree(raw_scene_dir)
+    shutil.rmtree(raw_scene_dir, ignore_errors=True)
 
     enqueue_job(
         "eo_sensors.tasks.perusat1.create_tci_rgb_rasters",
@@ -267,7 +267,7 @@ def predict_scene(job):
     predict(cfg)
 
     logger.info("Delete chips directory")
-    shutil.rmtree(chips_dir)
+    shutil.rmtree(chips_dir, ignore_errors=True)
 
     enqueue_job(
         "eo_sensors.tasks.perusat1.postprocess_scene",
@@ -323,7 +323,7 @@ def postprocess_scene(job):
     logger.info("Merge all binarized chips on %s into %s", neg_path, tmp_merged_path)
     merge_all(input_dir=neg_path, output=tmp_merged_path, temp_dir=os.path.join(shm_temp_dir, "_merge"))
     shutil.move(tmp_merged_path, merged_path)
-    shutil.rmtree(shm_temp_dir)
+    shutil.rmtree(shm_temp_dir, ignore_errors=True)
 
     results_path = os.path.join(RESULTS_DIR, basename, "mask.tif")
     logger.info(
