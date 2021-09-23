@@ -317,6 +317,7 @@ def postprocess_scene(job):
         input_dir=bin_path, output_dir=neg_path, num_class=neg_class_num
     )
 
+    merged_path = os.path.join(postprocess_dir, "merged.tif")
     shm_temp_dir = f"/dev/shm/{basename}/merge"
     tmp_merged_path = os.path.join(shm_temp_dir, "merged.tif")
     logger.info("Merge all binarized chips on %s into %s", neg_path, tmp_merged_path)
