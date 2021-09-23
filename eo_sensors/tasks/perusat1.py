@@ -365,7 +365,7 @@ def create_use_raster(result_path, *, date):
         slug="ps1-use",
         date=date,
         name="PeruSat-1 Land Use Mask",
-        zoom_range=(6, 18),
+        zoom_range=(6, 17),
         simplify=3.0,
     )
 
