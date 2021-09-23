@@ -326,14 +326,19 @@ def create_raster_tiles(raster, n_jobs=None, *, levels):
 
     src = raster.file.path
     dst = os.path.join(tiles_dir, raster.path())
+    tmp_dst = os.path.join("/dev/shm", "tiles", raster.path())
     zoom_range = f"{levels[0]}-{levels[1]}"
 
-    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {dst}"
+    cmd = f"{gdal2tiles} --processes {n_jobs} -w none -n -z {zoom_range} {src} {tmp_dst}"
 
-    # Make sure output directory does not exist
-    if os.path.exists(dst):
-        shutil.rmtree(dst)
+    logger.info("Delete %s", tmp_dst)
+    if os.path.exists(tmp_dst):
+        shutil.rmtree(tmp_dst, ignore_errors=True)
     run_command(cmd)
+    logger.info("Move files from %s to %s", tmp_dst, os.path.dirname(dst[:-1]))
+    if os.path.exists(dst):
+        shutil.rmtree(dst, ignore_errors=True)
+    shutil.move(tmp_dst, os.path.dirname(dst[:-1]))
 
 
 def write_rgb_raster(func):
