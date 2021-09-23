@@ -116,21 +116,21 @@ class AvailableDatesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        masks = CoverageMask.objects.all()
+        rasters = Raster.objects.all()
 
         source = request.query_params.get("source", None)
         if source:
-            masks = masks.filter(source__in=source.split(",")).order_by("date")
+            rasters = rasters.filter(source__in=source.split(",")).order_by("date")
 
         types = request.query_params.get("type", None)
         if types:
-            masks = masks.filter(raster__slug__in=types.split(","))
+            rasters = rasters.filter(raster__slug__in=types.split(","))
 
-        if masks.count() > 0:
+        if rasters.count() > 0:
             response = dict(
-                first_date=masks.first().date,
-                last_date=masks.last().date,
-                availables=list(set([m.date for m in masks])),
+                first_date=rasters.first().date,
+                last_date=rasters.last().date,
+                availables=list(set([r.date for r in rasters])),
             )
             return Response(response)
         else:
