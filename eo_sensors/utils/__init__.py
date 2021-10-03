@@ -252,12 +252,16 @@ def select_sql(query, *params):
         return res
 
 
-def generate_measurements(coverage_masks, simplify=None):
+def generate_measurements(coverage_masks, scopes=None, simplify=None):
     logger.info("Generate measurements for each scope")
 
-    scopes = Scope.objects.all()
+    if not scopes:
+        scopes = Scope.objects.all()
+
     with mp.Pool(mp.cpu_count()) as pool:
-        worker = partial(_generate_measurements, coverage_masks=coverage_masks, simplify=simplify)
+        worker = partial(
+            _generate_measurements, coverage_masks=coverage_masks, simplify=simplify
+        )
         pool.map(worker, scopes)
 
 

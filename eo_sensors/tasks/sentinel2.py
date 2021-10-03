@@ -13,7 +13,6 @@ from eo_sensors.tasks import APP_DATA_DIR, TASKS_DATA_DIR
 from eo_sensors.utils import (
     create_raster,
     create_raster_tiles,
-    generate_measurements,
     run_command,
     write_paletted_rgb_raster,
 )
