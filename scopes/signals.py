@@ -7,4 +7,4 @@ from scopes.models import Scope
 
 @receiver(post_save, sender=Scope)
 def update_measurements(sender, instance, created, **kwargs):
-    enqueue_job("eo_sensors.tasks.scopes.update_measurements", scope_id=instance.pk)
+    enqueue_job("eo_sensors.tasks.scopes.update_measurements", queue="processing", scope_id=instance.pk)
