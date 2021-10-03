@@ -5,7 +5,7 @@ from scopes.models import Scope
 
 
 @job("processing")
-def update_scope_measurements(job):
+def update_measurements(job):
     scope_id = job.kwargs["scope_id"]
 
     scope = Scope.objects.get(pk=scope_id)
