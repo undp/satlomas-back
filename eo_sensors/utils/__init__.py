@@ -7,6 +7,7 @@ import sys
 import tempfile
 import zipfile
 
+from multiprocessing.pool import ThreadPool
 from functools import partial
 import numpy as np
 import rasterio
@@ -258,7 +259,7 @@ def generate_measurements(coverage_masks, scopes=None, simplify=None):
     if not scopes:
         scopes = Scope.objects.all()
 
-    with mp.Pool(mp.cpu_count()) as pool:
+    with ThreadPool(mp.cpu_count()) as pool:
         worker = partial(
             _generate_measurements, coverage_masks=coverage_masks, simplify=simplify
         )
