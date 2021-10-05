@@ -71,7 +71,7 @@ class Job(models.Model):
                 method(self.pk, sync=True)
             else:
                 queue = django_rq.get_queue(self.queue or "default")
-                queue.enqueue(self.name, self.pk)
+                queue.enqueue(self.name, self.pk, job_timeout=86400)
             self.state = states.STARTED
             self.save(update_fields=["state", "updated_at"])
             signals.job_started.send(sender=self.__class__, job=self)
